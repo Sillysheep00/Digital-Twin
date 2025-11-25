@@ -1,0 +1,89 @@
+
+// --- Constants ---
+var TIME_STEP_HOURS = 0.25d; // Time step used in energy calculation
+var targetTemp = 22.0d;
+var comfortZone = 1.0d;
+var HEATER_COP = 3.0d;
+var COOLING_COP = 3.5d;
+
+// --- 1. GATHER DATA ---
+
+// Real Data (from CSV)
+var realPower = 0.0d;
+var totalBuildingOccupancy = 0.0d;
+if (simulateData.isDefined()) {
+    realPower = simulateData.powerConsumption;
+    totalBuildingOccupancy = simulateData.occupancy;
+}
+
+var allHvacs = SmartOffice!HVACSystem.all;
+var allRooms = SmartOffice!Room.all;
+var allEnergyMeters = SmartOffice!EnergyMeter.all;
+
+// Model Totals (Needed for Plug Load Calculation)
+var totalCapacity = allRooms.collect(r | r.capacity).sum();
+
+// Instantaneous Power Variables (The new "Speedometers")
+var simulatedHvacPower = 0.0d;
+var simulatedPlugPower = 0.0d;
+
+// --- 2. CALCULATE SIMULATED POWER (Replicating Logic) ---
+
+for (r in allRooms) {
+    // A. Simulated HVAC Power (Read directly from model attribute)
+    if (r.hvac.isDefined() and r.hvac.status == true) {
+        simulatedHvacPower = simulatedHvacPower + r.hvac.powerUsage;
+    }
+
+    // B. Simulated Plug Load (Replicating the logic from hvac.eol)
+    var plugLoad = 0.0d;
+    var estimatedRoomOccupancy = 0.0d;
+
+    if (totalCapacity > 0 and r.capacity > 0) {
+        // 1. Proportional Distribution
+        var roomShare = r.capacity / totalCapacity;
+        estimatedRoomOccupancy = totalBuildingOccupancy * roomShare;
+
+        // 2. Capping
+        if (estimatedRoomOccupancy > r.capacity) {
+            estimatedRoomOccupancy = r.capacity;
+        }
+
+        // 3. Plug Load Logic: If people are in the room, full power, else standby (0.1)
+        if (estimatedRoomOccupancy > 0) {
+            plugLoad = r.baseLoad; // Full power usage
+        } else {
+            plugLoad = r.baseLoad * 0.1d; // Standby power
+        }
+    }
+    simulatedPlugPower = simulatedPlugPower + plugLoad;
+}
+
+// Final Simulated Totals
+var simulatedTotalPower = simulatedHvacPower + simulatedPlugPower;
+var simulatedEnergyTotal = allEnergyMeters.collect(s | s.energyConsumed).sum();
+var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
+
+
+// --- 3. PRINT FINAL REPORT ---
+
+"----------------------------------------------------------------".println();
+(" TIMESTEP REPORT: " + simulateData.date).println();
+"----------------------------------------------------------------".println();
+
+// SECTION A: POWER (Instantaneous - The Comparison)
+" POWER (Instantaneous)".println();
+("   Real Load (CSV):             " + realPower.format("%.2f") + " kW").println();
+("   Simulated Total Load:        " + simulatedTotalPower.format("%.2f") + " kW").println();
+("     (HVAC: " + simulatedHvacPower.format("%.2f") + " kW + Plug Load: " + simulatedPlugPower.format("%.2f") + " kW)").println();
+
+var gap = realPower - simulatedTotalPower;
+("   Gap (Real - Simulated):      " + gap.format("%.2f") + " kW").println();
+
+// SECTION B: ENERGY & COMFORT
+" ENERGY & COMFORT".println();
+("   Avg Indoor Temp:             " + avgTemp.format("%.1f") + " °C").println();
+("   Active HVACs:                " + allHvacs.select(h | h.status == true).size() + " / " + allHvacs.size()).println();
+("   Total Simulated Energy:      " + simulatedEnergyTotal.format("%.2f") + " kWh").println();
+
+"".println(); // Empty line for spacing
