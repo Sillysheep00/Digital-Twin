@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SmartOffice:Building xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SmartOffice="http://www.example.org/SmartOffice" buildingID="B1" name="SmartOffice" model3DPath="&quot;model/smartoffice.glb&quot;">
+  <floor floorID="F1">
+    <room roomID="R1" roomName="Meeting Room" insulation="0.04" capacity="6" model3DPath="&quot;model/R1.glb&quot;" baseLoad="0.5">
+      <sensors xsi:type="SmartOffice:EnergyMeter" sensorID="E1" sensorType="ENERGY" roomID="R1" model3DPath="&quot;model/R1_E1.glb&quot;"/>
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S1" roomID="R1" model3DPath="&quot;model/R1_S1.glb&quot;"/>
+      <hvac hvacID="HV1" linkedRoom="R1" model3DPath="&quot;model/R1_HV1.glb&quot;" targetTemperature="22.0"/>
+    </room>
+    <room roomID="R2" roomName="Staff Lounge" insulation="0.06" capacity="6" model3DPath="&quot;model/R2.glb&quot;" baseLoad="1.0">
+      <sensors xsi:type="SmartOffice:EnergyMeter" sensorID="E2" sensorType="ENERGY" roomID="R2" model3DPath="&quot;model/R2_E2.glb&quot;"/>
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S2" roomID="R2" model3DPath="&quot;model/R2_S2.glb&quot;"/>
+      <hvac hvacID="HV2" linkedRoom="R2" model3DPath="&quot;model/R2_HV2.glb&quot;" targetTemperature="22.0"/>
+    </room>
+    <room roomID="R3" roomName="Main Office" insulation="0.07" capacity="15" model3DPath="&quot;model/R3.glb&quot;" baseLoad="2.0">
+      <sensors xsi:type="SmartOffice:EnergyMeter" sensorID="E3" sensorType="ENERGY" roomID="R3" model3DPath="&quot;model/R3_E3.glb&quot;"/>
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S3" roomID="R3" model3DPath="&quot;model/R3_E3.glb&quot;"/>
+      <hvac hvacID="HV3" linkedRoom="R3" model3DPath="&quot;model/R3_HV3.glb&quot;" targetTemperature="22.0"/>
+    </room>
+    <room roomID="R4" roomName="Boss Office" insulation="0.03" capacity="4" model3DPath="&quot;model/R4.glb&quot;" baseLoad="0.8">
+      <sensors xsi:type="SmartOffice:EnergyMeter" sensorID="E4" sensorType="ENERGY" roomID="R4" model3DPath="&quot;model/R4_E4.glb&quot;"/>
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S4" roomID="R4" model3DPath="&quot;model/R4_S4.glb&quot;"/>
+      <hvac hvacID="HV4" linkedRoom="R4" model3DPath="&quot;model/R4_HV4.glb&quot;" targetTemperature="22.0"/>
+    </room>
+    <room roomID="R5" roomName="Washroom 1" insulation="0.1" capacity="1" model3DPath="&quot;model/R5.glb&quot;" baseLoad="0.1">
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S5" roomID="R5" model3DPath="&quot;model/R5_S5.glb&quot;"/>
+    </room>
+    <room roomID="R6" roomName="Washroom 2" insulation="0.1" capacity="1" model3DPath="&quot;model/R6.glb&quot;" baseLoad="0.1">
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S6" roomID="R6" model3DPath="&quot;model/R6_S6.glb&quot;"/>
+    </room>
+    <room roomID="R7" roomName="Focus Room" insulation="0.05" capacity="2" model3DPath="&quot;model/R7.glb&quot;" baseLoad="0.3">
+      <sensors xsi:type="SmartOffice:EnergyMeter" sensorID="E7" sensorType="ENERGY" roomID="R7" model3DPath="&quot;model/R7_E7.glb&quot;"/>
+      <sensors xsi:type="SmartOffice:TemperatureSensor" sensorID="S7" roomID="R7" model3DPath="&quot;model/R7_S7.glb&quot;"/>
+      <hvac hvacID="HV7" linkedRoom="R7" model3DPath="&quot;model/R7_HV7.glb&quot;" targetTemperature="22.0"/>
+    </room>
+  </floor>
+  <digitalTwins twinID="DT1">
+    <predictiveModel modelID="PM1" modelType="Anomaly_Detector" inputVar="simulatedTotalEnergy, datasetTotalEnergy" outputVar="systemStatus"/>
+    <predictiveModel modelID="PM2" modelType="HVAC Control" inputVar="occupancy" outputVar="hvacStatus"/>
+  </digitalTwins>
+  <owns dataSource="Iot Gateway" updateInterval="60" monitorSensor="//@floor.0/@room.0/@sensors.0 //@floor.0/@room.1/@sensors.0 //@floor.0/@room.2/@sensors.0 //@floor.0/@room.3/@sensors.0 //@floor.0/@room.6/@sensors.0 //@floor.0/@room.0/@sensors.1 //@floor.0/@room.1/@sensors.1 //@floor.0/@room.2/@sensors.1 //@floor.0/@room.3/@sensors.1 //@floor.0/@room.4/@sensors.0 //@floor.0/@room.5/@sensors.0 //@floor.0/@room.6/@sensors.1" passData="//@digitalTwins"/>
+</SmartOffice:Building>

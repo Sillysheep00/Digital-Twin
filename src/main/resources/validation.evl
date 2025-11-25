@@ -1,0 +1,279 @@
+context Building{
+	
+	constraint HasFloors{
+		check:self.floor -> size() > 0
+		message: "Each building must have at least one floor."
+	}
+	
+	constraint Has3DPath{
+		check: not self.model3DPath.isUndefined<> ""
+		message: "Building must have a valid 3D model path."
+	}
+}
+
+//Floor constraint
+context Floor{
+	constraint HasRooms{
+		check:self.room -> size() > 0
+		message: "Each floor must contain at least one room."
+		
+	}
+	
+}
+
+//Room constraints
+context Room{
+
+	constraint HasSensors{
+		check:self.sensors -> size() > 0
+		message:"Each room must have at least one sensors."
+			fix{
+				title:"Add default temperature sensor"
+				do{
+					var s = new TemperatureSensor;
+					s.sensorID = "S_" + self.roomID;
+					s.sensorType = SensorType#TEMPERATURE;
+					s.temperature = (22.0d);
+					var DateClass = Native("java.lang.Class").forName("java.util.Date");
+					s.timeStamp = DateClass.newInstance();
+					self.sensors.add(s);
+					("Added temperature sensor to room " + self.roomID).println();
+				}
+			}
+		}
+		
+	constraint CurrentTempRange{
+		check:self.currentTemp == 0.0 or (self.currentTemp >= 10.0 and self.currentTemp <= 40.0)
+		message:"Room temperature must be within 10-40°C."
+			fix{
+				title: "Set default room temperature"
+				do{
+					self.currentTemp = (22.0d);
+					("Adjusted temperature for room " + self.roomID).println();
+				}
+			}
+	}
+	
+	constraint EnergyUsageNonNegative{
+		check: self.energyUsage >= 0.0
+		message: "Room energy usage cannot be negative."
+			fix{
+				title: "Reset energy usage to 0"
+				do{
+					self.energyUsage = (0.0d);
+					("Reset negative energy usage for room " + self.roomID).println();
+				}
+			}
+	}
+}
+
+
+//Sensor constraint
+context Sensor{
+
+	constraint LinkedToRoom{
+		check: not self.room.isUndefined()
+		message: "Each sensor must belong to a room."
+	}
+	
+	constraint ValidSensorType{
+		check: self.sensorType = SensorType#TEMPERATURE or self.sensorType = SensorType#ENERGY
+		message: "Sensor type must be TEMPERATURE or ENERGY."
+		fix{
+			title:"Set default sensor type"
+			do{
+				self.sensorType =  SensorType#TEMPERATURE ;
+				("Set default sensor type (TEMPERATURE) for " + self.sensorID).println();
+			}
+		}
+	}
+}
+
+context TemperatureSensor {
+    
+    // NEW, MORE SPECIFIC CONSTRAINT
+    constraint TypeIsTemperature {
+        check: self.sensorType == SensorType#TEMPERATURE
+        message: "TemperatureSensor (ID: " + self.sensorID + ") has the wrong type. It should be TEMPERATURE."
+        fix {
+            title: "Set type to TEMPERATURE"
+            do {
+                self.sensorType = SensorType#TEMPERATURE;
+            }
+        }
+    }
+    
+    constraint TempValueNonNegative {
+        check: self.temperature >= 0.0d
+        message: "TemperatureSensor value cannot be negative."
+        fix {
+            title: "Reset temperature to 0"
+            do {
+                self.temperature = 0.0d;
+            }
+        }
+    }
+}
+
+context EnergyMeter {
+    
+    // NEW, MORE SPECIFIC CONSTRAINT
+    constraint TypeIsEnergy {
+        check: self.sensorType == SensorType#ENERGY
+        message: "EnergyMeter (ID: " + self.sensorID + ") has the wrong type. It should be ENERGY."
+        fix {
+            title: "Set type to ENERGY"
+            do {
+                self.sensorType = SensorType#ENERGY;
+            }
+        }
+    }
+
+    constraint EnergyValueNonNegative {
+        check: self.energyConsumed >= 0.0d
+        message: "EnergyMeter value cannot be negative."
+        fix {
+            title: "Reset energy consumed to 0"
+            do {
+                self.energyConsumed = 0.0d;
+            }
+        }
+    }
+}
+
+context HVACSystem {
+
+	// Every HVAC must have a valid ID
+	constraint HasID {
+		check: not self.hvacID.isUndefined() and self.hvacID <> ""
+		message: "HVACSystem must have a valid hvacID."
+	}
+
+	// HVAC must be linked to a room
+	constraint LinkedToRoom {
+		check: not self.linkedRoom.isUndefined()
+		message: "HVACSystem must be linked to a Room."
+	}
+
+	// Power usage must be non-negative
+	constraint NonNegativePowerUsage {
+		check: self.powerUsage >= 0.0
+		message: "HVAC power usage cannot be negative."
+		fix {
+			title: "Reset power usage to 0"
+			do {
+				self.powerUsage = 0.0;
+				("Reset power usage for " + self.hvacID).println();
+			}
+		}
+	}
+
+	// HVAC mode must be a valid enum literal
+	constraint ValidHVACMode {
+		check: 
+			self.HVACMode = SmartOffice!HVACMode#HEATING or 
+			self.HVACMode = SmartOffice!HVACMode#COOLING or 
+			self.HVACMode = SmartOffice!HVACMode#OFF
+		message: "HVAC mode must be HEATING, COOLING, or OFF."
+		fix {
+			title: "Set default HVAC mode"
+			do {
+				self.HVACMode = SmartOffice!HVACMode#OFF;
+				("Set default mode OFF for " + self.hvacID).println();
+			}
+		}
+	}
+
+	// If HVAC is OFF, power usage must be 0
+	constraint PowerUsageMatchesStatus {
+		check: 
+			(self.status = false and self.powerUsage = 0.0) or
+			(self.status = true)
+		message: "If HVAC is OFF, power usage must be 0."
+		fix {
+			title: "Adjust power usage for OFF state"
+			do {
+				if (self.status = false) {
+					self.powerUsage = 0.0d;
+					("HVAC " + self.hvacID + " turned off, set power usage = 0.").println();
+				}
+			}
+		}
+	}
+	
+	constraint ValidTargetTemperature {
+        check: self.targetTemperature == 0.0d or (self.targetTemperature >= 15.0d and self.targetTemperature <= 30.0d)
+        message: "HVAC targetTemperature must be 0.0 (default) or within a reasonable range (e.g., 15-30°C)."
+        fix {
+            title: "Set default target temperature"
+            do {
+                self.targetTemperature = 22.0d; 
+                "Adjusted target temperature for HVAC " + self.hvacID.println();
+            }
+        }
+    }
+}
+
+//DataManager Constraints
+context DataManager{
+
+	constraint PositiveUpdateInterval{
+		check:self.updateInterval > 0
+		message: "DataManager update interval must be positive."
+		fix{
+			title:"Set default update interval"
+			do{
+				self.updateInterval = 60; //举个例子而已，之后可更改
+				("Set update interval = 60s for DataManager.").println();
+			}
+		}
+	}
+	
+	constraint MonitorsAtLeastOneSensor{
+		check:self.monitorSensor -> size() > 0
+		message: "DataManager must monitor at least one sensor."
+		fix{
+			title: "Link DataManager to first available sensor"
+			do{
+				var sensor = Sensor.allInstances().first();
+				if(not sensor.isUndefined()){
+					self.monitorSensor.add(sensor);
+					("Linked DataManager to sensor " + sensor.sensorID).println();
+				}
+			}
+		}
+	}
+}
+
+//DigitalTwin Constraint
+context DigitalTwin{
+	constraint ConnectedToPredictiveModel {
+        check: self.predictiveModel->size() > 0
+        message: "Each Digital Twin must be connected to at least one Predictive Model."
+        fix {
+            title: "Attach default Predictive Model"
+            do {
+                var m = new PredictiveModel;
+                m.modelID = "PM2";
+                m.modelType = "HVAC Control";
+                m.inputVar = "Occupancy";
+                m.outputVar = "hvacStatus";
+                m.accuracy = 0.75d;
+                self.predictiveModels.add(m); // Adds to the list
+                "Created and linked default PredictiveModel:HVAC Control for DigitalTwin " + self.twinID.println();
+            }
+        }
+    }
+	
+}
+
+
+//PredictiveModel Constraints 
+context PredictiveModel{
+	constraint VariablesNotEmpty{
+		check: not self.inputVar.isUndefined() and not self.outputVar.isUndefined()
+		message:"Predicitve Model input/output variables must be defined."
+	
+	}
+
+}
