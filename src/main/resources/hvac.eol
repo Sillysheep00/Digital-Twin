@@ -66,7 +66,7 @@ for (room in SmartOffice!Room.all) {
     //Initialisation
     // If temp is 0.0, set a realistic starting point.
     //Basically this line of code is to simulate the first indoor temperature because my dataset dont have indoor temperature
-    if (previousTemp == uninitializedTemp) {
+    if (previousTemp == uninitializedTemp ) {
         previousTemp = outdoorTemp + INITIAL_INDOOR_OFFSET;
     }
 
@@ -99,7 +99,7 @@ for (room in SmartOffice!Room.all) {
             //Calculate cooling effect
             //Negative delta indicating lowering the temperature
             //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
-            delta_from_ac = -1 * (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
+            delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
         }
 
         //Check if room is too cold

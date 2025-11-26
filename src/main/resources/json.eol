@@ -1,0 +1,88 @@
+// --- 1. CALCULATION LOGIC (Same as query.eol) ---
+var realPower = 0.0d;
+if (simulateData.isDefined()) { realPower = simulateData.powerConsumption; }
+
+var allHvacs = SmartOffice!HVACSystem.all;
+var allRooms = SmartOffice!Room.all;
+var allEnergySensors = SmartOffice!EnergyMeter.all;
+
+var totalCapacity = allRooms.collect(r | r.capacity).sum();
+var totalBuildingOccupancy = 0.0;
+
+if (simulateData.isDefined()) { totalBuildingOccupancy = simulateData.occupancy; }
+
+var simulatedHvacPower = 0.0d;
+var simulatedPlugPower = 0.0d;
+
+// Calculate Room Data List
+var roomJsonList = new Sequence();
+
+for (r in allRooms) {
+    // HVAC Power
+    var hvacStatus = "OFF";
+    if (r.hvac.isDefined() and r.hvac.status == true) {
+        simulatedHvacPower = simulatedHvacPower + r.hvac.powerUsage;
+        hvacStatus = "ON";
+    }
+
+    // Plug Load
+    var plugLoad = 0.0d;
+    if (totalCapacity > 0 and r.capacity > 0) {
+        var roomShare = r.capacity / totalCapacity;
+        var estOccupancy = totalBuildingOccupancy * roomShare;
+        if (estOccupancy > r.capacity) { estOccupancy = r.capacity; }
+
+        if (estOccupancy > 0) { plugLoad = r.baseLoad; }
+        else { plugLoad = r.baseLoad * 0.1d; }
+    }
+    simulatedPlugPower = simulatedPlugPower + plugLoad;
+
+    // Create individual room JSON string
+    var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '" }';
+    roomJsonList.add(roomJson);
+}
+
+var simulatedTotalPower = simulatedHvacPower + simulatedPlugPower;
+var simulatedEnergyTotal = allEnergySensors.collect(s | s.energyConsumed).sum();
+var gap = realPower - simulatedTotalPower;
+var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
+
+
+// --- 2. GENERATE JSON STRING ---
+// We build the string manually to ensure valid JSON format
+
+// --- 2. GENERATE JSON STRING ---
+
+"{".println();
+
+    if (simulateData.isDefined()) {
+        ('"timestamp": "' + simulateData.date + '",').println();
+    } else {
+        '"timestamp": "N/A",'.println();
+    }
+
+
+
+    '"power": {'.println();
+        ('"real": ' + realPower.format("%.2f") + ',').println();
+        ('"simulated": ' + simulatedTotalPower.format("%.2f") + ',').println();
+        ('"hvac": ' + simulatedHvacPower.format("%.2f") + ',').println();
+        ('"plug": ' + simulatedPlugPower.format("%.2f") + ',').println();
+        ('"gap": ' + gap.format("%.2f")).println();
+    "},".println();
+
+    '"energy": {'.println();
+        ('"total": ' + simulatedEnergyTotal.format("%.2f")).println();
+    "},".println();
+
+    '"comfort": {'.println();
+        ('"avgTemp": ' + avgTemp.format("%.2f") + ',').println();
+        ('"activeHvacs": ' + allHvacs.select(h | h.status == true).size()).println();
+    "},".println();
+
+    '"rooms": ['.println();
+        (roomJsonList.concat(", ")).println();
+    "]".println();
+
+"}".println();
+
