@@ -4,9 +4,7 @@ import com.fyp.digitaltwin.engine.DigitalTwinEngine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
@@ -43,5 +41,16 @@ public class DigitalTwinController {
 
         //Send it to the web browser as json
         return ResponseEntity.ok(json);
+    }
+
+    // ... existing imports ...
+
+    // 1. New Endpoint for Control
+    // URL: POST http://localhost:8080/api/control?roomId=R1&action=OFF
+    @PostMapping("/control")
+    public ResponseEntity<String> controlHvac(@RequestParam String roomId, @RequestParam String action) {
+        // action can be "ON", "OFF", or "AUTO"
+        engine.setOverride(roomId, action);
+        return ResponseEntity.ok("Command sent: " + roomId + " -> " + action);
     }
 }

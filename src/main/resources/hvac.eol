@@ -59,6 +59,7 @@ if (digitalTwin.isDefined()) {
 var totalCapacity = SmartOffice!Room.all.collect(r | r.capacity).sum();
 totalCapacity.println();
 
+
 for (room in SmartOffice!Room.all) {
 
     var previousTemp = room.currentTemp;
@@ -81,53 +82,97 @@ for (room in SmartOffice!Room.all) {
     //2.Heat/Cooling from HVAC (pulls temp towards target)
     var delta_from_ac = 0.0d;
 
+    // CHECK FOR USER OVERRIDE
+    var override = null;
+    if (manualOverrides.isDefined()) {
+        override = manualOverrides.get(room.roomID);
+    }
+
+    //HVAC Logic start
     if (room.hvac.isDefined()) {
 
-        //Check if room is too hot
-        if(previousTemp > targetTemp + comfortZone){
-            room.hvac.status = true; //Turn on COOLING
-            updatedSystems = updatedSystems + 1;
-
-            //Calculate how far are we from the targetTemp
-            var gap = (previousTemp - targetTemp).abs();
-
-            var loadFactor = gap / 2.0;
-            if (loadFactor > 1.0) { loadFactor = 1.0; }
-
-            room.hvac.powerUsage = (AC_POWER_USAGE / COOLING_COP) * loadFactor;
-
-            //Calculate cooling effect
-            //Negative delta indicating lowering the temperature
-            //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
-            delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
+        // CASE 1: USER FORCED OFF
+        if (override == "OFF") {
+            room.hvac.status = false;
+            room.hvac.powerUsage = 0.0d;
+            delta_from_ac = 0.0d;
         }
-
-        //Check if room is too cold
-        else if(previousTemp < targetTemp - comfortZone){
-            room.hvac.status = true;  // Turn on HEATING
-            updatedSystems = updatedSystems + 1;
-
-            //Calculate how far are we from the targetTemp
-            var gap = (targetTemp - previousTemp).abs();
-
-            // If gap is huge (5 degrees), run at 100% power.
-            // If gap is tiny (0.5 degrees), run at 10% power.
-            // Assume 5 degrees gap, loadFactor = 5/2 = 2.5 > 1 so loadFactor = 1.0 meaning run in 100% load
-            var loadFactor = gap / 2.0;
-            if (loadFactor > 1.0) { loadFactor = 1.0; }
-
-            //in real building , we dont use full 8kw of power to get 8kw of heat , we only use part of it
-            room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
-
-             //eg:(target - previous) * 0.1,  this is to simulate 10% increase of the temperature
-             delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor;
+        // CASE 2: USER FORCED ON
+        else if (override == "ON") {
+            room.hvac.status = true;
+            
+            // Determine if we need heating or cooling
+            if (previousTemp > targetTemp) {
+                // Room is too hot → COOL
+                var gap = (previousTemp - targetTemp).abs();
+                var loadFactor = gap / 2.0;
+                if (loadFactor > 1.0) { loadFactor = 1.0; }
+                
+                room.hvac.powerUsage = (AC_POWER_USAGE / COOLING_COP) * loadFactor;
+                delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
+            }
+            else if (previousTemp < targetTemp) {
+                // Room is too cold → HEAT
+                var gap = (targetTemp - previousTemp).abs();
+                var loadFactor = gap / 2.0;
+                if (loadFactor > 1.0) { loadFactor = 1.0; }
+                
+                room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
+                delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor;
+            }
+            else {
+                // Already at target temperature
+                room.hvac.powerUsage = 0.5d; // Minimal power to maintain
+                delta_from_ac = 0.0d;
+            }
         }
-
-        //Check if it's in comfort zone
         else{
-            room.hvac.status = false; // Turn OFF
-            room.hvac.powerUsage = 0.0;
-            delta_from_ac = 0.0;
+            //Check if room is too hot
+            if(previousTemp > targetTemp + comfortZone){
+                room.hvac.status = true; //Turn on COOLING
+                updatedSystems = updatedSystems + 1;
+
+                //Calculate how far are we from the targetTemp
+                var gap = (previousTemp - targetTemp).abs();
+
+                var loadFactor = gap / 2.0;
+                if (loadFactor > 1.0) { loadFactor = 1.0; }
+
+                room.hvac.powerUsage = (AC_POWER_USAGE / COOLING_COP) * loadFactor;
+
+                //Calculate cooling effect
+                //Negative delta indicating lowering the temperature
+                //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
+                delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
+            }
+
+            //Check if room is too cold
+            else if(previousTemp < targetTemp - comfortZone){
+                room.hvac.status = true;  // Turn on HEATING
+                updatedSystems = updatedSystems + 1;
+
+                //Calculate how far are we from the targetTemp
+                var gap = (targetTemp - previousTemp).abs();
+
+                // If gap is huge (5 degrees), run at 100% power.
+                // If gap is tiny (0.5 degrees), run at 10% power.
+                // Assume 5 degrees gap, loadFactor = 5/2 = 2.5 > 1 so loadFactor = 1.0 meaning run in 100% load
+                var loadFactor = gap / 2.0;
+                if (loadFactor > 1.0) { loadFactor = 1.0; }
+
+                //in real building , we dont use full 8kw of power to get 8kw of heat , we only use part of it
+                room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
+
+                 //eg:(target - previous) * 0.1,  this is to simulate 10% increase of the temperature
+                 delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor;
+            }
+
+            //Check if it's in comfort zone
+            else{
+                room.hvac.status = false; // Turn OFF
+                room.hvac.powerUsage = 0.0;
+                delta_from_ac = 0.0;
+            }
         }
     }
 

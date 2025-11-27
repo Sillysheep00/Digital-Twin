@@ -22,12 +22,15 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DigitalTwinEngine {
     private static final String MODEL_RESOURCE = "DigitalTwin.smartoffice";
     private static final String METAMODEL_RESOURCE = "SmartOffice.ecore";
+    private Map<String, String> manualOverrides = new HashMap<>();
 
     // Engine State
     private EmfModel smartOfficeModel;
@@ -77,7 +80,7 @@ public class DigitalTwinEngine {
 
             // C. Run Physics (hvac.eol)
             // We don't need the output from this, so we just run it
-            runEolScript(smartOfficeModel, "hvac.eol", "HVAC Physics", currentData, TIME_STEP_HOURS);
+            runEolScript(smartOfficeModel, "hvac.eol", "HVAC Physics", currentData, TIME_STEP_HOURS,manualOverrides);
 
             // D. Move to next step
             currentStepIndex++;
@@ -96,7 +99,7 @@ public class DigitalTwinEngine {
             DataRecord reportData = dataset.get(reportIndex);
 
             // Run query.eol and CAPTURE the output string!
-            return runEolScript(smartOfficeModel, "query.eol", "Query", reportData, TIME_STEP_HOURS);
+            return runEolScript(smartOfficeModel, "query.eol", "Query", reportData, TIME_STEP_HOURS,null);
         } catch (Exception e) {
             return "Error retrieving status: " + e.getMessage();
         }
@@ -111,10 +114,19 @@ public class DigitalTwinEngine {
         }
     }
 
+    public void setOverride(String roomId, String status) {
+        System.out.println("⚡ Command Received: Set " + roomId + " to " + status);
+        if (status.equals("AUTO")) {
+            manualOverrides.remove(roomId); // Remove override, let physics take over
+        } else {
+            manualOverrides.put(roomId, status); // Force ON or OFF
+        }
+    }
+
     // --- HELPER METHODS ---
 
     // Modified to RETURN the console output as a String
-    private String runEolScript(EmfModel model, String resourceName, String label, Object data, Object timeStep) throws Exception {
+    private String runEolScript(EmfModel model, String resourceName, String label, Object data, Object timeStep, Map<String, String> overrides) throws Exception {
         // System.out.printf("Running %s (%s)...%n", label, resourceName); // Optional logging
         EolModule module = new EolModule();
         parseModule(module, resourceName);
@@ -126,8 +138,11 @@ public class DigitalTwinEngine {
         if (timeStep != null) {
             module.getContext().getFrameStack().put("TIME_STEP_HOURS", timeStep);
         }
+        if (overrides != null) {
+            module.getContext().getFrameStack().put("manualOverrides", overrides);
+        }
 
-        // *** NEW: CAPTURE OUTPUT ***
+        // Capture Output
         // Create a buffer to hold the text
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         // Tell Epsilon to print to our buffer instead of the IntelliJ console
@@ -138,8 +153,6 @@ public class DigitalTwinEngine {
         // Return the captured text
         return outStream.toString();
     }
-
-
     // --- INTERNAL HELPER: Runs EVL and returns a String report ---
     private String runEvlValidation(EmfModel model, String resourceName) throws Exception {
         EvlModule module = new EvlModule();
@@ -169,8 +182,6 @@ public class DigitalTwinEngine {
         }
         return report.toString();
     }
-
-
 
     private void registerSmartOfficeResourceFactory() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
@@ -250,7 +261,7 @@ public class DigitalTwinEngine {
             DataRecord currentData = dataset.get(dataIndex);
 
             // Run the new json.eol script!
-            return runEolScript(smartOfficeModel, "json.eol", "json",currentData, TIME_STEP_HOURS);
+            return runEolScript(smartOfficeModel, "json.eol", "json",currentData, TIME_STEP_HOURS,null);
 
         } catch (Exception e) {
             // Return a valid JSON error message so frontend doesn't crash

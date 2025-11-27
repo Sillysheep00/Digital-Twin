@@ -1,0 +1,13 @@
+strengthen hvac logic
+1. allow user to choose whether to switch on heater or ac 
+2. apply different hvac logic for manual configuration
+    - when user switch on heater the temperature will keep going up
+    (a different logic for rising or lowering temperature from the auto configuration)
+
+
+Add a button and when click pop up page to view all the room temperature (maybe is better than current design)
+
+Add a button and when click can view each room energy usage (maybe is good not sure but can try )
+
+Debug
+washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
