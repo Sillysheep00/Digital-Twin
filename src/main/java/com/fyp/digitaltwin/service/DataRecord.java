@@ -1,4 +1,4 @@
-package com.fyp.digitaltwin.engine;
+package com.fyp.digitaltwin.service;
 
 public class DataRecord {
     private String date;
