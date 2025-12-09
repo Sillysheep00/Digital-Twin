@@ -1,6 +1,6 @@
 package com.fyp.digitaltwin.controller;
 
-import com.fyp.digitaltwin.engine.DigitalTwinEngine;
+import com.fyp.digitaltwin.service.DigitalTwinEngine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
