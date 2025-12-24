@@ -43,7 +43,7 @@ public class DigitalTwinController {
         return ResponseEntity.ok(json);
     }
 
-    // ... existing imports ...
+   
 
     // 1. New Endpoint for Control
     // URL: POST http://localhost:8080/api/control?roomId=R1&action=OFF
