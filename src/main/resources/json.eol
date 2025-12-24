@@ -20,8 +20,11 @@ var roomJsonList = new Sequence();
 for (r in allRooms) {
     // HVAC Power
     var hvacStatus = "OFF";
+    var currentHvacPower = 0.0d;
+    
     if (r.hvac.isDefined() and r.hvac.status == true) {
-        simulatedHvacPower = simulatedHvacPower + r.hvac.powerUsage;
+        currentHvacPower = r.hvac.powerUsage;
+        simulatedHvacPower = simulatedHvacPower + currentHvacPower;
         hvacStatus = "ON";
     }
 
@@ -37,8 +40,18 @@ for (r in allRooms) {
     }
     simulatedPlugPower = simulatedPlugPower + plugLoad;
 
+    // Total Current Power for Room
+    var roomCurrentPower = currentHvacPower + plugLoad;
+
+    // Accumulated Energy (from Sensor)
+    var energyVal = 0.0d;
+    var energySensor = r.sensors.selectOne(s | s.isTypeOf(SmartOffice!EnergyMeter));
+    if (energySensor.isDefined()) {
+        energyVal = energySensor.energyConsumed;
+    }
+
     // Create individual room JSON string
-    var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '" }';
+    var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '", "power": ' + roomCurrentPower.format("%.2f") + ', "energy": ' + energyVal.format("%.2f") + ' }';
     roomJsonList.add(roomJson);
 }
 
@@ -50,8 +63,6 @@ var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 
 // --- 2. GENERATE JSON STRING ---
 // We build the string manually to ensure valid JSON format
-
-// --- 2. GENERATE JSON STRING ---
 
 "{".println();
 
@@ -85,4 +96,3 @@ var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
     "]".println();
 
 "}".println();
-

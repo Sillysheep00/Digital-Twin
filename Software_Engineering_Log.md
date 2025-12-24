@@ -89,3 +89,23 @@ Dynamic EMF allows the `DigitalTwinEngine` to load `SmartOffice.ecore` and `Digi
 1.  I applied a rotation fix in the React component (`<primitive object={scene} rotation={[0, -Math.PI / 2, 0]} />`) to align the model correctly.
 2.  I meticulously named the meshes in Blender (e.g., `R1_HVAC`, `R2_Sensor`) to match the IDs in my `.smartoffice` model, allowing the code to dynamically find and color-code the 3D objects based on live data.
 
+
+Design pattern
+Repository pattern:
+The code have a Repository interface (like SimulationResultRepository) separate from your Logic (DigitalTwinEngine) and your Data Model (SimulationResult) 
+
+Repository Pattern isolates the "Business Logic" from the "Data Access Logic."
+Business Logic: Your DigitalTwinEngine knows what to do (calculate physics, run EOL). It doesn't care if the data is stored in MongoDB, MySQL, or a Text File. It just says "Save this."
+Repository: The SimulationResultRepository handles the dirty work of how to save it (opening connections, writing BSON, handling indexes).
+
+
+why use this pattern?
+Decoupling : Allow switching from mongoDB to MySQL 
+Testability: You can easily mock the Repository during testing (e.g., "Pretend the database is empty") without needing a real running database.
+
+The Broader Architecture: "Layered Architecture"
+Your entire Spring Boot backend follows the Layered Architecture (Controller-Service-Repository) pattern, which is the industry standard for Java web apps:
+Controller Layer (DigitalTwinController): Handles "Traffic Control" (HTTP Requests).
+Service Layer (DigitalTwinEngine): Handles "Business Logic" (Physics, Simulation).
+Repository Layer (SimulationResultRepository): Handles "Data Storage" (Database).
+
