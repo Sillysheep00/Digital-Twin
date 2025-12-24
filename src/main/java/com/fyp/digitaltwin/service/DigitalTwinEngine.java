@@ -1,7 +1,11 @@
 package com.fyp.digitaltwin.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fyp.digitaltwin.model.SensorData;
+import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
+import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
@@ -41,6 +45,11 @@ public class DigitalTwinEngine {
     @Autowired
     private SensorDataRepository repository;
 
+    @Autowired
+    private SimulationResultRepository resultRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     // Engine State
     private EmfModel smartOfficeModel;
     private int currentStepIndex = 0; // Tracks which row index we are on
@@ -63,12 +72,12 @@ public class DigitalTwinEngine {
             // Check if MongoDB has data
             totalDataCount = repository.count();
             if (totalDataCount == 0) {
-                System.out.println("⚠ MongoDB is empty. Importing data from CSV...");
+                System.out.println("MongoDB is empty. Importing data from CSV...");
                 loadCsvToMongo("src/main/resources/cleandata.csv");
                 totalDataCount = repository.count();
             }
 
-            System.out.println("✔ Engine Ready. Using MongoDB with " + totalDataCount + " records.");
+            System.out.println("Engine Ready. Using MongoDB with " + totalDataCount + " records.");
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Fatal Error: Could not start engine.");
@@ -95,14 +104,52 @@ public class DigitalTwinEngine {
 
                 // C. Run Physics (hvac.eol)
                 runEolScript(smartOfficeModel, "hvac.eol", "HVAC Physics", currentData, TIME_STEP_HOURS, manualOverrides);
+
+                // D. SAVE RESULTS TO MONGODB (New Feature)
+                saveSimulationSnapshot(currentData);
             }
 
-            // D. Move to next step
+            // E. Move to next step
             currentStepIndex++;
 
         } catch (Exception e) {
             System.err.println("Error in simulation step: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void saveSimulationSnapshot(DataRecord currentData) {
+        try {
+            // 1. Run json.eol to aggregate the data (Power, Avg Temp, etc.)
+            String jsonOutput = runEolScript(smartOfficeModel, "json.eol", "JSON Aggregation", currentData, TIME_STEP_HOURS, null);
+            
+            // 2. Parse the JSON
+            JsonNode root = objectMapper.readTree(jsonOutput);
+            
+            // 3. Extract Values
+            String timestamp = root.path("timestamp").asText();
+            double realPower = root.path("power").path("real").asDouble();
+            double simulatedPower = root.path("power").path("simulated").asDouble();
+            double totalEnergy = root.path("energy").path("total").asDouble();
+            double avgTemp = root.path("comfort").path("avgTemp").asDouble();
+            int activeHvacs = root.path("comfort").path("activeHvacs").asInt();
+            
+            // 4. Create and Save
+            SimulationResult result = new SimulationResult(
+                timestamp, 
+                realPower, 
+                simulatedPower, 
+                totalEnergy, 
+                currentData.getOutdoorTemperature(), // From input data
+                avgTemp, 
+                activeHvacs
+            );
+            
+            resultRepository.save(result);
+            // System.out.println("   [Saved Snapshot] Sim Power: " + simulatedPower + "kW");
+
+        } catch (Exception e) {
+            System.err.println("Failed to save simulation snapshot: " + e.getMessage());
         }
     }
 
@@ -120,13 +167,13 @@ public class DigitalTwinEngine {
         }
     }
 
-    // --- NEW METHOD: Get JSON Data ---
+    // Get JSON Data for the dashboard
     public String getDashboardData() {
         try {
             int dataIndex = (currentStepIndex > 0) ? currentStepIndex - 1 : 0;
             DataRecord currentData = fetchRecordByIndex(dataIndex);
 
-            // Run the new json.eol script!
+            // Run the new json.eol script
             return runEolScript(smartOfficeModel, "json.eol", "json", currentData, TIME_STEP_HOURS, null);
 
         } catch (Exception e) {
@@ -180,14 +227,13 @@ public class DigitalTwinEngine {
             if (!batch.isEmpty()) {
                 repository.saveAll(batch);
             }
-            System.out.println("✔ CSV Import Complete!");
+            System.out.println("CSV Import Complete!");
             
         } catch (Exception e) {
             System.err.println("Failed to import CSV: " + e.getMessage());
         }
     }
 
-    // --- EXISTING METHODS BELOW ---
 
     public String getValidationReport() {
         try {
@@ -198,7 +244,7 @@ public class DigitalTwinEngine {
     }
 
     public void setOverride(String roomId, String status) {
-        System.out.println("⚡ Command Received: Set " + roomId + " to " + status);
+        System.out.println("Command Received: Set " + roomId + " to " + status);
         if (status.equals("AUTO")) {
             manualOverrides.remove(roomId);
         } else {
@@ -242,9 +288,9 @@ public class DigitalTwinEngine {
         report.append("----------------------------------------------------------------\n");
 
         if (unsatisfied.isEmpty()) {
-            report.append("✔ Validation PASSED. System is healthy.\n");
+            report.append("Validation PASSED. System is healthy.\n");
         } else {
-            report.append("✖ Validation FAILED. Found " + unsatisfied.size() + " issues:\n\n");
+            report.append("Validation FAILED. Found " + unsatisfied.size() + " issues:\n\n");
             for (UnsatisfiedConstraint issue : unsatisfied) {
                 report.append("  [CONSTRAINT] ").append(issue.getConstraint().getName()).append("\n");
                 report.append("  [ELEMENT]    ").append(issue.getInstance()).append("\n");

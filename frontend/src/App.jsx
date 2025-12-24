@@ -6,11 +6,16 @@ function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [selectedRoomId, setSelectedRoomId] = useState(null)
+  
+  // Modal States
+  const [showTempModal, setShowTempModal] = useState(false);
+  const [showEnergyModal, setShowEnergyModal] = useState(false);
 
   const fetchData = async () => {
     try {
+      // NOTE: Based on DigitalTwinController.java line 10 (@RequestMapping("/api")) and line 34 (@GetMapping("/dashboard"))
+      // The correct full URL is /api/dashboard, NOT /api/digitaltwin/dashboard
       const response = await axios.get('http://localhost:8080/api/dashboard')
-      console.log("Data received:", response.data)
       setData(response.data)
       setError(null)
     } catch (err) {
@@ -33,231 +38,195 @@ function App() {
   const handleControl = async (action) => {
     if (!selectedRoomId) return;
     try {
-      // Call the new Java API
+      // API call to set override
+      // Based on DigitalTwinController.java line 50 (@PostMapping("/control"))
       await axios.post(`http://localhost:8080/api/control?roomId=${selectedRoomId}&action=${action}`);
       console.log(`Sent command: ${action} to ${selectedRoomId}`);
-    
-      // But since your app polls every 2 seconds, you can just wait for the next fetch.
     } catch (err) {
+      console.error(err);
       alert("Failed to send command");
     }
   };
 
   const selectedRoom = getSelectedRoomData();
 
+  // Styles for Modal Overlay
+  const modalOverlayStyle = {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  };
+
+  const modalContentStyle = {
+    backgroundColor: 'white',
+    padding: '20px',
+    borderRadius: '8px',
+    maxWidth: '800px',
+    width: '90%',
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+  };
+
+  const closeButtonStyle = {
+    float: 'right',
+    cursor: 'pointer',
+    border: 'none',
+    background: 'none',
+    fontSize: '20px',
+    fontWeight: 'bold'
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial' }}>
       
-      {/* FULL SCREEN 3D SCENE (with bottom padding to account for overlay) */}
+      {/* FULL SCREEN 3D SCENE */}
       <div style={{ width: '100%', height: 'calc(100% - 100px)', paddingBottom: '100px' }}>
           <DigitalTwinScene data={data} onRoomSelect={setSelectedRoomId} />
       </div>
 
-      {/* TOP BAR - Timestamp */}
-      <div style={{ 
-          position: 'absolute', 
-          top: '20px', 
-          left: '20px', 
-          background: 'rgba(255, 255, 255, 0.95)', 
-          padding: '15px 25px', 
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-      }}>
-          <span style={{ fontSize: '24px' }}>🏭</span>
-          <div>
-              <h2 style={{ margin: 0, fontSize: '18px' }}>Digital Twin Dashboard</h2>
-              {data && <span style={{ fontSize: '12px', color: '#666' }}>🕒 {data.timestamp}</span>}
+      {/* TOP LEFT - DASHBOARD TITLE & BUTTONS */}
+      <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          {/* Title Box */}
+          <div style={{ 
+              background: 'rgba(255, 255, 255, 0.95)', 
+              padding: '15px 25px', 
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              display: 'flex', alignItems: 'center', gap: '10px'
+          }}>
+              <span style={{ fontSize: '24px' }}>🏭</span>
+              <div>
+                  <h2 style={{ margin: 0, fontSize: '18px' }}>Digital Twin Dashboard</h2>
+                  {data && <span style={{ fontSize: '12px', color: '#666' }}>🕒 {data.timestamp}</span>}
+              </div>
+          </div>
+
+          {/* New Feature Buttons */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+                onClick={() => setShowTempModal(true)}
+                style={{ padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', fontWeight: 'bold' }}>
+                🌡️ View All Temps
+            </button>
+            <button 
+                onClick={() => setShowEnergyModal(true)}
+                style={{ padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', fontWeight: 'bold' }}>
+                ⚡ View Energy
+            </button>
           </div>
       </div>
 
       {/* TOP RIGHT - SELECTED ROOM PANEL */}
       {selectedRoom && (
           <div style={{ 
-              position: 'absolute', 
-              top: '20px', 
-              right: '20px', 
-              background: 'rgba(0, 123, 255, 0.95)', 
-              color: 'white',
-              padding: '20px', 
-              borderRadius: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              minWidth: '280px'
+              position: 'absolute', top: '20px', right: '20px', 
+              background: 'rgba(0, 123, 255, 0.95)', color: 'white',
+              padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              minWidth: '300px'
           }}>
-              <h2 style={{ margin: '0 0 15px 0', fontSize: '20px' }}>
-                  📍 Selected: {selectedRoom.name}
-              </h2>
+              <h2 style={{ margin: '0 0 15px 0', fontSize: '20px' }}>📍 {selectedRoom.name}</h2>
               <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                  <p style={{ margin: '5px 0' }}><b>ID:</b> {selectedRoom.id}</p>
-                  <p style={{ margin: '5px 0' }}>
-                      <b>Temperature:</b> 
-                      <span style={{ 
-                          fontSize: '20px', 
-                          fontWeight: 'bold', 
-                          marginLeft: '10px',
-                          color: selectedRoom.temp > 24 ? '#ff6b6b' : selectedRoom.temp < 18 ? '#4dabf7' : '#51cf66'
-                      }}>
-                          {selectedRoom.temp} °C
-                      </span>
-                  </p>
-                  <p style={{ margin: '5px 0' }}>
-                      <b>HVAC Status:</b> 
-                      <span style={{ 
-                          fontWeight: 'bold', 
-                          marginLeft: '10px',
-                          color: selectedRoom.hvac === "ON" ? '#51cf66' : '#ff6b6b'
-                      }}>
-                          {selectedRoom.hvac === "ON" ? "🟢 ON" : "🔴 OFF"}
-                      </span>
-                  </p>
+                  <p style={{ margin: '5px 0' }}><b>Temp:</b> {selectedRoom.temp} °C</p>
+                  <p style={{ margin: '5px 0' }}><b>Status:</b> {selectedRoom.hvac === "ON" ? "Running" : "Off"}</p>
+                  <p style={{ margin: '5px 0' }}><b>Power:</b> {selectedRoom.power} kW</p>
               </div>
 
-              {/* HVAC CONTROL BUTTONS */}
-              <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                  {/* TOGGLE ON/OFF BUTTON */}
-                  <button 
-                      onClick={() => handleControl(selectedRoom.hvac === "ON" ? "OFF" : "ON")}
-                      style={{ 
-                          flex: 1,
-                          padding: '12px', 
-                          borderRadius: '6px', 
-                          border: 'none', 
-                          cursor: 'pointer',
-                          background: selectedRoom.hvac === "ON" ? '#ff6b6b' : '#51cf66', 
-                          color: 'white', 
-                          fontWeight: 'bold',
-                          fontSize: '14px',
-                          transition: 'all 0.2s',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                      onMouseEnter={(e) => {
-                          e.target.style.transform = 'scale(1.05)';
-                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                          e.target.style.transform = 'scale(1)';
-                          e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-                      }}
-                  >
-                      {selectedRoom.hvac === "ON" ? "🔴 Turn OFF" : "🟢 Turn ON"}
-                  </button>
-                  
-                  {/* AUTO MODE BUTTON */}
-                  <button 
-                      onClick={() => handleControl("AUTO")}
-                      style={{ 
-                          flex: 1,
-                          padding: '12px', 
-                          borderRadius: '6px', 
-                          border: 'none', 
-                          cursor: 'pointer',
-                          background: '#339af0', 
-                          color: 'white', 
-                          fontWeight: 'bold',
-                          fontSize: '14px',
-                          transition: 'all 0.2s',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                      onMouseEnter={(e) => {
-                          e.target.style.transform = 'scale(1.05)';
-                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                          e.target.style.transform = 'scale(1)';
-                          e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-                      }}
-                  >
-                      🔄 Auto
-                  </button>
+              {/* CONTROLS */}
+              <h4 style={{ margin: '15px 0 5px 0', borderBottom: '1px solid rgba(255,255,255,0.3)' }}>Manual Controls</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button onClick={() => handleControl("COOL")} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', border: 'none', background: '#00d2d3', fontWeight: 'bold', color: '#000' }}>❄️ COOL</button>
+                  <button onClick={() => handleControl("HEAT")} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', border: 'none', background: '#ff9f43', fontWeight: 'bold', color: '#000' }}>🔥 HEAT</button>
+                  <button onClick={() => handleControl("OFF")} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', border: 'none', background: '#576574', fontWeight: 'bold', color: '#fff' }}>⭕ OFF</button>
+                  <button onClick={() => handleControl("AUTO")} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px', border: 'none', background: '#2e86de', fontWeight: 'bold', color: '#fff' }}>🔄 AUTO</button>
               </div>
           </div>
       )}
 
-      {/* BOTTOM BAR - Building Overview + All Rooms (Compact) */}
+      {/* MODAL: ALL TEMPERATURES */}
+      {showTempModal && data && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <button style={closeButtonStyle} onClick={() => setShowTempModal(false)}>×</button>
+                <h2>All Room Temperatures</h2>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+                            <th style={{ padding: '10px' }}>Room</th>
+                            <th style={{ padding: '10px' }}>Temperature</th>
+                            <th style={{ padding: '10px' }}>HVAC Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.rooms.map(r => (
+                            <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
+                                <td style={{ padding: '10px' }}>{r.name}</td>
+                                <td style={{ padding: '10px', fontWeight: 'bold', color: r.temp > 24 ? 'red' : r.temp < 19 ? 'blue' : 'green' }}>{r.temp} °C</td>
+                                <td style={{ padding: '10px' }}>{r.hvac === "ON" ? "🟢 On" : "⚪ Off"}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+      )}
+
+      {/* MODAL: ENERGY USAGE */}
+      {showEnergyModal && data && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <button style={closeButtonStyle} onClick={() => setShowEnergyModal(false)}>×</button>
+                <h2>Energy Consumption Report</h2>
+                <div style={{ marginBottom: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
+                    <strong>Total Simulated Energy:</strong> {data.energy.total} kWh
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+                            <th style={{ padding: '10px' }}>Room</th>
+                            <th style={{ padding: '10px' }}>Current Power (kW)</th>
+                            <th style={{ padding: '10px' }}>Total Energy (kWh)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.rooms.map(r => (
+                            <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
+                                <td style={{ padding: '10px' }}>{r.name}</td>
+                                <td style={{ padding: '10px' }}>{r.power} kW</td>
+                                <td style={{ padding: '10px', fontWeight: 'bold' }}>{r.energy} kWh</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+      )}
+
+      {/* BOTTOM BAR */}
       {data && (
           <div style={{ 
-              position: 'absolute', 
-              bottom: '0', 
-              left: '0',
-              right: '0',
-              background: 'rgba(255, 255, 255, 0.95)', 
-              padding: '8px 15px', 
-              boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
-              display: 'flex',
-              gap: '20px',
-              overflowX: 'auto',
-              alignItems: 'center'
+              position: 'absolute', bottom: '0', left: '0', right: '0',
+              background: 'rgba(255, 255, 255, 0.95)', padding: '10px 20px',
+              boxShadow: '0 -4px 12px rgba(0,0,0,0.1)', display: 'flex', gap: '30px'
           }}>
-              
-              {/* Building Overview */}
-              <div style={{ minWidth: '180px' }}>
-                  <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#333' }}>🏢 Building</h3>
-                  <div style={{ fontSize: '11px', color: '#555', display: 'flex', gap: '10px' }}>
-                      <div><b>Power:</b> {data.power.real} kW</div>
-                      <div><b>Temp:</b> {data.comfort.avgTemp} °C</div>
-                      <div><b>HVACs:</b> {data.comfort.activeHvacs}</div>
-                  </div>
-              </div>
-
-              {/* Divider */}
-              <div style={{ width: '1px', height: '40px', background: '#ddd' }}></div>
-
-              {/* All Rooms List */}
-              <div style={{ flex: 1, display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#333', marginRight: '5px' }}>🌡️</span>
-                  {data.rooms.map((room) => (
-                      <div 
-                          key={room.id} 
-                          onClick={() => setSelectedRoomId(room.id)}
-                          style={{ 
-                              padding: '6px 12px', 
-                              background: selectedRoomId === room.id ? '#007BFF' : '#f8f9fa',
-                              color: selectedRoomId === room.id ? 'white' : '#333',
-                              cursor: 'pointer',
-                              borderRadius: '4px',
-                              border: selectedRoomId === room.id ? '2px solid #0056b3' : '1px solid #ddd',
-                              transition: 'all 0.2s',
-                              fontSize: '11px',
-                              whiteSpace: 'nowrap'
-                          }}
-                          onMouseEnter={(e) => {
-                              if (selectedRoomId !== room.id) {
-                                  e.target.style.background = '#e9ecef';
-                              }
-                          }}
-                          onMouseLeave={(e) => {
-                              if (selectedRoomId !== room.id) {
-                                  e.target.style.background = '#f8f9fa';
-                              }
-                          }}
-                      >
-                          <span style={{ fontWeight: 'bold' }}>{room.name}</span>
-                          <span style={{ marginLeft: '6px' }}>{room.temp}°C</span>
-                          <span style={{ color: selectedRoomId === room.id ? 'white' : (room.hvac === "ON" ? 'green' : 'red') }}>
-                              {room.hvac === "ON" ? " 🟢" : " 🔴"}
-                          </span>
-                      </div>
-                  ))}
+              <div><b>Avg Temp:</b> {data.comfort.avgTemp} °C</div>
+              <div><b>Active HVACs:</b> {data.comfort.activeHvacs}</div>
+              <div><b>Total Power:</b> {data.power.simulated} kW</div>
+              <div style={{ marginLeft: 'auto', color: '#666' }}>
+                  Select a room in 3D to control it
               </div>
           </div>
       )}
 
-      {/* ERROR MESSAGE (if backend down) */}
+      {/* ERROR */}
       {error && (
-          <div style={{ 
-              position: 'absolute', 
-              top: '50%', 
-              left: '50%', 
-              transform: 'translate(-50%, -50%)',
-              background: 'rgba(220, 53, 69, 0.95)', 
-              color: 'white',
-              padding: '20px', 
-              borderRadius: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-          }}>
-              ❌ {error}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'red', color: 'white', padding: '20px', borderRadius: '8px' }}>
+              {error}
           </div>
       )}
     </div>

@@ -3,7 +3,15 @@ strengthen hvac logic
 2. apply different hvac logic for manual configuration
     - when user switch on heater the temperature will keep going up
     (a different logic for rising or lowering temperature from the auto configuration)
-
+3.Implement eco mode, when there is no people in the room , switch the hvac into eco mode, this allow the room temperature for
+that room to be between 19°C and 25°C and not always in 22°C
+4.Implement night time shutdown schedules, HVAC should off during not office hours
+Manual Override (Highest Priority): If a human specifically says "Turn ON Room 101" (maybe they are working late), 
+                                    the system must obey, regardless of the time.
+Schedule (Medium Priority): If no human has intervened, the schedule takes over. 
+                            If it's 3:00 AM, the system defaults to OFF to save money.
+Thermostat / Sensor Logic (Lowest Priority): Only if it's "Office Hours" AND "No Manual Override" 
+                            does the system look at the temperature sensor to decide whether to heat or cool.
 
 Add a button and when click pop up page to view all the room temperature (maybe is better than current design)
 
@@ -11,3 +19,10 @@ Add a button and when click can view each room energy usage (maybe is good not s
 
 Debug
 washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
+
+
+Git Best Practice
+Create a new branch when implementing a feature 
+Add,commit and push to that branch
+Merge it to main 
+Delete branch (Git commits are the checkpoint not the branch)
