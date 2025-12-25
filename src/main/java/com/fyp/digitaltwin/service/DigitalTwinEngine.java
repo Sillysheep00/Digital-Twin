@@ -8,6 +8,7 @@ import com.fyp.digitaltwin.repository.SensorDataRepository;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.eclipse.epsilon.common.parse.problem.ParseProblem;
 import org.eclipse.epsilon.emc.emf.EmfModel;
@@ -86,7 +87,7 @@ public class DigitalTwinEngine {
 
     // 2. THE HEARTBEAT (Runs every 5 seconds)
     @Scheduled(fixedRate = 5000)
-    public void runSimulationStep() {
+    public synchronized void runSimulationStep() {
         if (smartOfficeModel == null || totalDataCount == 0) return;
 
         try {
@@ -103,7 +104,10 @@ public class DigitalTwinEngine {
                 System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
 
                 // C. Run Physics (hvac.eol)
-                runEolScript(smartOfficeModel, "hvac.eol", "HVAC Physics", currentData, TIME_STEP_HOURS, manualOverrides);
+                String physicsLog = runEolScript(smartOfficeModel, "hvac.eol", "HVAC Physics", currentData, TIME_STEP_HOURS, manualOverrides);
+                if (!physicsLog.isBlank()) {
+                    System.out.println(physicsLog);
+                }
 
                 // D. SAVE RESULTS TO MONGODB (New Feature)
                 saveSimulationSnapshot(currentData);
@@ -150,6 +154,83 @@ public class DigitalTwinEngine {
 
         } catch (Exception e) {
             System.err.println("Failed to save simulation snapshot: " + e.getMessage());
+        }
+    }
+
+    // 4. MODEL-BASED PREDICTION (Digital Twin Look-Ahead)
+    public synchronized Map<String, Double> predictFutureEnergy(int hoursToPredict) {
+        System.out.println("Running Prediction for next " + hoursToPredict + " hours...");
+        double totalPredictedEnergy = 0.0;
+        
+        try {
+            // 4.1  CLONE THE MODEL
+            // We cannot run prediction on the live 'smartOfficeModel' because it would mess up the live dashboard.
+            // So we reload a fresh copy from disk to act as our "Sandbox" for prediction.
+            EmfModel predictionModel = loadModel(); 
+
+            // We keep the name "SmartOffice" because this EolModule is isolated from the main one.
+            predictionModel.setName("SmartOffice");
+
+            // 4.2 PREPARE FUTURE DATA
+            // We need to fetch the *next* N hours of data from MongoDB.
+            int stepsNeeded = hoursToPredict * 4; // 4 steps per hour (15 min intervals)
+            
+            // 4.3 Get Current Date from current simulation step
+            DataRecord currentRecord = fetchRecordByIndex(currentStepIndex);
+            if (currentRecord == null) {
+                 return Map.of("error", 0.0);
+            }
+            String currentDate = currentRecord.getDate();
+
+            // 4.4 Fetch FUTURE records starting from this date
+            // Using new efficient Repository method
+            List<SensorData> futureDataList = repository.findByDateGreaterThan(
+                currentDate, 
+                PageRequest.of(0, stepsNeeded, Sort.by(Sort.Direction.ASC, "date"))
+            );
+
+            System.out.println("   Found " + futureDataList.size() + " future records for prediction.");
+
+            // 4.5 RUN FAST-FORWARD SIMULATION
+            // Loop through the future data and run 'hvac.eol' on the Sandbox Model
+            for (SensorData mongoData : futureDataList) {
+                // Convert to DTO
+                DataRecord stepData = new DataRecord(
+                    mongoData.getDate(),
+                    mongoData.getPowerConsumption(),
+                    mongoData.getOutdoorTemperature(),
+                    mongoData.getOccupancy()
+                );
+
+                // Run Physics (Quietly, no system.out)
+                // Reuse the exact same hvac.eol logic.This is the power of the Digital Twin.
+                runEolScript(predictionModel, "hvac.eol", "Prediction", stepData, TIME_STEP_HOURS, manualOverrides);
+                
+                // After the step, calculate the energy used in this 15-min window
+                // We can extract this by running a mini-query or just summing it up from the model
+                // For simplicity, let's run json.eol to get the aggregate power
+                String jsonOutput = runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null);
+                JsonNode root = objectMapper.readTree(jsonOutput);
+                double stepPower = root.path("power").path("simulated").asDouble();
+                
+                // Energy (kWh) = Power (kW) * Time (0.25h)
+                totalPredictedEnergy += (stepPower * TIME_STEP_HOURS);
+            }
+            
+            // 4.6 Clean up
+            predictionModel.dispose();
+
+            System.out.println("Prediction Complete. Est. Energy: " + totalPredictedEnergy + " kWh");
+
+            // 4.7 Return result map
+            Map<String, Double> result = new HashMap<>();
+            result.put("predictedEnergy", totalPredictedEnergy);
+            result.put("hours", (double) hoursToPredict);
+            return result;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Map.of("error", -1.0);
         }
     }
 
@@ -317,6 +398,10 @@ public class DigitalTwinEngine {
         model.setReadOnLoad(true);
         model.setStoredOnDisposal(false);
         model.load();
+        
+        // 🔥 FORCE RESOLVE ALL CROSS-REFERENCES (neighbour links)
+        EcoreUtil.resolveAll(model.getResource());
+        
         return model;
     }
 

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -45,12 +46,20 @@ public class DigitalTwinController {
 
    
 
-    // 1. New Endpoint for Control
+    // Endpoint for Control
     // URL: POST http://localhost:8080/api/control?roomId=R1&action=OFF
     @PostMapping("/control")
     public ResponseEntity<String> controlHvac(@RequestParam String roomId, @RequestParam String action) {
         // action can be "ON", "OFF", or "AUTO"
         engine.setOverride(roomId, action);
         return ResponseEntity.ok("Command sent: " + roomId + " -> " + action);
+    }
+
+    // Endpoint for Prediction
+    // URL: GET http://localhost:8080/api/predict?hours=24
+    @GetMapping("/predict")
+    public ResponseEntity<Map<String, Double>> getPrediction(@RequestParam(defaultValue = "24") int hours) {
+        Map<String, Double> result = engine.predictFutureEnergy(hours);
+        return ResponseEntity.ok(result);
     }
 }

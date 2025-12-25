@@ -9,8 +9,8 @@
         eType="#//Floor" containment="true" eOpposite="#//Floor/building"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="digitalTwins" lowerBound="1"
         eType="#//DigitalTwin" containment="true"/>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="owns" lowerBound="1" eType="#//DataManager"
-        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="dataManager" lowerBound="1"
+        eType="#//DataManager" containment="true"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Floor">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="floorID" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
@@ -34,6 +34,8 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="hvac" eType="#//HVACSystem"
         containment="true" eOpposite="#//HVACSystem/room"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="baseLoad" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="neighbour" upperBound="-1"
+        eType="#//Room"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Sensor" abstract="true">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="sensorID" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>

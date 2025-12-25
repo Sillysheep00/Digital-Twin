@@ -10,6 +10,10 @@ function App() {
   // Modal States
   const [showTempModal, setShowTempModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
+  
+  // Prediction States
+  const [prediction, setPrediction] = useState(null);
+  const [isPredicting, setIsPredicting] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -46,6 +50,19 @@ function App() {
       console.error(err);
       alert("Failed to send command");
     }
+  };
+  
+  const handlePrediction = async () => {
+      setIsPredicting(true);
+      setPrediction(null);
+      try {
+          const response = await axios.get('http://localhost:8080/api/predict?hours=24');
+          setPrediction(response.data);
+      } catch (err) {
+          alert("Prediction failed");
+      } finally {
+          setIsPredicting(false);
+      }
   };
 
   const selectedRoom = getSelectedRoomData();
@@ -119,7 +136,40 @@ function App() {
                 style={{ padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', fontWeight: 'bold' }}>
                 ⚡ View Energy
             </button>
+            <button 
+                onClick={handlePrediction}
+                disabled={isPredicting}
+                style={{ padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer', background: '#6c5ce7', color: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', fontWeight: 'bold' }}>
+                {isPredicting ? "Running..." : "🔮 Predict Next 24H"}
+            </button>
           </div>
+          
+           {/* Prediction Result Box */}
+           {prediction && (
+              <div style={{ 
+                  background: 'rgba(255, 255, 255, 0.95)', 
+                  padding: '15px', 
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  marginTop: '5px',
+                  borderLeft: '5px solid #6c5ce7'
+              }}>
+                  <h4 style={{ margin: '0 0 5px 0', color: '#6c5ce7' }}>Prediction Result</h4>
+                  {prediction.error ? (
+                       <div style={{ color: 'red', fontSize: '13px' }}>
+                           ⚠️ Prediction Failed. <br/> (Check backend logs)
+                       </div>
+                  ) : (
+                      <div style={{ fontSize: '14px' }}>
+                          Next <b>{prediction.hours} hours</b> energy usage:
+                          <br/>
+                          <span style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                              {prediction.predictedEnergy ? prediction.predictedEnergy.toFixed(2) : "0.00"} kWh
+                          </span>
+                      </div>
+                  )}
+              </div>
+          )}
       </div>
 
       {/* TOP RIGHT - SELECTED ROOM PANEL */}

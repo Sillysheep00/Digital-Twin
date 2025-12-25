@@ -109,3 +109,12 @@ Controller Layer (DigitalTwinController): Handles "Traffic Control" (HTTP Reques
 Service Layer (DigitalTwinEngine): Handles "Business Logic" (Physics, Simulation).
 Repository Layer (SimulationResultRepository): Handles "Data Storage" (Database).
 
+
+HVAC explanation
+The HVAC system is configured with a target temperature of 22°C. However, during the simulation, the room temperature stabilizes around 21.42°C instead of reaching the exact target. This is a realistic physical behavior known as a thermal steady state, where the heat energy supplied by the HVAC system (running at full capacity) exactly equals the heat energy being lost to the cold outdoor environment through the walls. Even though the heater is actively running, the poor insulation and low outdoor temperature create a heat loss rate that matches the heater's maximum output, preventing the room from climbing that final 0.6°C. This demonstrates that the Digital Twin correctly simulates real-world thermodynamic limits rather than artificially forcing values.
+
+
+Dataset start at 12am keeping the 22°C initialization is fine because i can show you that my physics engine is working correctly(heat loss).
+
+
+

@@ -1,0 +1,21 @@
+hvac logic
+auto mode : systems tries to maintain the target temperature which is 22 degree celsius
+
+night time 
+the building will be allowed to cool down to 16 degree celsius
+heater will turn on if it drops below 16 degree celsius
+maintain temperature at 15 -16
+
+During Day Time (Occupied)
+Target: 22°C (unless customized per room)
+Comfort Zone: ±2°C
+Heater ON: Below 20°C
+Cooling ON: Above 24°C
+
+Eco Mode (Empty Room during Day)
+If estimatedRoomOccupancy < 0.1 (Room is empty):
+Comfort Zone: ±3°C
+Heater ON: Below 19°C (22 - 3)
+Cooling ON: Above 25°C (22 + 3)
+
+

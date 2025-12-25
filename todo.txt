@@ -1,11 +1,20 @@
+think of any implementation for the simulation result repository file
+
+模拟夏天的温度， 然后看energy usage 是多少
+
+maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等之后demo 的时候应该很麻烦
 
 
 Debug
 washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
+厕所温度太低了 也要改
+after 7pm temperature drop 到很快， 不实际
+当manual 按cooling 和 heating temperature 变化太大
+
 
 
 Git Best Practice
-Create a new branch when implementing a feature 
-Add,commit and push to that branch
-Merge it to main 
+Create a new branch when implementing a feature (git checkout -b branch name)
+Add,commit and push( git push origin branch name) to that branch ( if will go into an editor , press esc and type :wq to exit)
+Merge it to main   ( git merge branch name)
 Delete branch (Git commits are the checkpoint not the branch)
