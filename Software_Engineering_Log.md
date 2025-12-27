@@ -109,12 +109,52 @@ Controller Layer (DigitalTwinController): Handles "Traffic Control" (HTTP Reques
 Service Layer (DigitalTwinEngine): Handles "Business Logic" (Physics, Simulation).
 Repository Layer (SimulationResultRepository): Handles "Data Storage" (Database).
 
-
 HVAC explanation
 The HVAC system is configured with a target temperature of 22°C. However, during the simulation, the room temperature stabilizes around 21.42°C instead of reaching the exact target. This is a realistic physical behavior known as a thermal steady state, where the heat energy supplied by the HVAC system (running at full capacity) exactly equals the heat energy being lost to the cold outdoor environment through the walls. Even though the heater is actively running, the poor insulation and low outdoor temperature create a heat loss rate that matches the heater's maximum output, preventing the room from climbing that final 0.6°C. This demonstrates that the Digital Twin correctly simulates real-world thermodynamic limits rather than artificially forcing values.
 
+Washroom temperature stick very close to other room temperature explanation
+This is because washroom is surrounded by 2-3 heated room ( their neighbours may be main office,etc), so they are getting heat from multiple sources simultaneously.This creates a thermal blanket effect.
 
-Dataset start at 12am keeping the 22°C initialization is fine because i can show you that my physics engine is working correctly(heat loss).
+why night time washroom temperature does not have a 3-4 degree celsius difference with the other room
+When everything gets colder, temperatures converge toward outdoor temperature.
+
+the formula in the code: Heat Loss Rate = (Room Temp - Outdoor Temp) × Insulation
+insulation is U-value meaning conductivity so low number = good insulation
+
+Let's say outdoor temp is 8°C (from your dataset):
+DAYTIME:
+Heated rooms: 22°C → Heat loss rate = (22-8) = 14°C difference → HIGH loss
+Washrooms: 17°C → Heat loss rate = (17-8) = 9°C difference → MODERATE loss
+Large gradient maintained because rooms are aggressively heating
+NIGHTTIME:
+Heated rooms: 16°C → Heat loss rate = (16-8) = 8°C difference → LOWER loss
+Washrooms: 14°C → Heat loss rate = (14-8) = 6°C difference → LOW loss
+Small gradient because everyone is closer to outdoor temp
+
+
+Deterministic pseudo-random heuristic for occupancy simulation
+3 techniques:
+1.Seeded pseudo-randomness
+    -derive randomness from:
+        -time (date + hour)
+        -room identity
+
+    The same inputs → same output
+    This is called: Deterministic pseudo-random generation
+    Used in: simulation , digital twins
+    Give random looking , but reproducible
+2.Capacity-weighted allocation
+    -capacityWeight = room.capacity / totalCapacity , this is a proportional allocation technique
+    This ensures big rooms get more people, small room get lesser people
+3.Stochastic perturbation / noise injection
+
+These part: 
+    -randomFactor (0.3–1.0)
+    -±20% variation
+are called controlled noise injection
+This prevents uniform behaviour and unrealistic static patterns.
+
+The random occupancy distribution algorithm uses a pseudo-random seeding technique based on time and room characteristics to realistically distribute building occupants across rooms. It combines capacity-based weighting (70%) with random factors (30%) to ensure larger rooms are more likely to have people while maintaining natural variation. The algorithm generates whole-number occupancy values by applying ±20% random fluctuation and rounding, respects room capacity limits, and includes special logic to reduce washroom occupancy by 80% since these spaces are briefly occupied. This approach creates deterministic but realistic patterns where the same timestamp produces the same distribution, while different times and rooms yield varied occupancy patterns that reflect real-world building usage
 
 
 

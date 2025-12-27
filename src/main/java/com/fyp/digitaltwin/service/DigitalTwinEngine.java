@@ -399,7 +399,7 @@ public class DigitalTwinEngine {
         model.setStoredOnDisposal(false);
         model.load();
         
-        // 🔥 FORCE RESOLVE ALL CROSS-REFERENCES (neighbour links)
+        //Resolves all proxy references in the model. Required if you are have non-containment references in your model.
         EcoreUtil.resolveAll(model.getResource());
         
         return model;

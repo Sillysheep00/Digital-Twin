@@ -10,7 +10,7 @@
   <floor floorID="F1">
     <room roomID="R1"
         roomName="Meeting Room"
-        insulation="0.04"
+        insulation="0.02"
         capacity="6"
         model3DPath="&quot;model/R1.glb&quot;"
         baseLoad="0.5"
@@ -34,7 +34,7 @@
     </room>
     <room roomID="R2"
         roomName="Staff Lounge"
-        insulation="0.06"
+        insulation="0.03"
         capacity="6"
         model3DPath="&quot;model/R2.glb&quot;"
         baseLoad="1.0"
@@ -58,7 +58,7 @@
     </room>
     <room roomID="R3"
         roomName="Main Office"
-        insulation="0.07"
+        insulation="0.04"
         capacity="15"
         model3DPath="&quot;model/R3.glb&quot;"
         baseLoad="2.0"
@@ -82,7 +82,7 @@
     </room>
     <room roomID="R4"
         roomName="Boss Office"
-        insulation="0.03"
+        insulation="0.02"
         capacity="4"
         model3DPath="&quot;model/R4.glb&quot;"
         baseLoad="0.8"
@@ -106,7 +106,7 @@
     </room>
     <room roomID="R5"
         roomName="Washroom 1"
-        insulation="0.04"
+        insulation="0.025"
         capacity="1"
         model3DPath="&quot;model/R5.glb&quot;"
         baseLoad="0.1"
@@ -119,7 +119,7 @@
     </room>
     <room roomID="R6"
         roomName="Washroom 2"
-        insulation="0.04"
+        insulation="0.025"
         capacity="1"
         model3DPath="&quot;model/R6.glb&quot;"
         baseLoad="0.1"
@@ -132,7 +132,7 @@
     </room>
     <room roomID="R7"
         roomName="Focus Room"
-        insulation="0.05"
+        insulation="0.03"
         capacity="2"
         model3DPath="&quot;model/R7.glb&quot;"
         baseLoad="0.3"

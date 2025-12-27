@@ -6,12 +6,13 @@ maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等�
 
 
 Debug
-washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
-厕所温度太低了 也要改
-after 7pm temperature drop 到很快， 不实际
+minor fix（之后才fix）:
+白天厕所的温度跟房间温度差 4度
 当manual 按cooling 和 heating temperature 变化太大
+washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
 
-
+Note 
+always run mvn clean compile when make any changes on the .ecore and .smartoffice file
 
 Git Best Practice
 Create a new branch when implementing a feature (git checkout -b branch name)
