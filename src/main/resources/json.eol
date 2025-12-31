@@ -56,43 +56,69 @@ for (r in allRooms) {
 }
 
 var simulatedTotalPower = simulatedHvacPower + simulatedPlugPower;
+
+// Apply ML model (Linear Regression) if available from context (passed from Java)
+// Formula: predictedPower = slope × simulatedPower + intercept
+var mlSlope = 1.0d;      // slope (a) - learned regression parameter
+var mlIntercept = 0.0d;  // intercept (b) - learned regression parameter
+
+if (ML_SLOPE.isDefined()) {
+    mlSlope = ML_SLOPE;
+}
+if (ML_INTERCEPT.isDefined()) {
+    mlIntercept = ML_INTERCEPT;
+}
+
+// ML-predicted power using full Linear Regression model
+var calibratedSimulatedPower = (simulatedTotalPower * mlSlope) + mlIntercept;
+
+// Calculate gap using calibrated value
+var gap = realPower - calibratedSimulatedPower;
+var gapPercentage = 0.0d;
+if (realPower > 0) {
+    gapPercentage = (gap / realPower) * 100;
+}
+
 var simulatedEnergyTotal = allEnergySensors.collect(s | s.energyConsumed).sum();
-var gap = realPower - simulatedTotalPower;
 var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 
 
 // --- 2. GENERATE JSON STRING ---
-// We build the string manually to ensure valid JSON format
+// Build JSON string for internal use (don't print to console)
 
-"{".println();
+var jsonOutput = "{" + "\n";
 
-    if (simulateData.isDefined()) {
-        ('"timestamp": "' + simulateData.date + '",').println();
-    } else {
-        '"timestamp": "N/A",'.println();
-    }
+if (simulateData.isDefined()) {
+    jsonOutput = jsonOutput + '"timestamp": "' + simulateData.date + '",' + "\n";
+} else {
+    jsonOutput = jsonOutput + '"timestamp": "N/A",' + "\n";
+}
 
+jsonOutput = jsonOutput + '"power": {' + "\n";
+jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "simulated_raw": ' + simulatedTotalPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "simulated": ' + calibratedSimulatedPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "calibration_factor": ' + mlSlope.format("%.4f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "hvac": ' + simulatedHvacPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "plug": ' + simulatedPlugPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "gap": ' + gap.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "gap_percentage": ' + gapPercentage.format("%.1f") + "\n";
+jsonOutput = jsonOutput + "}," + "\n";
 
+jsonOutput = jsonOutput + '"energy": {' + "\n";
+jsonOutput = jsonOutput + '  "total": ' + simulatedEnergyTotal.format("%.2f") + "\n";
+jsonOutput = jsonOutput + "}," + "\n";
 
-    '"power": {'.println();
-        ('"real": ' + realPower.format("%.2f") + ',').println();
-        ('"simulated": ' + simulatedTotalPower.format("%.2f") + ',').println();
-        ('"hvac": ' + simulatedHvacPower.format("%.2f") + ',').println();
-        ('"plug": ' + simulatedPlugPower.format("%.2f") + ',').println();
-        ('"gap": ' + gap.format("%.2f")).println();
-    "},".println();
+jsonOutput = jsonOutput + '"comfort": {' + "\n";
+jsonOutput = jsonOutput + '  "avgTemp": ' + avgTemp.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "activeHvacs": ' + allHvacs.select(h | h.status == true).size() + "\n";
+jsonOutput = jsonOutput + "}," + "\n";
 
-    '"energy": {'.println();
-        ('"total": ' + simulatedEnergyTotal.format("%.2f")).println();
-    "},".println();
+jsonOutput = jsonOutput + '"rooms": [' + "\n";
+jsonOutput = jsonOutput + '  ' + roomJsonList.concat(", ") + "\n";
+jsonOutput = jsonOutput + "]" + "\n";
 
-    '"comfort": {'.println();
-        ('"avgTemp": ' + avgTemp.format("%.2f") + ',').println();
-        ('"activeHvacs": ' + allHvacs.select(h | h.status == true).size()).println();
-    "},".println();
+jsonOutput = jsonOutput + "}";
 
-    '"rooms": ['.println();
-        (roomJsonList.concat(", ")).println();
-    "]".println();
-
-"}".println();
+// Return the JSON for parsing (no printing)
+return jsonOutput;

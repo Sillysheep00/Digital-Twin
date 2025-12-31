@@ -1,5 +1,8 @@
 package com.fyp.digitaltwin.controller;
 
+import com.fyp.digitaltwin.dto.AnomalyResult;
+import com.fyp.digitaltwin.dto.WhatIfRequest;
+import com.fyp.digitaltwin.service.AnomalyDetectionService;
 import com.fyp.digitaltwin.service.DigitalTwinEngine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -13,6 +16,9 @@ public class DigitalTwinController {
 
     @Autowired
     private DigitalTwinEngine engine;
+    
+    @Autowired
+    private AnomalyDetectionService anomalyDetectionService;
 
     // Endpoint: http://localhost:8080/api/status
     @GetMapping("/status")
@@ -44,8 +50,6 @@ public class DigitalTwinController {
         return ResponseEntity.ok(json);
     }
 
-   
-
     // Endpoint for Control
     // URL: POST http://localhost:8080/api/control?roomId=R1&action=OFF
     @PostMapping("/control")
@@ -55,11 +59,36 @@ public class DigitalTwinController {
         return ResponseEntity.ok("Command sent: " + roomId + " -> " + action);
     }
 
-    // Endpoint for Prediction
-    // URL: GET http://localhost:8080/api/predict?hours=24
-    @GetMapping("/predict")
-    public ResponseEntity<Map<String, Double>> getPrediction(@RequestParam(defaultValue = "24") int hours) {
-        Map<String, Double> result = engine.predictFutureEnergy(hours);
+    // Endpoint for What-If Analysis
+    // URL: POST http://localhost:8080/api/what-if
+    // Body: {"changes": {"targetTemp": 21.0, "insulation": 0.03}, "hours": 24}
+    @PostMapping("/what-if")
+    public ResponseEntity<Map<String, Object>> runWhatIfAnalysis(@RequestBody WhatIfRequest request) {
+        System.out.println("What-If Analysis Request: " + request);
+        Map<String, Object> result = engine.predictWithWhatIf(request.getChanges(), request.getHours());
+        if (result == null) {
+            return ResponseEntity.status(500).body(Map.of("error", "What-If analysis failed"));
+        }
+        return ResponseEntity.ok(result);
+    }
+    
+    // Endpoint for Anomaly Detection (Machine Learning-Based)
+    // URL: GET http://localhost:8080/api/anomaly
+    // Returns anomaly detection results using trained Linear Regression model
+    @GetMapping(value = "/anomaly", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<AnomalyResult> detectAnomaly() {
+        // Get current dashboard data (contains real and simulated power)
+        String dashboardJson = engine.getDashboardData();
+        
+        // Get trained ML model from engine
+        com.fyp.digitaltwin.dto.LinearRegressionModel regressionModel = engine.getRegressionModel();
+        
+        // Perform ML-based anomaly detection
+        AnomalyResult result = anomalyDetectionService.detectAnomalyFromDashboard(
+            dashboardJson, 
+            regressionModel
+        );
+        
         return ResponseEntity.ok(result);
     }
 }

@@ -1,4 +1,12 @@
+// Check if we're in silent mode (predictions/what-if analysis)
+var SILENT = false;
+if (SILENT_MODE.isDefined()) {
+    SILENT = SILENT_MODE;
+}
+
+if (not SILENT) {
 'Starting realistic HVAC simulation...'.println();
+}
 var updatedSystems = 0;
 
 // Simulation Parameters
@@ -9,9 +17,6 @@ var totalBuildingOccupancy = simulateData.occupancy;
 var currentHour = simulateData.date.substring(11, 13).asInteger();
 // Office Hours: 7 AM to 7 PM
 var isNightTime = (currentHour < 7 or currentHour >= 19);
-
-// DEBUG: Time and night mode status
-("TIME CHECK | Hour: " + currentHour + " | Night Mode: " + isNightTime).println();
 
 // TEMPERATURE CONTROL SETTINGS
 // Target: Maintain room at 22°C
@@ -59,7 +64,9 @@ var INTERNAL_WALL_CONDUCTIVITY = 0.08d;
 
 //---- Reset Energy Meter on the start of the dataset usinhg specific date -----------------------------------------
 if (simulateData.date == "2018-05-22 00:00:00") {
+    if (not SILENT) {
     "Resetting Energy Meter...".println();
+    }
     for (s in SmartOffice!EnergyMeter.all) {
         s.energyConsumed = 0.0d;
     }
@@ -89,11 +96,10 @@ if (digitalTwin.isDefined()) {
 
 // --- Calculate Total Building Capacity ---
 var totalCapacity = SmartOffice!Room.all.collect(r | r.capacity).sum();
-totalCapacity.println();
 
 for (room in SmartOffice!Room.all) {
     var previousTemp = room.currentTemp;
-    
+
     // Initialize temperature only on:
     // 1. First run ever (uninitializedTemp = 0.0)
     // 2. Dataset loop restart (simulation cycles back to first timestamp)
@@ -151,10 +157,12 @@ for (room in SmartOffice!Room.all) {
             estimatedRoomOccupancy = (estimatedRoomOccupancy * 0.2d).round();
         }
     }
-    
-    // DEBUG: Occupancy calculation
-    ("DEBUG OCCUPANCY | " + room.roomName + " | Total: " + totalBuildingOccupancy + 
-     " | Room: " + estimatedRoomOccupancy + " people | Capacity: " + room.capacity).println();
+
+    // DEBUG: Occupancy calculation (suppressed in silent mode)
+    if (not SILENT) {
+        ("DEBUG OCCUPANCY | " + room.roomName + " | Total: " + totalBuildingOccupancy + 
+         " | Room: " + estimatedRoomOccupancy + " people | Capacity: " + room.capacity).println();
+    }
 
     // --- STEP 2: DETERMINE TARGET & COMFORT (Eco Mode) ---
     // Use per-room target temperature if configured in the model
@@ -197,9 +205,11 @@ for (room in SmartOffice!Room.all) {
         nightModeType = "DAY-ECO";
     }
     
-    // DEBUG: Night mode decision
-    ("DEBUG NIGHT MODE | " + room.roomName + " | Mode: " + nightModeType + 
-     " | Target: " + targetTemp.format("%.1f") + "°C | Comfort: ±" + comfortZone.format("%.1f") + "°C").println();
+    // DEBUG: Night mode decision (suppressed in silent mode)
+    if (not SILENT) {
+        ("DEBUG NIGHT MODE | " + room.roomName + " | Mode: " + nightModeType + 
+         " | Target: " + targetTemp.format("%.1f") + "°C | Comfort: ±" + comfortZone.format("%.1f") + "°C").println();
+    }
 
     //NATURAL HEAT TRANSFER (EXTERNAL) - heat loss from the room to the outside
     var roomInsulation = room.insulation; // higher insulation values(u-value)  = worse insulation = more heat loss
@@ -210,15 +220,6 @@ for (room in SmartOffice!Room.all) {
     // This prevents washrooms from freezing even without HVAC
     var neighbourHeatTransfer = 0.0d;
     
-    // DEBUG: print for ALL ROOMS to verify neighbour detection globally
-    if (room.roomName.startsWith("Washroom")) {
-         if (room.neighbour.isDefined() and room.neighbour.notEmpty()) {
-             // ("DEBUG CHECK " + room.roomName + " - Neighbours List Size: " + room.neighbour.size()).println();
-         } else {
-             ("DEBUG CHECK " + room.roomName + " - Neighbours List is UNDEFINED or EMPTY!").println();
-         }
-    }
-
     if (room.neighbour.isDefined() and room.neighbour.notEmpty()) {
         var sumNeighbourTemp = 0.0d;
         var count = 0;
@@ -230,21 +231,12 @@ for (room in SmartOffice!Room.all) {
             var avgNeighbourTemp = sumNeighbourTemp / count;
             // Physics: (AvgNeighbour - Current) * Conductivity
             neighbourHeatTransfer = (avgNeighbourTemp - previousTemp) * INTERNAL_WALL_CONDUCTIVITY;
-            
-            // DEBUG: Check why Washroom is cold
-            // if (room.roomName.startsWith("Washroom")) {
-                ("DEBUG " + room.roomName + ": Neighbors=" + count + ", AvgNeighbourTemp=" + avgNeighbourTemp + ", Transfer=" + neighbourHeatTransfer).println();
-            // }
         }
-    } else {
-        // if (room.roomName.startsWith("Washroom")) {
-            ("DEBUG " + room.roomName + ": HAS NO NEIGHBOURS DETECTED!").println();
-        // }
     }
 
     // --- STEP 4: HVAC LOGIC ---
     var delta_from_ac = 0.0d;
-    
+
     // Check Manual Override
     var override = null;
     if (manualOverrides.isDefined()) {
@@ -252,7 +244,7 @@ for (room in SmartOffice!Room.all) {
     }
 
     if (room.hvac.isDefined()) {
-        
+
         // PRIORITY 1: MANUAL OVERRIDE
         if (override == "OFF") {
             room.hvac.status = false;
@@ -308,7 +300,7 @@ for (room in SmartOffice!Room.all) {
                 //Negative delta indicating lowering the temperature
                 //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
                 delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
-                
+
                 // REALISM CAP: Limit max temperature change to 2.0°C per step (15 mins)
                 if (delta_from_ac < -1.5d) { delta_from_ac = -1.5d; }
             }
@@ -366,14 +358,16 @@ for (room in SmartOffice!Room.all) {
 
     //Update model with new temp
     room.currentTemp = newTemp;
-    
+
     // --- TEMPERATURE SAFETY CHECK ---
-    // Warn if temperature goes to extreme values
-    if (newTemp > 26.0d) {
-        ('WARNING: ' + room.roomName + ' is TOO HOT: ' + newTemp.format("%.1f") + '°C').println();
-    }
-    if (newTemp < 16.0d) {
-        ('WARNING: ' + room.roomName + ' is TOO COLD: ' + newTemp.format("%.1f") + '°C').println();
+    // Warn if temperature goes to extreme values (suppressed in silent mode)
+    if (not SILENT) {
+        if (newTemp > 26.0d) {
+            ('WARNING: ' + room.roomName + ' is TOO HOT: ' + newTemp.format("%.1f") + '°C').println();
+        }
+        if (newTemp < 16.0d) {
+            ('WARNING: ' + room.roomName + ' is TOO COLD: ' + newTemp.format("%.1f") + '°C').println();
+        }
     }
 
     // --- STEP 7: POWER & SENSORS ---
@@ -415,6 +409,10 @@ for (room in SmartOffice!Room.all) {
     }
 }
 
+if (not SILENT) {
 ('Simulation complete. ' + updatedSystems + ' HVAC systems running.').println();
+}
 SmartOffice.store();
+if (not SILENT) {
 'Model saved.'.println();
+}

@@ -1,4 +1,4 @@
-package com.fyp.digitaltwin.service;
+package com.fyp.digitaltwin.model;
 
 public class DataRecord {
     private String date;
@@ -29,3 +29,4 @@ public class DataRecord {
         return occupancy;
     }
 }
+

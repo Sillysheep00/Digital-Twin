@@ -1,0 +1,247 @@
+package com.fyp.digitaltwin.service;
+
+import com.fyp.digitaltwin.dto.LinearRegressionModel;
+import org.eclipse.epsilon.emc.emf.EmfModel;
+import org.eclipse.epsilon.eol.EolModule;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Service responsible for What-If Analysis scenarios.
+ * Uses Model-Driven Engineering to test different building parameters
+ * and predict their impact on energy consumption.
+ * 
+ * Now uses Machine Learning (Linear Regression) for predictions.
+ * Part of the refactored Service Layer Architecture.
+ */
+@Service
+public class WhatIfAnalysisService {
+    
+    @Autowired
+    private ModelService modelService;
+    
+    @Autowired
+    private PredictionService predictionService;
+    
+    /**
+     * Sets the trained ML regression model (called by DigitalTwinEngine).
+     * What-If Analysis delegates all predictions to PredictionService,
+     * which uses the calibration factor internally.
+     * This method is kept for initialization logging purposes.
+     */
+    public void setRegressionModel(LinearRegressionModel model) {
+        System.out.println("WhatIfAnalysisService: Initialized with ML model - slope=" + 
+                          String.format("%.4f", model.getSlope()) + 
+                          ", intercept=" + String.format("%.4f", model.getIntercept()));
+    }
+    
+    /**
+     * Runs What-If analysis comparing baseline vs modified scenario
+     * 
+     * @param changes Map of parameters to change (e.g., {"targetTemp": 21.0, "insulation": 0.03})
+     * @param hours Prediction horizon in hours
+     * @return Comparison result with baseline, scenario, savings, and recommendations
+     */
+    public Map<String, Object> runAnalysis(Map<String, Object> changes, int hours) {
+        System.out.println("=== WHAT-IF ANALYSIS START ===");
+        System.out.println("Changes requested: " + changes);
+        System.out.println("Prediction horizon: " + hours + " hours");
+        
+        try {
+            // STEP 1: Run baseline prediction with current live state
+            System.out.println("\n[1/5] Running baseline prediction...");
+            Map<String, Double> baseline = predictionService.predictFutureEnergy(hours);
+            
+            // Check if baseline prediction failed
+            if (baseline == null || baseline.containsKey("error") || !baseline.containsKey("predictedEnergy")) {
+                return createErrorResponse("Baseline prediction failed. Please wait for simulation to run.", baseline);
+            }
+            
+            System.out.println("Baseline energy: " + baseline.get("predictedEnergy") + " kWh");
+            
+            // STEP 2: Clone live model for scenario testing
+            System.out.println("\n[2/5] Cloning live model for scenario...");
+            EmfModel scenarioModel = modelService.loadModel();
+            
+            // STEP 3: Apply changes using EOL model transformation
+            System.out.println("\n[3/5] Applying what-if changes to model...");
+            applyChangesToModel(scenarioModel, changes);
+            
+            // Debug: Show what changes were applied
+            System.out.println("📝 CHANGES APPLIED:");
+            for (Map.Entry<String, Object> entry : changes.entrySet()) {
+                System.out.println("   • " + entry.getKey() + ": " + entry.getValue());
+            }
+            
+            // STEP 4: Run prediction on modified model
+            System.out.println("\n[4/5] Running scenario prediction with ML calibration...");
+            System.out.println("   ML Model: slope=" + String.format("%.4f", predictionService.getMlSlope()) + 
+                               ", intercept=" + String.format("%.4f", predictionService.getMlIntercept()));
+            Map<String, Double> scenario = predictionService.predictOnModel(scenarioModel, hours);
+            
+            // Check if scenario prediction failed
+            if (scenario == null || scenario.containsKey("error") || !scenario.containsKey("predictedEnergy")) {
+                scenarioModel.dispose();
+                return createErrorResponse("Scenario prediction failed.", scenario);
+            }
+            
+            System.out.println("Scenario energy: " + scenario.get("predictedEnergy") + " kWh");
+            
+            // STEP 5: Calculate savings and prepare results
+            System.out.println("\n[5/5] Calculating savings...");
+            Map<String, Object> result = calculateSavings(baseline, scenario, changes, hours);
+            
+            // Clean up
+            scenarioModel.dispose();
+            
+            System.out.println("\n=== WHAT-IF ANALYSIS COMPLETE ===\n");
+            return result;
+            
+        } catch (Exception e) {
+            System.err.println("ERROR in What-If Analysis: " + e.getMessage());
+            e.printStackTrace();
+            return createErrorResponse("Analysis failed: " + e.getMessage(), null);
+        }
+    }
+    
+    /**
+     * Applies parameter changes to the model using EOL transformation
+     * This is pure Model-Driven Engineering - we transform the model, not the code!
+     * 
+     * @param model The model to transform
+     * @param changes Map of parameters to change
+     * @throws Exception if transformation fails
+     */
+    private void applyChangesToModel(EmfModel model, Map<String, Object> changes) throws Exception {
+        StringBuilder eolScript = new StringBuilder();
+        eolScript.append("// What-If Model Transformation\n");
+        
+        // Change 1: Target Temperature (applies to all HVAC systems)
+        if (changes.containsKey("targetTemp")) {
+            double newTarget = ((Number) changes.get("targetTemp")).doubleValue();
+            System.out.println("  - Setting all HVAC target temperatures to: " + newTarget + "°C");
+            eolScript.append("for (hvac in SmartOffice!HVACSystem.all) {\n");
+            eolScript.append("    hvac.targetTemperature = ").append(newTarget).append("d;\n");
+            eolScript.append("}\n");
+        }
+        
+        // Change 2: Insulation (applies to all rooms)
+        if (changes.containsKey("insulation")) {
+            double newInsulation = ((Number) changes.get("insulation")).doubleValue();
+            System.out.println("  - Setting all room insulation to: " + newInsulation);
+            eolScript.append("for (room in SmartOffice!Room.all) {\n");
+            eolScript.append("    room.insulation = ").append(newInsulation).append("d;\n");
+            eolScript.append("}\n");
+        }
+        
+        // Change 3: Per-room insulation (for specific rooms)
+        if (changes.containsKey("roomInsulation")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> roomChanges = (Map<String, Object>) changes.get("roomInsulation");
+            System.out.println("  - Setting per-room insulation:");
+            for (Map.Entry<String, Object> entry : roomChanges.entrySet()) {
+                double value = ((Number) entry.getValue()).doubleValue();
+                System.out.println("    * " + entry.getKey() + " → " + value);
+                eolScript.append("var room = SmartOffice!Room.all.selectOne(r | r.roomName == '")
+                         .append(entry.getKey()).append("');\n");
+                eolScript.append("if (room.isDefined()) { room.insulation = ").append(value).append("d; }\n");
+            }
+        }
+        
+        // Change 4: Base load (equipment power)
+        if (changes.containsKey("baseLoad")) {
+            double newBaseLoad = ((Number) changes.get("baseLoad")).doubleValue();
+            System.out.println("  - Setting all room base loads to: " + newBaseLoad + " kW");
+            eolScript.append("for (room in SmartOffice!Room.all) {\n");
+            eolScript.append("    room.baseLoad = ").append(newBaseLoad).append("d;\n");
+            eolScript.append("}\n");
+        }
+        
+        // Change 5: Per-room base load
+        if (changes.containsKey("roomBaseLoad")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> roomChanges = (Map<String, Object>) changes.get("roomBaseLoad");
+            System.out.println("  - Setting per-room base load:");
+            for (Map.Entry<String, Object> entry : roomChanges.entrySet()) {
+                double value = ((Number) entry.getValue()).doubleValue();
+                System.out.println("    * " + entry.getKey() + " → " + value + " kW");
+                eolScript.append("var room = SmartOffice!Room.all.selectOne(r | r.roomName == '")
+                         .append(entry.getKey()).append("');\n");
+                eolScript.append("if (room.isDefined()) { room.baseLoad = ").append(value).append("d; }\n");
+            }
+        }
+        
+        // Execute the transformation
+        String scriptContent = eolScript.toString();
+        if (scriptContent.contains("SmartOffice")) {
+            System.out.println("\n  Executing EOL transformation...");
+            EolModule module = new EolModule();
+            module.parse(scriptContent);
+            if (!module.getParseProblems().isEmpty()) {
+                throw new IllegalStateException("EOL transformation has parse errors");
+            }
+            module.getContext().getModelRepository().addModel(model);
+            module.execute();
+            module.getContext().getModelRepository().removeModel(model);
+            System.out.println("  Transformation complete!");
+        } else {
+            System.out.println("  No changes to apply.");
+        }
+    }
+    
+    /**
+     * Calculates energy and cost savings from What-If analysis
+     * 
+     * @param baseline Baseline prediction results
+     * @param scenario Scenario prediction results
+     * @param changes Parameters that were changed
+     * @param hours Prediction horizon
+     * @return Result map with savings calculations
+     */
+    private Map<String, Object> calculateSavings(Map<String, Double> baseline, 
+                                                  Map<String, Double> scenario,
+                                                  Map<String, Object> changes,
+                                                  int hours) {
+        double baselineEnergy = baseline.get("predictedEnergy");
+        double scenarioEnergy = scenario.get("predictedEnergy");
+        double energySaved = baselineEnergy - scenarioEnergy;
+        double percentSaved = (energySaved / baselineEnergy) * 100;
+        
+        // Cost calculations (assuming $0.15/kWh - configurable in future)
+        double costSaved = energySaved * 0.15;
+        double annualCostSaved = costSaved * (365.0 / (hours / 24.0));
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("baseline", baseline);
+        result.put("scenario", scenario);
+        result.put("energySaved", Math.round(energySaved * 100.0) / 100.0);
+        result.put("percentSaved", Math.round(percentSaved * 100.0) / 100.0);
+        result.put("costSaved", Math.round(costSaved * 100.0) / 100.0);
+        result.put("annualCostSaved", Math.round(annualCostSaved * 100.0) / 100.0);
+        result.put("changes", changes);
+        result.put("hours", hours);
+        
+        System.out.println("Energy Saved: " + energySaved + " kWh (" + percentSaved + "%)");
+        System.out.println("Cost Saved: $" + costSaved + " (Annual: $" + annualCostSaved + ")");
+        
+        return result;
+    }
+    
+    /**
+     * Creates an error response for What-If analysis failures
+     */
+    private Map<String, Object> createErrorResponse(String message, Map<String, Double> data) {
+        System.err.println("ERROR: " + message);
+        Map<String, Object> errorResult = new HashMap<>();
+        errorResult.put("error", true);
+        errorResult.put("message", message);
+        if (data != null) {
+            errorResult.putAll(data);
+        }
+        return errorResult;
+    }
+}
+

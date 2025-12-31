@@ -1,15 +1,26 @@
 think of any implementation for the simulation result repository file
-
 模拟夏天的温度， 然后看energy usage 是多少
-
 maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等之后demo 的时候应该很麻烦
 
 
+Task
+saw the whatifanalysis allow setting of per room baseload and baseload but the frontend does not show this selection (can implement or remove this baseload changing function)
+saw there is cost in the what if analysis ask gpt which cost value is reasonable
+proceed to implement anomaly detection
+implement graph output
+
 Debug
+
 minor fix（之后才fix）:
+先改frontend的design 
 白天厕所的温度跟房间温度差 4度
-当manual 按cooling 和 heating temperature 变化太大
+
+当manual 按cooling 和 heating temperature 变化太大（ 不确定是否还需要留这个功能）
 washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
+go whatifimplementation.md and analysisguide.md to check for future enhancement
+current power should display the power that is calculated using the regression model
+whatifanaylsis： 把baseline 跟scenario 换个可以一眼懂得名字
+
 
 Note 
 always run mvn clean compile when make any changes on the .ecore and .smartoffice file
@@ -19,3 +30,186 @@ Create a new branch when implementing a feature (git checkout -b branch name)
 Add,commit and push( git push origin branch name) to that branch ( if will go into an editor , press esc and type :wq to exit)
 Merge it to main   ( git merge branch name)
 Delete branch (Git commits are the checkpoint not the branch)
+
+
+Answer for Question
+1. dataManager and predictiveModel and digital twin in the metamodel 的用处是什么 because seems like we are not using them
+metamodel defines the concept and structure of the system (like a system blueprint)
+You then choose how to implement those in the code
+
+metamodel is not:
+ -a to-do list, 
+ -promise that everything must run in emf 
+ -and a requirement that every element must have code 
+
+meaning it does not say you must implement a feature inside emf, it say the system contain this feature.
+How you implement it is on your choice
+
+can explain like this in the report 
+The metamodel includes concepts such as DataManager and PredictiveModel to represent data flow and analytics at 
+a conceptual level. In the current prototype, these elements are not directly executed by the EMF engine. 
+Instead, their responsibilities are implemented through Spring Boot services and machine learning components. 
+This separation allows the model to remain technology-agnostic while enabling flexible backend implementation.
+
+2. Differences between springboot api test and powershell api test
+Springboot api test check if the API endpoint behave correctly inside the application
+Springboot api test runs inside spring, it does not required backend to be run, faster speed and best for development and CI(Continous Integration)
+Powershell api test check if the deployed system work end to end
+Powershell api test runs outside the system, required backend to be run, slower speed and best for validation and demo
+
+In a project we need to use both of it.
+
+3.What is a unit test and integration test
+A unit test test one small piece of logic in isolation, one class one method no database and no web server
+Goal is to check if the method work correctly by itself
+
+An integration test check that multiple components works together.
+Goal is to check if part integrate correctly
+For example:
+Service + Repository 
+Controller + Service
+
+Service level documentation explains what a service does and why, not whether it works
+
+4. What is pagination
+Pagination is a techinqiue to retrieve data in small chunks(pages) instead of loading everything at once from the database. think
+of it like reading a book page by page instead of trying to read all 1000 pages at once.
+
+Example:
+1. PageRequest.of(0, trainingSampleSize, Sort.by(Sort.Direction.ASC, "date"))
+  - this mean give me the first page, but make the page size big enough to hold 4252 records(20% of the dataset)
+
+2. PageRequest.of(0, stepsNeeded, Sort.by(Sort.Direction.ASC, "date"))
+  - this mean give me the first 96(stepsNeeded) records that come after a date
+
+Why do you use pagination?
+Pagination allows me to efficiently query large datasets without loading everything into memory.
+
+For example, my dataset has over 21,000 sensor readings. During simulation, I only need ONE record at a 
+time, so I use PageRequest.of(index, 1, ...) to fetch just that single record.
+
+For predictions, I only need the next 96 records (24 hours × 4 steps/hour), so I use 
+PageRequest.of(0, 96, ...) to get exactly those records.
+
+This approach is memory-efficient and follows best practices for working with large datasets in Spring Boot and MongoDB.
+
+5. Why the ML Prediction Value in the Anomaly Detection Appears Constant
+
+In the current implementation, the anomaly detection model uses HVAC power consumption and a base load as its primary input features. 
+Under normal operating conditions, the HVAC system reaches a steady-state once the indoor temperature approaches the target setpoint. 
+As a result, HVAC power consumption remains nearly constant over time. Since the Linear Regression model learns a direct relationship 
+between these input features and the predicted power, the predicted value also remains approximately constant.
+
+This behaviour does not indicate a fault in the machine learning model. Instead, it reflects the limited variability of the input features
+provided to the model. When the inputs do not change significantly, the model output naturally remains stable.
+
+To demonstrate that the machine learning prediction is dynamic and responsive to different operating conditions, additional debug statements were introduced. 
+These experiments show that when the target temperature is modified, the HVAC system requires different amounts of power to reach the new setpoint. 
+Consequently, the Linear Regression model scales its prediction proportionally to the change in HVAC power, confirming that the model responds correctly to variations in input data.
+
+Although the target temperature may remain fixed during normal operation, HVAC power consumption varies dynamically based on the instantaneous temperature error between the current indoor temperature
+and the desired setpoint. As the room approaches the target temperature, the required heating or cooling load decreases, resulting in lower HVAC power consumption. Once thermal equilibrium is achieved, 
+the system enters a steady-state phase where only maintenance energy is required.
+
+6.Why use a linear regression based calibration ?
+Before going into this question, let's first answer what is a calibration.
+Calibration aligns the simulated system with the real world measurement. For example i am a student from malaysia
+to obtain Malaysia time from UK time, a fixed offset is added in my case it will be +8.
+
+In this project, a linear regression-based calibration is used for the following reason:
+There is a systematic difference between simulation and real data. My model only handles HVAC and minimal base load,
+while the real dataset includes additional constant energy consumer.This causes the trend of energy usage is similar but 
+the absolute values are consistently different.
+
+Linear regression is suitable because it can correct a scaling difference (by the slope) and a constant offset (by the intercept).
+
+Why did you use linear regression instead of a decision tree or other ML methods?
+I chose linear regression because the relationship between simulated HVAC power and real building power is approximately linear. 
+The main difference comes from unmodeled constant loads such as lighting and equipment, which appear as a linear offset rather than nonlinear behavior.
+
+In my system, the physics-based model already captures the main dynamics of HVAC energy. The real building
+power differs mainly by a proportional scaling and a constant base load. This fits naturally into a linear relationship.
+
+Decision trees are more suitable when:
+  -Relationships are highly nonlinear
+  -There are many interacting categorical features
+
+Linear regression provides explicit parameters—a slope and an intercept—that have physical meaning. 
+This allows me to explain exactly how the simulation is being calibrated.
+
+For example:
+  -Slope → HVAC scaling mismatch
+  -Intercept → constant background loads
+Decision trees do not offer this level of physical interpretability.
+
+Decision trees can overfit when the feature set is small or when the input signal is relatively constant,
+which is the case for HVAC power under steady operation. Linear regression provides smoother and more stable predictions.
+
+The goal of this project is not to compare machine learning algorithms, but to demonstrate a digital twin system that integrates
+physics-based simulation with data-driven calibration and anomaly detection.Linear regression achieves this with minimal complexity.
+
+Could decision tree work?
+Yes, decision trees could be used if additional nonlinear features such as weather conditions, or equipment schedules were included. 
+However, given the current feature set, linear regression is the most suitable choice.
+
+
+
+Implement anomaly detection for building energy consumption using a simple machine learning–inspired residual-based approach suitable for a Final Year Project.
+
+Conceptual Approach (must be followed)
+Use a calibrated digital twin + residual-based anomaly detection:
+Calibrate the simulation output using an existing calibration factor
+Compute residual between calibrated simulation and real power usage
+Detect anomalies by checking whether the residual exceeds a defined threshold
+This approach should be simple, interpretable, and explainable, not a complex black-box model.
+
+Constraints & Design Requirements
+Follow Spring Boot best practices
+Service layer logic
+No business logic inside controllers
+Follow clean software architecture
+Create new service / class files if necessary
+Single responsibility per class
+Keep logic simple, readable, and well-commented
+
+Assume or check if :
+Calibration factor is already computed
+Real and simulated power values are available
+
+No external ML libraries (e.g. TensorFlow, Weka)
+Must be suitable for academic evaluation (FYP)
+
+Detection Method Requirements
+Use residual-based detection
+Residual formula:
+residual = |realPower − calibratedSimulatedPower|
+
+An anomaly is detected when:
+residual > threshold
+
+Threshold can be:
+Fixed (e.g. percentage of real power), or
+Based on historical average residual (simple approach)
+
+Expected Output
+Provide ONE Java service method
+Method should:
+Take real power, simulated power, and calibration factor as input
+Return an anomaly result (boolean or DTO)
+Include clear inline comments explaining:
+Why calibration is applied
+How residual is calculated
+How anomaly decision is made
+
+Code must be ready to integrate into a Spring Boot backend
+
+Additionally, generate a simple Spring Boot API test
+to verify the anomaly detection endpoint.
+
+The test should:
+- Use MockMvc
+- Cover at least:
+  1) A normal case where no anomaly is detected
+  2) A case where an anomaly is detected due to high residual
+- Assert the anomaly flag in the response
+- Keep the test simple and suitable for a Final Year Project
