@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,8 +101,29 @@ public class PredictionService {
      * @return Map with predictedEnergy and hours, or error
      */
     public synchronized Map<String, Double> predictFutureEnergy(int hoursToPredict) {
+        Map<String, Object> detailedResult = predictFutureEnergyWithSteps(hoursToPredict);
+        // Convert to Map<String, Double> for backward compatibility
+        Map<String, Double> result = new HashMap<>();
+        result.put("predictedEnergy", (Double) detailedResult.get("predictedEnergy"));
+        result.put("hours", (Double) detailedResult.get("hours"));
+        if (detailedResult.containsKey("error")) {
+            result.put("error", (Double) detailedResult.get("error"));
+        }
+        return result;
+    }
+    
+    /**
+     * Predicts future energy consumption with step-by-step data for charting
+     * Uses the current model state by cloning the live model
+     * 
+     * @param hoursToPredict Number of hours to predict
+     * @return Map with predictedEnergy, stepEnergyList, hours, or error
+     */
+    @SuppressWarnings("unchecked")
+    public synchronized Map<String, Object> predictFutureEnergyWithSteps(int hoursToPredict) {
         System.out.println("Running prediction for next " + hoursToPredict + " hours...");
         double totalPredictedEnergy = 0.0;
+        List<Double> stepEnergyList = new ArrayList<>();
         
         try {
             // 1. Clone the live model to preserve current state
@@ -120,7 +142,9 @@ public class PredictionService {
             // 3. Get current date from current simulation step
             DataRecord currentRecord = fetchRecordByIndex(currentStepIndex);
             if (currentRecord == null) {
-                 return Map.of("error", 0.0);
+                 Map<String, Object> errorResult = new HashMap<>();
+                 errorResult.put("error", 0.0);
+                 return errorResult;
             }
             String currentDate = currentRecord.getDate();
 
@@ -132,7 +156,7 @@ public class PredictionService {
 
             System.out.println("   Found " + futureDataList.size() + " future records for prediction.");
 
-            // 5. Run fast-forward simulation
+            // 5. Run fast-forward simulation and collect step data
             for (SensorData mongoData : futureDataList) {
                 // Convert to DTO
                 DataRecord stepData = new DataRecord(
@@ -151,7 +175,9 @@ public class PredictionService {
                 double stepPower = root.path("power").path("simulated").asDouble();
                 
                 // Energy (kWh) = Power (kW) * Time (0.25h)
-                totalPredictedEnergy += (stepPower * TIME_STEP_HOURS);
+                double stepEnergy = stepPower * TIME_STEP_HOURS;
+                totalPredictedEnergy += stepEnergy;
+                stepEnergyList.add(Math.round(stepEnergy * 100.0) / 100.0);
             }
             
             // 6. Clean up
@@ -159,15 +185,18 @@ public class PredictionService {
 
             System.out.println("Prediction Complete. Est. Energy: " + totalPredictedEnergy + " kWh");
 
-            // 7. Return result map
-            Map<String, Double> result = new HashMap<>();
-            result.put("predictedEnergy", totalPredictedEnergy);
+            // 7. Return result map with step data
+            Map<String, Object> result = new HashMap<>();
+            result.put("predictedEnergy", Math.round(totalPredictedEnergy * 100.0) / 100.0);
             result.put("hours", (double) hoursToPredict);
+            result.put("stepEnergyList", stepEnergyList);
             return result;
 
         } catch (Exception e) {
             e.printStackTrace();
-            return Map.of("error", -1.0);
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("error", -1.0);
+            return errorResult;
         }
     }
     
@@ -179,7 +208,36 @@ public class PredictionService {
      * @return Map with predictedEnergy and hours, or error
      */
     public synchronized Map<String, Double> predictOnModel(EmfModel model, int hours) {
+        Map<String, Object> detailedResult = predictOnModelWithSteps(model, hours);
+        // Convert to Map<String, Double> for backward compatibility
         Map<String, Double> result = new HashMap<>();
+        if (detailedResult.containsKey("predictedEnergy")) {
+            result.put("predictedEnergy", (Double) detailedResult.get("predictedEnergy"));
+        }
+        if (detailedResult.containsKey("steps")) {
+            result.put("steps", (Double) detailedResult.get("steps"));
+        }
+        if (detailedResult.containsKey("hours")) {
+            result.put("hours", (Double) detailedResult.get("hours"));
+        }
+        if (detailedResult.containsKey("error")) {
+            result.put("error", (Double) detailedResult.get("error"));
+        }
+        return result;
+    }
+    
+    /**
+     * Runs a prediction on a specific model with step-by-step data (for What-If scenarios with charting)
+     * This allows testing different scenarios without affecting the live model
+     * 
+     * @param model The model to predict on
+     * @param hours Prediction horizon in hours
+     * @return Prediction result with stepEnergyList
+     */
+    public synchronized Map<String, Object> predictOnModelWithSteps(EmfModel model, int hours) {
+        Map<String, Object> result = new HashMap<>();
+        List<Double> stepEnergyList = new ArrayList<>();
+        
         try{
             int stepsNeeded = hours * 4; // 4 steps per hour (15-min intervals)
             
@@ -205,17 +263,19 @@ public class PredictionService {
                 return result;
             }
             
-            // Run simulation steps on the modified model
+            // Run simulation steps on the modified model and collect step data
             double totalEnergy = 0.0;
             for (int i = 0; i < stepsNeeded; i++) {
                 SensorData data = futureData.get(i);
                 double stepEnergy = runSimulationStepOnModel(model, data, currentStepIndex + i + 1);
                 totalEnergy += stepEnergy;
+                stepEnergyList.add(Math.round(stepEnergy * 100.0) / 100.0);
             }
             
             result.put("predictedEnergy", Math.round(totalEnergy * 100.0) / 100.0);
             result.put("steps", (double) stepsNeeded);
             result.put("hours", (double) hours);
+            result.put("stepEnergyList", stepEnergyList);
             
         } catch (Exception e) {
             System.err.println("Prediction on model failed: " + e.getMessage());

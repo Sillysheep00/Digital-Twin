@@ -1,4 +1,3 @@
-import React from 'react';
 import "aframe";
 
 const DigitalTwinScene = ({ data, onRoomSelect }) => {

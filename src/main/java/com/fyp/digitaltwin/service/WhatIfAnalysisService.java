@@ -6,7 +6,9 @@ import org.eclipse.epsilon.eol.EolModule;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,16 +53,16 @@ public class WhatIfAnalysisService {
         System.out.println("Prediction horizon: " + hours + " hours");
         
         try {
-            // STEP 1: Run baseline prediction with current live state
+            // STEP 1: Run baseline prediction with current live state (with step data for charting)
             System.out.println("\n[1/5] Running baseline prediction...");
-            Map<String, Double> baseline = predictionService.predictFutureEnergy(hours);
+            Map<String, Object> baselineDetailed = predictionService.predictFutureEnergyWithSteps(hours);
             
             // Check if baseline prediction failed
-            if (baseline == null || baseline.containsKey("error") || !baseline.containsKey("predictedEnergy")) {
-                return createErrorResponse("Baseline prediction failed. Please wait for simulation to run.", baseline);
+            if (baselineDetailed == null || baselineDetailed.containsKey("error") || !baselineDetailed.containsKey("predictedEnergy")) {
+                return createErrorResponse("Baseline prediction failed. Please wait for simulation to run.", null);
             }
             
-            System.out.println("Baseline energy: " + baseline.get("predictedEnergy") + " kWh");
+            System.out.println("Baseline energy: " + baselineDetailed.get("predictedEnergy") + " kWh");
             
             // STEP 2: Clone live model for scenario testing
             System.out.println("\n[2/5] Cloning live model for scenario...");
@@ -76,23 +78,23 @@ public class WhatIfAnalysisService {
                 System.out.println("   • " + entry.getKey() + ": " + entry.getValue());
             }
             
-            // STEP 4: Run prediction on modified model
+            // STEP 4: Run prediction on modified model (with step data for charting)
             System.out.println("\n[4/5] Running scenario prediction with ML calibration...");
             System.out.println("   ML Model: slope=" + String.format("%.4f", predictionService.getMlSlope()) + 
                                ", intercept=" + String.format("%.4f", predictionService.getMlIntercept()));
-            Map<String, Double> scenario = predictionService.predictOnModel(scenarioModel, hours);
+            Map<String, Object> scenarioDetailed = predictionService.predictOnModelWithSteps(scenarioModel, hours);
             
             // Check if scenario prediction failed
-            if (scenario == null || scenario.containsKey("error") || !scenario.containsKey("predictedEnergy")) {
+            if (scenarioDetailed == null || scenarioDetailed.containsKey("error") || !scenarioDetailed.containsKey("predictedEnergy")) {
                 scenarioModel.dispose();
-                return createErrorResponse("Scenario prediction failed.", scenario);
+                return createErrorResponse("Scenario prediction failed.", null);
             }
             
-            System.out.println("Scenario energy: " + scenario.get("predictedEnergy") + " kWh");
+            System.out.println("Scenario energy: " + scenarioDetailed.get("predictedEnergy") + " kWh");
             
-            // STEP 5: Calculate savings and prepare results
-            System.out.println("\n[5/5] Calculating savings...");
-            Map<String, Object> result = calculateSavings(baseline, scenario, changes, hours);
+            // STEP 5: Calculate savings and prepare results with chart data
+            System.out.println("\n[5/5] Calculating savings and building chart data...");
+            Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours);
             
             // Clean up
             scenarioModel.dispose();
@@ -193,26 +195,41 @@ public class WhatIfAnalysisService {
     }
     
     /**
-     * Calculates energy and cost savings from What-If analysis
+     * Calculates energy and cost savings with chart data from What-If analysis
      * 
-     * @param baseline Baseline prediction results
-     * @param scenario Scenario prediction results
+     * @param baselineDetailed Baseline prediction results with step data
+     * @param scenarioDetailed Scenario prediction results with step data
      * @param changes Parameters that were changed
      * @param hours Prediction horizon
-     * @return Result map with savings calculations
+     * @return Result map with savings calculations and chart data
      */
-    private Map<String, Object> calculateSavings(Map<String, Double> baseline, 
-                                                  Map<String, Double> scenario,
-                                                  Map<String, Object> changes,
-                                                  int hours) {
-        double baselineEnergy = baseline.get("predictedEnergy");
-        double scenarioEnergy = scenario.get("predictedEnergy");
+    private Map<String, Object> calculateSavingsWithChartData(Map<String, Object> baselineDetailed, 
+                                                               Map<String, Object> scenarioDetailed,
+                                                               Map<String, Object> changes,
+                                                               int hours) {
+        double baselineEnergy = (Double) baselineDetailed.get("predictedEnergy");
+        double scenarioEnergy = (Double) scenarioDetailed.get("predictedEnergy");
         double energySaved = baselineEnergy - scenarioEnergy;
         double percentSaved = (energySaved / baselineEnergy) * 100;
         
         // Cost calculations (assuming $0.15/kWh - configurable in future)
         double costSaved = energySaved * 0.15;
         double annualCostSaved = costSaved * (365.0 / (hours / 24.0));
+        
+        // Build chart data from step-by-step energy lists
+
+        List<Double> baselineSteps = extractDoubleList(baselineDetailed,"stepEnergyList");
+        List<Double> scenarioSteps = extractDoubleList(scenarioDetailed,"stepEnergyList");
+        List<Map<String, Object>> chartData = buildChartData(baselineSteps, scenarioSteps);
+        
+        // Create simplified baseline/scenario maps for backward compatibility
+        Map<String, Double> baseline = new HashMap<>();
+        baseline.put("predictedEnergy", baselineEnergy);
+        baseline.put("hours", (Double) baselineDetailed.get("hours"));
+        
+        Map<String, Double> scenario = new HashMap<>();
+        scenario.put("predictedEnergy", scenarioEnergy);
+        scenario.put("hours", (Double) scenarioDetailed.get("hours"));
         
         Map<String, Object> result = new HashMap<>();
         result.put("baseline", baseline);
@@ -223,12 +240,67 @@ public class WhatIfAnalysisService {
         result.put("annualCostSaved", Math.round(annualCostSaved * 100.0) / 100.0);
         result.put("changes", changes);
         result.put("hours", hours);
+        result.put("chartData", chartData);  // NEW: Chart data for visualization
         
         System.out.println("Energy Saved: " + energySaved + " kWh (" + percentSaved + "%)");
         System.out.println("Cost Saved: $" + costSaved + " (Annual: $" + annualCostSaved + ")");
+        System.out.println("Chart data points: " + chartData.size());
         
         return result;
     }
+
+    private List<Double> extractDoubleList(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (!(value instanceof List<?> list)) {
+            return new ArrayList<>();
+        }
+        List<Double> result = new ArrayList<>();
+        for (Object o : list) {
+            if (o instanceof Number n) {
+                result.add(n.doubleValue());
+            }
+        }
+        return result;
+    }
+    /**
+     * Builds chart data array from baseline and scenario step energy lists
+     * Aggregates 15-minute steps into hourly data points for cleaner visualization
+     * 
+     * @param baselineSteps List of baseline energy per step (15-min intervals)
+     * @param scenarioSteps List of scenario energy per step (15-min intervals)
+     * @return List of chart data points (hourly aggregated)
+     */
+    private List<Map<String, Object>> buildChartData(List<Double> baselineSteps, List<Double> scenarioSteps) {
+        List<Map<String, Object>> chartData = new ArrayList<>();
+        
+        // Aggregate 4 steps (15-min each) into 1 hour for cleaner visualization
+        int stepsPerHour = 4;
+        int totalHours = baselineSteps.size() / stepsPerHour;
+        
+        for (int hour = 0; hour < totalHours; hour++) {
+            double baselineHourEnergy = 0.0;
+            double scenarioHourEnergy = 0.0;
+            
+            // Sum up 4 steps to get hourly energy
+            for (int step = 0; step < stepsPerHour; step++) {
+                int index = hour * stepsPerHour + step;
+                if (index < baselineSteps.size()) {
+                    baselineHourEnergy += baselineSteps.get(index);
+                    scenarioHourEnergy += scenarioSteps.get(index);
+                }
+            }
+            
+            Map<String, Object> dataPoint = new HashMap<>();
+            dataPoint.put("hour", hour + 1);  // Hour 1, 2, 3, ... (not 0-indexed for display)
+            dataPoint.put("baseline", Math.round(baselineHourEnergy * 100.0) / 100.0);
+            dataPoint.put("whatif", Math.round(scenarioHourEnergy * 100.0) / 100.0);
+            chartData.add(dataPoint);
+        }
+        
+        return chartData;
+    }
+    
+    
     
     /**
      * Creates an error response for What-If analysis failures
