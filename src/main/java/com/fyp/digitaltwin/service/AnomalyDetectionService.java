@@ -2,7 +2,16 @@ package com.fyp.digitaltwin.service;
 
 import com.fyp.digitaltwin.dto.AnomalyResult;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
+import com.fyp.digitaltwin.model.SimulationResult;
+import com.fyp.digitaltwin.repository.SimulationResultRepository;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
  * Service responsible for detecting anomalies in building energy consumption
@@ -196,6 +205,71 @@ public class AnomalyDetectionService {
             errorResult.setExplanation("Failed to parse dashboard data: " + e.getMessage());
             return errorResult;
         }
+    }
+
+    public AnomalyResult detectAnomalyWithHistoricalData(
+        String dashboardJson, 
+        LinearRegressionModel regressionModel, 
+        SimulationResultRepository resultRepository, 
+        int numberOfSteps) {
+        
+        // Get current anomaly detection result
+        AnomalyResult result = detectAnomalyFromDashboard(dashboardJson, regressionModel);
+        
+        try{
+            //Query recent simulation results ( e.g., last 96 steps =  24 hours)
+            List<SimulationResult> recentResults = resultRepository.findAll(Sort.by(Sort.Direction.DESC,"timestamp")
+            ).stream().limit(numberOfSteps).sorted(Comparator.comparing(SimulationResult::getTimestamp)).collect(Collectors.toList());
+
+            System.out.println("Found " + recentResults.size() + " historical simulation results for charts");
+
+            // Build chart data arrays
+            List<Integer> timeSteps = new ArrayList<>();
+            List<Double> realPowerList = new ArrayList<>(); 
+            List<Double> simulatedPowerList = new ArrayList<>();
+            List<Double> predictedPowerList = new ArrayList<>();
+            List<Double> residualsList = new ArrayList<>();
+
+            for(int i = 0; i < recentResults.size();i++){
+                SimulationResult sr = recentResults.get(i);
+
+                //Time step index
+                timeSteps.add(i + 1);
+                realPowerList.add(Math.round(sr.getRealPower() * 100.0) / 100.0);
+ 
+                // 1. GET RAW SIMULATED POWER
+                double rawSimulated = sr.getSimulatedPower();
+                simulatedPowerList.add(Math.round(rawSimulated * 100.0) / 100.0);
+
+                // 2. CALCULATE ML PREDICTION (Forward Calculation)
+                // predicted = raw * slope + intercept
+                double predicted = regressionModel.predict(rawSimulated);
+                predictedPowerList.add(Math.round(predicted * 100.0) / 100.0);
+    
+                // 3. CALCULATE RESIDUAL
+                // Residual = |Real - Predicted| (Using absolute value is standard for magnitude)
+                double residual = Math.abs(sr.getRealPower() - predicted);
+                residualsList.add(Math.round(residual * 100.0) / 100.0);
+            }
+            // Set chart data in result
+            result.setTimeSteps(timeSteps);
+            result.setRealPowerHistory(realPowerList);
+            result.setSimulatedPowerHistory(simulatedPowerList);
+            result.setPredictedPowerHistory(predictedPowerList);
+            result.setResiduals(residualsList);
+
+            System.out.println("Chart data prepared: " + timeSteps.size() + " data points");
+
+        }catch (Exception e) {
+            System.err.println("Error collecting historical data for charts: " + e.getMessage());
+            e.printStackTrace();
+            // Initialize empty arrays so frontend doesn't break
+            result.setTimeSteps(new ArrayList<>());
+            result.setSimulatedPowerHistory(new ArrayList<>());
+            result.setPredictedPowerHistory(new ArrayList<>());
+            result.setResiduals(new ArrayList<>());
+        }
+        return result;
     }
 }
 

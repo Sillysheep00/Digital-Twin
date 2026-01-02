@@ -1,16 +1,10 @@
 # Anomaly Detection Implementation Summary
 
-## 📋 Overview
 
-Successfully implemented a **residual-based anomaly detection system** for the Digital Twin building energy management system. This feature identifies unusual energy consumption patterns by comparing real power usage against calibrated simulated predictions.
-
----
 
 ## 🎯 Implementation Approach
 
 ### Methodology: Residual-Based Detection
-
-This is a **simple, interpretable, rule-based approach** (NOT a black-box ML model) suitable for Final Year Projects:
 
 ```
 1. Apply Calibration Factor

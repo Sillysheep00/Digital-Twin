@@ -27,63 +27,8 @@ User Input → REST API → Model Cloning → EOL Transformation → Simulation 
 
 ---
 
-## 📊 Available Parameters
 
-### 1. **Target Temperature** (18°C - 25°C)
-- **Current Default**: 22°C
-- **Impact**: Lower temperature = less heating = energy savings
-- **Example**: Reducing from 22°C to 21°C can save ~8-10% energy
 
-### 2. **Insulation Quality** (0.01 - 0.08)
-- **Current Default**: 0.04
-- **Impact**: Lower value = better insulation = less heat loss
-- **Example**: Improving from 0.04 to 0.02 can save ~13-15% energy
-
-### 3. **Prediction Horizon** (12, 24, 48, 72 hours)
-- **Default**: 24 hours
-- **Impact**: Longer period = more accurate annual projections
-
----
-
-## 🚀 How to Use
-
-### Step 1: Start the Application
-
-```bash
-# Terminal 1: Start Backend
-cd DigitalTwin
-mvn spring-boot:run
-
-# Terminal 2: Start Frontend
-cd frontend
-npm run dev
-```
-
-### Step 2: Access the Dashboard
-
-Open browser: `http://localhost:5173`
-
-### Step 3: Open What-If Analysis
-
-Click the **"🔬 What-If Analysis"** button (green button in top-left)
-
-### Step 4: Adjust Parameters
-
-- **Drag sliders** to change target temperature or insulation
-- **Select prediction horizon** from dropdown
-- Click **"▶️ Run What-If Analysis"**
-
-### Step 5: Review Results
-
-The analysis will show:
-- **Baseline Energy**: Current settings
-- **Scenario Energy**: With your changes
-- **Energy Saved**: Difference in kWh
-- **Cost Saved**: Estimated $ savings
-- **Annual Savings**: Projected yearly savings
-- **Recommendation**: Whether to implement changes
-
----
 
 ## 📋 Example Scenarios
 
@@ -165,56 +110,7 @@ Annual Cost: $369/year
 
 **Recommendation:** ⚠️ Not recommended - Increased costs without significant benefit
 
----
 
-## 🔧 API Usage (For Developers)
-
-### Endpoint
-
-```
-POST http://localhost:8080/api/what-if
-Content-Type: application/json
-```
-
-### Request Body
-
-```json
-{
-  "changes": {
-    "targetTemp": 21.0,
-    "insulation": 0.03
-  },
-  "hours": 24
-}
-```
-
-### Response
-
-```json
-{
-  "baseline": {
-    "predictedEnergy": 49.5,
-    "steps": 96,
-    "hours": 24
-  },
-  "scenario": {
-    "predictedEnergy": 40.0,
-    "steps": 96,
-    "hours": 24
-  },
-  "energySaved": 9.5,
-  "percentSaved": 19.19,
-  "costSaved": 1.43,
-  "annualCostSaved": 521.95,
-  "changes": {
-    "targetTemp": 21.0,
-    "insulation": 0.03
-  },
-  "hours": 24
-}
-```
-
----
 
 ## 🧪 Testing Checklist
 
@@ -364,9 +260,4 @@ Annual Cost = Daily Cost × 365
 
 ---
 
-## ✅ Summary
-
-The What-If Analysis feature is a powerful tool that leverages Model-Driven Engineering to provide actionable insights for building optimization. It's a key differentiator for your FYP, demonstrating advanced concepts in digital twins, predictive analytics, and decision support systems.
-
-**Key Takeaway**: Test changes virtually before implementing them physically, saving time, money, and risk!
 

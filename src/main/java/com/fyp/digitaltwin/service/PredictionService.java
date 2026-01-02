@@ -119,7 +119,6 @@ public class PredictionService {
      * @param hoursToPredict Number of hours to predict
      * @return Map with predictedEnergy, stepEnergyList, hours, or error
      */
-    @SuppressWarnings("unchecked")
     public synchronized Map<String, Object> predictFutureEnergyWithSteps(int hoursToPredict) {
         System.out.println("Running prediction for next " + hoursToPredict + " hours...");
         double totalPredictedEnergy = 0.0;

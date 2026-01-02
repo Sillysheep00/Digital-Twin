@@ -19,35 +19,7 @@ Heater ON: Below 19°C (22 - 3)
 Cooling ON: Above 25°C (22 + 3)
 
 
-What if analysis issue
-what i know now is 
-prediction: sets the temperature we want and run this temperature with 16 future timesteps from the dataset and calculate the energy
-compare it with the current temperature of normal simulation that also run the same 16 future timesteps
-Finally we calculated the energy saved
 
-
-the what if analysis is also call as foward simulation， it uses live changes to do the prediction. let say if i change a temperature to 24,
-it will use this to predict the next 24 hour energy use.
-
-Use machine learning to implement machine learning algorithm
-Why anomaly detection is perfect
--Does NOT require long-horizon forecasting
--Uses historical data only
--Very easy with:
-    -Linear Regression residuals
-    -Decision Tree thresholds
-
-How it works (simple & explainable)
-Train model on historical data:
-energy = f(temp, occupancy, hvacState)
-
-Predict expected energy
-Compare with actual energy
-If deviation > threshold → anomaly
-
-
-Dataset power is way higher than the simulated one as we are calculating the hvac and baseload only.Dataset power may include something else
-Need to explain why we have large difference with the Dataset.May also need to adjust the baseload value for each room
-
-Possible solution:
-explain it in the limitation section（ saying that this digital twin is focusing on hvac driven energy Consumption） and future work section ( could extend the model to include more plug loads ) 
+“An initial calibration-based scaling approach was implemented as a baseline.
+However, this method assumes a zero intercept and cannot model constant base loads.
+It was therefore replaced by a data-driven linear regression model which generalizes the calibration factor and improves prediction accuracy.”  

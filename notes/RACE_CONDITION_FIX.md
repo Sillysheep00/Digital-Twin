@@ -93,31 +93,7 @@ try {
 3. Added `filterJsonOutput()` method to clean output for json.eol
 4. Added `countChar()` helper method for brace counting
 
-**Line Count:**
-- Before: ~200 lines
-- After: ~270 lines (+70 lines for filtering logic)
 
-## Testing
-
-### Before Fix
-```bash
-curl -X POST http://localhost:8080/api/digitaltwin/what-if \
-  -H "Content-Type: application/json" \
-  -d '{"changes": {"targetTemp": 21.0}, "hours": 4}'
-
-# Result: 500 Internal Server Error
-# JsonParseException: Unexpected character '>'
-```
-
-### After Fix
-```bash
-curl -X POST http://localhost:8080/api/digitaltwin/what-if \
-  -H "Content-Type: application/json" \
-  -d '{"changes": {"targetTemp": 21.0}, "hours": 4}'
-
-# Result: 200 OK
-# JSON response with baseline, scenario, and savings
-```
 
 ## Why Synchronized is Sufficient
 
@@ -135,13 +111,6 @@ If performance becomes an issue (many concurrent What-If requests), we can optim
 - Epsilon's native output capture (if available)
 - Separate model instances with isolated contexts
 
-## Related Files
-
-- `src/main/java/com/fyp/digitaltwin/service/ModelService.java` - **Fixed**
-- `src/main/java/com/fyp/digitaltwin/service/PredictionService.java` - Uses ModelService
-- `src/main/java/com/fyp/digitaltwin/service/DigitalTwinEngine.java` - Main simulation loop
-- `src/main/resources/json.eol` - JSON generation script
-- `src/main/resources/hvac.eol` - HVAC simulation script (also prints debug messages)
 
 ## Lessons Learned
 
@@ -157,9 +126,4 @@ If performance becomes an issue (many concurrent What-If requests), we can optim
 3. **Better Output Capture**: Investigate Epsilon's native output capture mechanisms
 4. **Performance Monitoring**: Add metrics to track runEolScript execution time
 
-## Date
-December 28, 2025
-
-## Status
-✅ **FIXED** - Race condition resolved, What-If Analysis now works correctly
 

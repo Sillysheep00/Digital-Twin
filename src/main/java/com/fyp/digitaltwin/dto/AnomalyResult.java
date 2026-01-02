@@ -1,5 +1,6 @@
 package com.fyp.digitaltwin.dto;
 
+import java.util.List;
 /**
  * Data Transfer Object for Anomaly Detection Results
  * 
@@ -19,6 +20,13 @@ public class AnomalyResult {
     private double threshold;
     private String severity; // "NORMAL", "WARNING", "CRITICAL"
     private String explanation;
+    private List <Integer> timeSteps;
+    private List<Double> realPowerHistory; // Historical real(dateset) power
+    private List<Double> simulatedPowerHistory;  // Historical raw simulated power
+    private List<Double> predictedPowerHistory; // Historical ML-predicted power  
+    private List<Double> residuals;            // Historical residuals
+
+    
     
     // Default constructor
     public AnomalyResult() {}
@@ -101,5 +109,45 @@ public class AnomalyResult {
     public void setExplanation(String explanation) {
         this.explanation = explanation;
     }
+
+    public List<Integer> getTimeSteps() {
+        return timeSteps;
+    }
+
+    public void setTimeSteps(List<Integer> timeSteps) {
+        this.timeSteps = timeSteps;
+    }
+
+    public List<Double> getRealPowerHistory() { 
+        return realPowerHistory; 
+    }
+    public void setRealPowerHistory(List<Double> realPowerHistory) { 
+        this.realPowerHistory = realPowerHistory; 
+    }
+
+    public List<Double> getSimulatedPowerHistory() {
+        return simulatedPowerHistory;
+    }
+
+    public void setSimulatedPowerHistory(List<Double> simulatedPowerHistory) {
+        this.simulatedPowerHistory = simulatedPowerHistory;
+    }
+    
+    public List<Double> getPredictedPowerHistory() {
+        return predictedPowerHistory;
+    }
+    
+    public void setPredictedPowerHistory(List<Double> predictedPowerHistory) {
+        this.predictedPowerHistory = predictedPowerHistory;
+    }
+    
+    public List<Double> getResiduals() {
+        return residuals;
+    }
+    
+    public void setResiduals(List<Double> residuals) {
+        this.residuals = residuals;
+    }
+
 }
 

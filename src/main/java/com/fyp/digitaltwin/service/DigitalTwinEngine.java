@@ -77,6 +77,12 @@ public class DigitalTwinEngine {
     public void init() {
         try {
             System.out.println("Initializing Digital Twin Engine...");
+
+            // --- TEMPORARY LINE: WIPE DB TO FIX GRAPH VALUES ---
+            resultRepository.deleteAll(); 
+            System.out.println("!!! DATABASE CLEARED !!!");
+            // ---------------------------------------------------
+
             this.smartOfficeModel = modelService.loadModel();
 
             // Check if MongoDB has data
@@ -248,13 +254,15 @@ public class DigitalTwinEngine {
                 mlSlope,
                 mlIntercept
             );
+
+            System.out.println("DEBUG JSON OUTPUT: " + jsonOutput);
             
             // 2. Parse the JSON
             JsonNode root = objectMapper.readTree(jsonOutput);
             
             // 3. Extract values
             double realPower = root.path("power").path("real").asDouble();
-            double simulatedPower = root.path("power").path("simulated").asDouble();
+            double simulatedPower = root.path("power").path("simulated_raw").asDouble();
             double totalEnergy = root.path("energy").path("total").asDouble();
             double outdoorTemp = root.path("environment").path("outdoorTemp").asDouble();
             double avgIndoorTemp = root.path("environment").path("avgIndoorTemp").asDouble();

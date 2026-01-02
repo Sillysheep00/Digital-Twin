@@ -14,8 +14,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * This test suite verifies that:
  * 1. Calibration factor is calculated correctly on startup
  * 2. Calibration factor is passed to all services
- * 3. Calibrated power values are closer to real power than raw simulated values
- * 4. What-If analysis uses calibrated predictions
  * 
  * Test Strategy:
  * - Uses the actual Spring Boot application context
@@ -33,6 +31,7 @@ public class CalibrationTest {
     
     /**
      * Test 1: Verify calibration factor is calculated and set
+     * Test 2:Verify calibration improves accuracy
      */
     @Test
     public void testCalibrationFactorCalculated() {

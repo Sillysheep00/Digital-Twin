@@ -1,4 +1,7 @@
 import ModalWrapper from '../ui/ModalWrapper';
+import { useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+
 
 function AnomalyModal({
   showAnomaly,
@@ -7,7 +10,15 @@ function AnomalyModal({
   handleAnomalyCheck,
   isCheckingAnomaly
 }) {
+  const [activeChart, setActiveChart] = useState('trend'); // 'trend' or 'residual'
+
   if (!showAnomaly) return null;
+  console.log('Anomaly Result:', anomalyResult);
+  console.log('Has timeSteps:', anomalyResult?.timeSteps);
+  console.log('Has realPowerHistory:', anomalyResult?.realPowerHistory);
+  console.log('realPowerHistory sample:', anomalyResult?.realPowerHistory?.slice(0, 5));
+  console.log('Has simulatedPowerHistory:', anomalyResult?.simulatedPowerHistory);
+  console.log('Has predictedPowerHistory:', anomalyResult?.predictedPowerHistory);
 
   const getBorderColor = () =>
     anomalyResult?.anomalyDetected ? '#e74c3c' : '#27ae60';
@@ -25,6 +36,36 @@ function AnomalyModal({
         return '#27ae60';
     }
   };
+   // Prepare chart data
+   const prepareTrendData = () => {
+    if (!anomalyResult?.timeSteps || !anomalyResult.simulatedPowerHistory || !anomalyResult.predictedPowerHistory) {
+      return [];
+    }
+    return anomalyResult.timeSteps.map((step, index) => ({
+      step,
+      simulated: anomalyResult.simulatedPowerHistory[index],
+      predicted: anomalyResult.predictedPowerHistory[index]
+    }));
+  };
+
+  const prepareResidualData = () => {
+    if (!anomalyResult?.timeSteps || !anomalyResult.residuals) {
+      return [];
+    }
+    return anomalyResult.timeSteps.map((step, index) => {
+      // Get the real power for this specific moment in history
+      const historicalRealPower = anomalyResult.realPowerHistory ? anomalyResult.realPowerHistory[index] : 0;
+    
+      // Calculate dynamic threshold (15%)
+      const dynamicThreshold = historicalRealPower * 0.25;
+      return{
+        step,
+        residual: anomalyResult.residuals[index],
+        threshold: dynamicThreshold
+      };
+    });
+  };
+
 
   return (
     <ModalWrapper onClose={() => setShowAnomaly(false)} title="🚨 ML-Based Anomaly Detection">
@@ -51,6 +92,135 @@ function AnomalyModal({
       >
         {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
       </button>
+
+
+       {/* Chart Toggle */}
+       {anomalyResult && !anomalyResult.error && anomalyResult.timeSteps && (
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+            <button
+              onClick={() => setActiveChart('trend')}
+              style={{
+                flex: 1,
+                padding: '10px',
+                background: activeChart === 'trend' ? '#3498db' : '#ecf0f1',
+                color: activeChart === 'trend' ? 'white' : '#2c3e50',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              📈 Power Trend Comparison
+            </button>
+            <button
+              onClick={() => setActiveChart('residual')}
+              style={{
+                flex: 1,
+                padding: '10px',
+                background: activeChart === 'residual' ? '#3498db' : '#ecf0f1',
+                color: activeChart === 'residual' ? 'white' : '#2c3e50',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              📊 Residual Plot
+            </button>
+          </div>
+
+          {/* Chart 1: Power Trend Comparison */}
+          {activeChart === 'trend' && (
+          <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+            <h4 style={{ marginTop: 0 }}>Power Trend Comparison</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={prepareTrendData()}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis 
+                  dataKey="step" 
+                  label={{ value: 'Time Step', position: 'insideBottom', offset: -5 }}
+                  stroke="#666"
+                />
+                <YAxis 
+                  label={{ value: 'Power (kW)', angle: -90, position: 'insideLeft' }}
+                  stroke="#666"
+                />
+                <Tooltip 
+                  formatter={(value) => `${value} kW`}
+                  labelFormatter={(label) => `Step ${label}`}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="simulated" 
+                  stroke="#ff6b6b" 
+                  strokeWidth={2}
+                  name="Simulated Power"
+                  dot={{ r: 3 }}
+                />
+                <Line 
+                    type="monotone" 
+                    dataKey="predicted" 
+                    stroke="#51cf66" 
+                    strokeWidth={2}
+                    name="ML-Predicted Power"
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Chart 2: Residual Plot */}
+          {activeChart === 'residual' && (
+            <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+              <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={prepareResidualData()}>
+                  
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis 
+                    dataKey="step" 
+                    label={{ value: 'Time Step', position: 'insideBottom', offset: -5 }}
+                    stroke="#666"
+                  />
+                  <YAxis 
+                    label={{ value: 'Residual Power (kW)', angle: -90, position: 'Left' }}
+                    stroke="#666"
+                  />
+                  <Tooltip 
+                    formatter={(value) => `${value} kW`}
+                    labelFormatter={(label) => `Step ${label}`}
+                  />
+                  {/* <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" /> */}
+                  <Legend />
+                  {/* --- ADD THIS DYNAMIC THRESHOLD LINE --- */}
+                  <Line 
+                    type="monotone" 
+                    dataKey="threshold" 
+                    stroke="#f39c12" 
+                    strokeWidth={2}
+                    strokeDasharray="5 5"   // Dashed line makes it look like a "limit"
+                    name="Warning Limit (25%)" 
+                    dot={false}             // No dots, just a smooth boundary line
+                    isAnimationActive={false}
+                  />
+
+                  <Line 
+                    type="monotone" 
+                    dataKey="residual" 
+                    stroke="#e74c3c" 
+                    strokeWidth={2}
+                    name="Residual"
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Results */}
       {anomalyResult && !anomalyResult.error && (
