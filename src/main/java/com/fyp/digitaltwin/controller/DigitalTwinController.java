@@ -68,7 +68,7 @@ public class DigitalTwinController {
     @PostMapping("/what-if")
     public ResponseEntity<Map<String, Object>> runWhatIfAnalysis(@RequestBody WhatIfRequest request) {
         System.out.println("What-If Analysis Request: " + request);
-        Map<String, Object> result = engine.predictWithWhatIf(request.getChanges(), request.getHours());
+        Map<String, Object> result = engine.predictWithWhatIf(request.getChanges(), request.getHours(),request.getInvestmentCost());
         if (result == null) {
             return ResponseEntity.status(500).body(Map.of("error", "What-If analysis failed"));
         }

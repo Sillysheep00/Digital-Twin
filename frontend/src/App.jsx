@@ -27,6 +27,7 @@ function App() {
     targetTemp: 22,
     insulation: 0.04,
     hours: 24,
+    investmentCost: null
   });
   const [whatIfResult, setWhatIfResult] = useState(null);
   const [isRunningWhatIf, setIsRunningWhatIf] = useState(false);
@@ -77,6 +78,7 @@ function App() {
       const response = await axios.post('http://localhost:8080/api/what-if', {
         changes,
         hours: parseInt(whatIfParams.hours),
+        investmentCost: whatIfParams.investmentCost || null  // Add investment cost
       });
       setWhatIfResult(response.data);
     } catch (err) {

@@ -7,11 +7,17 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
   return (
     <ModalWrapper onClose={onClose} maxWidth="1100px">
       <h2 style={{ marginBottom: '10px' }}>📊 Energy Usage Comparison</h2>
+     
 
-      <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>
-        Comparing baseline scenario vs. your what-if scenario over {whatIfParams.hours} hours
+      <p style={{ color: '#666', marginBottom: '5px', fontSize: '14px' }}>
+        Comparing current scenario vs your what-if scenario over {whatIfParams.hours} hours
       </p>
 
+      {whatIfResult.analysisStartTime && (
+        <p style={{ color: '#888', marginBottom: '20px', fontSize: '12px', fontStyle: 'italic' }}>
+          Analysis start time: {whatIfResult.analysisStartTime}
+        </p>
+      )}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart
           data={whatIfResult.chartData}
@@ -19,8 +25,8 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
           <XAxis
-            dataKey="hour"
-            label={{ value: 'Hour', position: 'insideBottom', offset: -5 }}
+            dataKey="timestamp"
+            label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
             stroke="#666"
           />
           <YAxis
@@ -35,7 +41,11 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
               padding: '10px'
             }}
             formatter={(value) => `${value} kWh`}
-            labelFormatter={(label) => `Hour ${label}`}
+            labelFormatter={(label) => {
+              // Show full timestamp in tooltip if available
+              const dataPoint = whatIfResult.chartData.find(d => d.timestamp === label);
+              return dataPoint?.startTime || label;
+            }}
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="line" />
 
@@ -44,7 +54,7 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
             dataKey="baseline"
             stroke="#ff6b6b"
             strokeWidth={3}
-            name="Baseline Scenario"
+            name="Current Scenario"
             dot={{ r: 4, fill: '#ff6b6b' }}
             activeDot={{ r: 6 }}
           />
@@ -73,7 +83,7 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
         }}
       >
         <SummaryBox
-          label="Baseline Total"
+          label="Current Total"
           value={`${whatIfResult.baseline.predictedEnergy.toFixed(2)} kWh`}
           color="#ff6b6b"
         />

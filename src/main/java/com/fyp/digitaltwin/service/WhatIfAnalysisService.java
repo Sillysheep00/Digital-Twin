@@ -1,6 +1,8 @@
 package com.fyp.digitaltwin.service;
 
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
+import com.fyp.digitaltwin.dto.CostAnalysisResult;
+
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.EolModule;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 /**
  * Service responsible for What-If Analysis scenarios.
@@ -47,7 +50,7 @@ public class WhatIfAnalysisService {
      * @param hours Prediction horizon in hours
      * @return Comparison result with baseline, scenario, savings, and recommendations
      */
-    public Map<String, Object> runAnalysis(Map<String, Object> changes, int hours) {
+    public Map<String, Object> runAnalysis(Map<String, Object> changes, int hours,Double investmentCost) {
         System.out.println("=== WHAT-IF ANALYSIS START ===");
         System.out.println("Changes requested: " + changes);
         System.out.println("Prediction horizon: " + hours + " hours");
@@ -94,7 +97,7 @@ public class WhatIfAnalysisService {
             
             // STEP 5: Calculate savings and prepare results with chart data
             System.out.println("\n[5/5] Calculating savings and building chart data...");
-            Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours);
+            Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours,investmentCost);
             
             // Clean up
             scenarioModel.dispose();
@@ -194,6 +197,8 @@ public class WhatIfAnalysisService {
         }
     }
     
+    @Autowired
+    private CostAnalysisService CostAnalysisService;
     /**
      * Calculates energy and cost savings with chart data from What-If analysis
      * 
@@ -206,7 +211,8 @@ public class WhatIfAnalysisService {
     private Map<String, Object> calculateSavingsWithChartData(Map<String, Object> baselineDetailed, 
                                                                Map<String, Object> scenarioDetailed,
                                                                Map<String, Object> changes,
-                                                               int hours) {
+                                                               int hours,
+                                                               Double investmentCost) {
         double baselineEnergy = (Double) baselineDetailed.get("predictedEnergy");
         double scenarioEnergy = (Double) scenarioDetailed.get("predictedEnergy");
         double energySaved = baselineEnergy - scenarioEnergy;
@@ -217,10 +223,34 @@ public class WhatIfAnalysisService {
         double annualCostSaved = costSaved * (365.0 / (hours / 24.0));
         
         // Build chart data from step-by-step energy lists
+        // Extract currentDate from baselineDetailed (set by PredictionService)
+                                                                
+        String currentDate = null;
+        if (baselineDetailed.containsKey("currentDate")) {
+            currentDate = (String)  baselineDetailed.get("currentDate");
+        }
 
         List<Double> baselineSteps = extractDoubleList(baselineDetailed,"stepEnergyList");
         List<Double> scenarioSteps = extractDoubleList(scenarioDetailed,"stepEnergyList");
-        List<Map<String, Object>> chartData = buildChartData(baselineSteps, scenarioSteps);
+        List<Map<String, Object>> chartData =  buildChartData(baselineSteps, scenarioSteps, currentDate, hours);
+
+         
+        // Extract start time from first data point if available
+        String analysisStartTime = null;
+        if (!chartData.isEmpty() && chartData.get(0).containsKey("startTime")) {
+            analysisStartTime = (String) chartData.get(0).get("startTime");
+        }
+       
+
+        // ═════════════════════════════════════════════════════════════════
+        // COST ANALYSIS (Delegated to CostAnalysisService - SRP)
+        // ═════════════════════════════════════════════════════════════════
+        CostAnalysisResult costAnalysis = CostAnalysisService.analyzeCosts(
+            energySaved, 
+            hours, 
+            investmentCost
+        );    
+
         
         // Create simplified baseline/scenario maps for backward compatibility
         Map<String, Double> baseline = new HashMap<>();
@@ -236,15 +266,27 @@ public class WhatIfAnalysisService {
         result.put("scenario", scenario);
         result.put("energySaved", Math.round(energySaved * 100.0) / 100.0);
         result.put("percentSaved", Math.round(percentSaved * 100.0) / 100.0);
-        result.put("costSaved", Math.round(costSaved * 100.0) / 100.0);
-        result.put("annualCostSaved", Math.round(annualCostSaved * 100.0) / 100.0);
+
+        result.put("costAnalysis", costAnalysis);  
+        result.put("costSaved", costAnalysis.getPeriodCostSaved());  
+        result.put("annualCostSaved", costAnalysis.getAnnualCostSaved());  
+
         result.put("changes", changes);
         result.put("hours", hours);
-        result.put("chartData", chartData);  // NEW: Chart data for visualization
+        result.put("chartData", chartData); 
+       
+        if (analysisStartTime != null) {
+            result.put("analysisStartTime", analysisStartTime);
+        }
         
         System.out.println("Energy Saved: " + energySaved + " kWh (" + percentSaved + "%)");
-        System.out.println("Cost Saved: $" + costSaved + " (Annual: $" + annualCostSaved + ")");
-        System.out.println("Chart data points: " + chartData.size());
+        System.out.println("Cost Analysis: Daily=£" + costAnalysis.getDailyCostSaved() + 
+                      ", Monthly=£" + costAnalysis.getMonthlyCostSaved() + 
+                      ", Annual=£" + costAnalysis.getAnnualCostSaved());
+        if (costAnalysis.getPaybackPeriodMonths() != null) {
+            System.out.println("ROI: Payback=" + costAnalysis.getPaybackPeriodMonths() + " months, " +
+                            "ROI=" + costAnalysis.getRoiPercentage() + "%");
+        }
         
         return result;
     }
@@ -270,14 +312,39 @@ public class WhatIfAnalysisService {
      * @param scenarioSteps List of scenario energy per step (15-min intervals)
      * @return List of chart data points (hourly aggregated)
      */
-    private List<Map<String, Object>> buildChartData(List<Double> baselineSteps, List<Double> scenarioSteps) {
+    private List<Map<String, Object>> buildChartData(List<Double> baselineSteps, List<Double> scenarioSteps, String startDate , int totalHours) {
         List<Map<String, Object>> chartData = new ArrayList<>();
         
         // Aggregate 4 steps (15-min each) into 1 hour for cleaner visualization
+        LocalDateTime startDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                // Try common date formats
+                if (startDate.contains(" ")) {
+                    String[] parts = startDate.split(" ");
+                    String datePart = parts[0];
+                    String timePart = parts.length > 1 ? parts[1] : "00:00:00";
+                    
+                    String[] dateParts = datePart.split("-");
+                    String[] timeParts = timePart.split(":");
+                    
+                    int year = Integer.parseInt(dateParts[0]);
+                    int month = Integer.parseInt(dateParts[1]);
+                    int day = Integer.parseInt(dateParts[2]);
+                    int hour = timeParts.length > 0 ? Integer.parseInt(timeParts[0]) : 0;
+                    int minute = timeParts.length > 1 ? Integer.parseInt(timeParts[1]) : 0;
+                    
+                    startDateTime = java.time.LocalDateTime.of(year, month, day, hour, minute);
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Could not parse start date: " + startDate);
+            }
+        }
+
         int stepsPerHour = 4;
-        int totalHours = baselineSteps.size() / stepsPerHour;
+        int totalHoursCalculated = baselineSteps.size() / stepsPerHour;
         
-        for (int hour = 0; hour < totalHours; hour++) {
+        for (int hour = 0; hour < totalHoursCalculated; hour++) {
             double baselineHourEnergy = 0.0;
             double scenarioHourEnergy = 0.0;
             
@@ -291,9 +358,26 @@ public class WhatIfAnalysisService {
             }
             
             Map<String, Object> dataPoint = new HashMap<>();
+
+             // Always show HH:mm format on x-axis (no dates)
+            if (startDateTime != null) {
+                java.time.LocalDateTime hourDateTime = startDateTime.plusHours(hour);
+                // Format: Always HH:mm (14:00, 15:00, etc.)
+                dataPoint.put("timestamp", hourDateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+                // Store full timestamp for subtitle/caption display
+                if (hour == 0) {
+                    // Store start time in result for frontend display
+                    dataPoint.put("startTime", hourDateTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                }
+            } else {
+                // Fallback: use hour number
+                dataPoint.put("timestamp", "H" + (hour + 1));
+            }
+
             dataPoint.put("hour", hour + 1);  // Hour 1, 2, 3, ... (not 0-indexed for display)
             dataPoint.put("baseline", Math.round(baselineHourEnergy * 100.0) / 100.0);
             dataPoint.put("whatif", Math.round(scenarioHourEnergy * 100.0) / 100.0);
+
             chartData.add(dataPoint);
         }
         

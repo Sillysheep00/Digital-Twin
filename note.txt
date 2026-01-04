@@ -23,3 +23,72 @@ Cooling ON: Above 25°C (22 + 3)
 “An initial calibration-based scaling approach was implemented as a baseline.
 However, this method assumes a zero intercept and cannot model constant base loads.
 It was therefore replaced by a data-driven linear regression model which generalizes the calibration factor and improves prediction accuracy.”  
+
+
+// Update the savings display section (around line 147):
+{/* Cost Savings - Enhanced Display */}
+{whatIfResult.costAnalysis && (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginTop: '15px' }}>
+    <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <div style={{ fontSize: '12px', color: '#666' }}>Daily Savings</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#00b894' }}>
+        £{whatIfResult.costAnalysis.dailyCostSaved?.toFixed(2)}
+      </div>
+    </div>
+    <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <div style={{ fontSize: '12px', color: '#666' }}>Monthly Savings</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#00b894' }}>
+        £{whatIfResult.costAnalysis.monthlyCostSaved?.toFixed(2)}
+      </div>
+    </div>
+    <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <div style={{ fontSize: '12px', color: '#666' }}>Annual Savings</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#00b894' }}>
+        £{whatIfResult.costAnalysis.annualCostSaved?.toFixed(2)}
+      </div>
+    </div>
+    <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <div style={{ fontSize: '12px', color: '#666' }}>Period Savings</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#00b894' }}>
+        £{whatIfResult.costAnalysis.periodCostSaved?.toFixed(2)}
+      </div>
+    </div>
+  </div>
+)}
+
+
+{/* ROI Metrics (if investment provided) */}
+{whatIfResult.costAnalysis?.investmentCost && (
+  <div style={{ 
+    marginTop: '20px', 
+    padding: '20px', 
+    background: '#e8f4f8', 
+    borderRadius: '8px',
+    border: '2px solid #3498db'
+  }}>
+    <h4 style={{ marginTop: 0, color: '#2c3e50' }}>💰 Return on Investment (ROI) Analysis</h4>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+      <div style={{ background: 'white', padding: '15px', borderRadius: '8px' }}>
+        <div style={{ fontSize: '12px', color: '#666' }}>Investment Cost</div>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#e74c3c' }}>
+          £{whatIfResult.costAnalysis.investmentCost.toFixed(2)}
+        </div>
+      </div>
+      <div style={{ background: 'white', padding: '15px', borderRadius: '8px' }}>
+        <div style={{ fontSize: '12px', color: '#666' }}>Payback Period</div>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#3498db' }}>
+          {whatIfResult.costAnalysis.paybackPeriodMonths?.toFixed(1)} months
+        </div>
+        <div style={{ fontSize: '12px', color: '#666' }}>
+          ({whatIfResult.costAnalysis.paybackPeriodYears?.toFixed(2)} years)
+        </div>
+      </div>
+      <div style={{ background: 'white', padding: '15px', borderRadius: '8px' }}>
+        <div style={{ fontSize: '12px', color: '#666' }}>Annual ROI</div>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#27ae60' }}>
+          {whatIfResult.costAnalysis.roiPercentage?.toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  </div>
+)}

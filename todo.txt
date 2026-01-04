@@ -6,9 +6,8 @@ maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等�
 Task
 saw the whatifanalysis allow setting of per room baseload and baseload but the frontend does not show this selection (can implement or remove this baseload changing function)
 saw there is cost in the what if analysis ask gpt which cost value is reasonable
-proceed to implement anomaly detection
-implement graph output
 
+for what if analysis add extreme testing for the temperature 10 celsius and 30 celsius
 Debug
 
 minor fix（之后才fix）:
@@ -153,63 +152,73 @@ Yes, decision trees could be used if additional nonlinear features such as weath
 However, given the current feature set, linear regression is the most suitable choice.
 
 
+7.Explain how your cost analysis feature work
+Cost analysis is not a standalone feature. It is a derived interpretation of a what if scenario
 
-Implement anomaly detection for building energy consumption using a simple machine learning–inspired residual-based approach suitable for a Final Year Project.
+Example scenario
+Building Manager ask should we upgrade insulation in this building
+The cost analysis goal is to decide whether an isulation upgrade is worth the money
 
-Conceptual Approach (must be followed)
-Use a calibrated digital twin + residual-based anomaly detection:
-Calibrate the simulation output using an existing calibration factor
-Compute residual between calibrated simulation and real power usage
-Detect anomalies by checking whether the residual exceeds a defined threshold
-This approach should be simple, interpretable, and explainable, not a complex black-box model.
+Step 1:
+The building currently operates with target temperature 22 degree celsius and  insulation value of 0.04
+From this the system know the baseline cost of operation
 
-Constraints & Design Requirements
-Follow Spring Boot best practices
-Service layer logic
-No business logic inside controllers
-Follow clean software architecture
-Create new service / class files if necessary
-Single responsibility per class
-Keep logic simple, readable, and well-commented
+Step 2:
+The building manager ask what if we improve simulation to 0.06?
+We adjust the insulation value to 0.06 and set the analysis period(1 month) and run the what if analysis
+After running we can know whether the energy is saved(let say 145kWh) with the setting. 
+But this is not enough to make a decision.
 
-Assume or check if :
-Calibration factor is already computed
-Real and simulated power values are available
+Step3:
+Now building manager may ask the question what does 145kWh mean in money?
+I follow the UK electricity prices which 0.3 pound per kwH
 
-No external ML libraries (e.g. TensorFlow, Weka)
-Must be suitable for academic evaluation (FYP)
+From this the system can calculate the monthly and anual savings.
+Monthy saving = 145 * 0.4 = 43.5
+Annual saving = 43.5 * 12 = 522
 
-Detection Method Requirements
-Use residual-based detection
-Residual formula:
-residual = |realPower − calibratedSimulatedPower|
+Important!: If saving is negative the system will not display the ROI and payback, as negative ROI and payback
+            has no meaningful interpretation and maybe misleading for non technical user
 
-An anomaly is detected when:
-residual > threshold
+Step 4: The ROI & Payback is another supporting evidence for the decision
+Building manager enter the insulation upgrade cost 2000 pound 
+  - Insulation upgrade cost is like a budget for the upgrade
 
-Threshold can be:
-Fixed (e.g. percentage of real power), or
-Based on historical average residual (simple approach)
+The system will calculates the payback period
+Payback period = 2000 / 522 = 3.8 years
+  - payback period（回本时长） = how long it takes for savings to payback initial cost.
+  - think like this : You spend money first, then save money every month.
+  - so 3.8 years your savings will equal to your initial cost and after that will be pure profit
+  - Payback Period	Interpretation
+    < 3 years	Excellent
+    3–5 years	Good
+    5–10 years	Acceptable
+    > 10 years	Usually not attractive
 
-Expected Output
-Provide ONE Java service method
-Method should:
-Take real power, simulated power, and calibration factor as input
-Return an anomaly result (boolean or DTO)
-Include clear inline comments explaining:
-Why calibration is applied
-How residual is calculated
-How anomaly decision is made
+ROI  = (522/2000) * 100 = 26.1 %
+  - ROI = Return on Investment
+  - It tells how efficient your investment is, 
+  basically it answer how much money do you earn back for the amount of money you spent
+  - Formula : ROI (%) = (Annual Savings ÷ Investment Cost) × 100
+  From our example 26.1 % meaning every year we will recover 26.1 of our investment , so for the 2000 pound
+  it takes roughly 3.8 years to fully recover 
+  -Higher ROI meaning better investment
 
-Code must be ready to integrate into a Spring Boot backend
 
-Additionally, generate a simple Spring Boot API test
-to verify the anomaly detection endpoint.
+By having all this the building manager can make decision
+Payback period < 5 years   worth considering
+Positive ROI  financially sensible
 
-The test should:
-- Use MockMvc
-- Cover at least:
-  1) A normal case where no anomaly is detected
-  2) A case where an anomaly is detected due to high residual
-- Assert the anomaly flag in the response
-- Keep the test simple and suitable for a Final Year Project
+Cost Analysis alone cannot answer:
+  “What happens if insulation changes?”
+  “What if target temperature is lowered?”
+  “What if operating hours change?”
+
+Cost Analysis WITH What-If can answer:
+  “Is this change worth investing in?”
+  “How long until it pays for itself?”
+  “What is the financial impact of my design choice?”
+
+
+
+

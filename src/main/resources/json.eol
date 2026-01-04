@@ -88,11 +88,11 @@ var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 
 var jsonOutput = "{" + "\n";
 
-if (simulateData.isDefined()) {
+    if (simulateData.isDefined()) {
     jsonOutput = jsonOutput + '"timestamp": "' + simulateData.date + '",' + "\n";
-} else {
+    } else {
     jsonOutput = jsonOutput + '"timestamp": "N/A",' + "\n";
-}
+    }
 
 jsonOutput = jsonOutput + '"power": {' + "\n";
 jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";

@@ -189,6 +189,8 @@ public class PredictionService {
             result.put("predictedEnergy", Math.round(totalPredictedEnergy * 100.0) / 100.0);
             result.put("hours", (double) hoursToPredict);
             result.put("stepEnergyList", stepEnergyList);
+            result.put("currentDate", currentDate);
+
             return result;
 
         } catch (Exception e) {

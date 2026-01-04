@@ -8,7 +8,8 @@ import java.util.Map;
  */
 public class WhatIfRequest {
     private Map<String, Object> changes;  // Parameters to modify (e.g., {"targetTemp": 21.0, "insulation": 0.03})
-    private int hours;                     // Prediction horizon in hours
+    private int hours;            // Prediction horizon in hours
+    private Double investmentCost;         
 
     // Constructors
     public WhatIfRequest() {}
@@ -16,6 +17,12 @@ public class WhatIfRequest {
     public WhatIfRequest(Map<String, Object> changes, int hours) {
         this.changes = changes;
         this.hours = hours;
+    }
+
+    public WhatIfRequest(Map<String, Object> changes, int hours,Double investmentCost) {
+        this.changes = changes;
+        this.hours = hours;
+        this.investmentCost = investmentCost;
     }
 
     // Getters and Setters
@@ -35,11 +42,20 @@ public class WhatIfRequest {
         this.hours = hours;
     }
 
+    public Double getInvestmentCost() {
+        return investmentCost;
+    }
+    
+    public void setInvestmentCost(Double investmentCost) {
+        this.investmentCost = investmentCost;
+    }
+
     @Override
     public String toString() {
         return "WhatIfRequest{" +
                 "changes=" + changes +
                 ", hours=" + hours +
+                ", investmentCost=" + investmentCost +
                 '}';
     }
 }

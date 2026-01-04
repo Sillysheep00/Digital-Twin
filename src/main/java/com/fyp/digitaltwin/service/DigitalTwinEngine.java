@@ -381,14 +381,14 @@ public class DigitalTwinEngine {
      * @param hours Prediction horizon
      * @return Analysis result with savings calculations
      */
-    public Map<String, Object> predictWithWhatIf(Map<String, Object> changes, int hours) {
+    public Map<String, Object> predictWithWhatIf(Map<String, Object> changes, int hours,Double investmentCost) {
         // Update prediction service with current state
         predictionService.setCurrentStepIndex(currentStepIndex);
         predictionService.setManualOverrides(manualOverrides);
         predictionService.setLiveModel(smartOfficeModel);
         
         // Delegate to what-if service
-        return whatIfAnalysisService.runAnalysis(changes, hours);
+        return whatIfAnalysisService.runAnalysis(changes, hours,investmentCost);
     }
     
     /**
