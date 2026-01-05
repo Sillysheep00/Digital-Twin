@@ -2,13 +2,20 @@ import ModalWrapper from '../ui/ModalWrapper';
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
+const WINDOW_SIZE_OPTIONS = [
+  { value: 32, label: '8 hours', hours: 8 },
+  { value: 64, label: '16 hours', hours: 16 }, 
+  { value: 96, label: '24 hours', hours: 24 } 
+];
 
 function AnomalyModal({
   showAnomaly,
   setShowAnomaly,
   anomalyResult,
   handleAnomalyCheck,
-  isCheckingAnomaly
+  isCheckingAnomaly,
+  windowSize,
+  setWindowSize
 }) {
   const [activeChart, setActiveChart] = useState('trend'); // 'trend' or 'residual'
 
@@ -36,31 +43,117 @@ function AnomalyModal({
         return '#27ae60';
     }
   };
+
+  // Helper function to get window info
+  const getWindowInfo = () => {
+    const option = WINDOW_SIZE_OPTIONS.find(opt => opt.value === windowSize);
+    if (option) {
+      return {
+        steps: option.value,
+        hours: option.hours,
+        label: option.label
+      };
+    }
+    // Fallback: calculate from windowSize if not in predefined options
+    const hours = windowSize / 4; // 4 steps per hour (15-min resolution)
+    return {
+      steps: windowSize,
+      hours: hours,
+      label: `Last ${hours} hours`
+    };
+  };
+  const windowInfo = getWindowInfo();
+
+  // Helper function to format time range for subtitle
+  const getTimeRangeSubtitle = () => {
+    if (!anomalyResult?.timestamps || anomalyResult.timestamps.length === 0) {
+      return `Window: Last ${windowInfo.hours} hours (${windowInfo.steps} steps, 15-min resolution)`;
+    }
+    
+    const currentWindowSize = windowSize || 96;
+    const dataLength = anomalyResult.timestamps.length;
+    const startIndex = Math.max(0, dataLength - currentWindowSize);
+    
+    const startTime = anomalyResult.timestamps[startIndex];
+    const endTime = anomalyResult.timestamps[dataLength - 1];
+    
+    // Parse dates if available (check if we have full timestamps)
+    // For now, assume timestamps are in HH:mm format
+    return `Window: ${windowInfo.hours} hours (${startTime} → ${endTime}) | Resolution: 15 minutes`;
+  };
+
+  // Helper function to get tick interval based on window size
+  const getTickInterval = () => {
+    const hours = windowInfo.hours;
+    if (hours === 8) return 1; // Every 1 hour (4 steps)
+    if (hours === 16) return 2; // Every 2 hours (8 steps)
+    if (hours === 24) return 3; // Every 3 hours (12 steps)
+    return 2; // Default: every 2 hours
+  };
+
+  // Helper function to format timestamp for display
+  const formatTimeForAxis = (timestamp) => {
+    if (!timestamp) return '';
+    // If timestamp is already in HH:mm format, return as is
+    if (timestamp.length >= 5 && timestamp.includes(':')) {
+      return timestamp.substring(0, 5); // "HH:mm"
+    }
+    return timestamp;
+  };
+
+  
+
    // Prepare chart data
    const prepareTrendData = () => {
     if (!anomalyResult?.timeSteps || !anomalyResult.simulatedPowerHistory || !anomalyResult.predictedPowerHistory) {
       return [];
     }
-    return anomalyResult.timeSteps.map((step, index) => ({
-      step,
-      simulated: anomalyResult.simulatedPowerHistory[index],
-      predicted: anomalyResult.predictedPowerHistory[index]
-    }));
+     // Filter to show only the last N steps based on selected window size
+    const currentWindowSize = windowSize || 96;
+    const dataLength = anomalyResult.timeSteps.length;
+    const startIndex = Math.max(0, dataLength - currentWindowSize);
+
+    const timestamps = anomalyResult.timestamps || [];
+    
+    return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
+      const actualIndex = startIndex + index;
+      const timestamp = timestamps[actualIndex] || `Step ${index + 1}`;
+      
+      return {
+        step: index + 1,
+        timestamp: formatTimeForAxis(timestamp),
+        fullTimestamp: timestamps[actualIndex] || null,
+        simulated: anomalyResult.simulatedPowerHistory[actualIndex],
+        predicted: anomalyResult.predictedPowerHistory[actualIndex]
+      };
+    });
   };
 
   const prepareResidualData = () => {
     if (!anomalyResult?.timeSteps || !anomalyResult.residuals) {
       return [];
     }
-    return anomalyResult.timeSteps.map((step, index) => {
-      // Get the real power for this specific moment in history
-      const historicalRealPower = anomalyResult.realPowerHistory ? anomalyResult.realPowerHistory[index] : 0;
+
+    // Filter to show only the last N steps based on selected window size
+    const currentWindowSize = windowSize || 96;
+    const dataLength = anomalyResult.timeSteps.length;
+    const startIndex = Math.max(0, dataLength - currentWindowSize);
+
+    const timestamps = anomalyResult.timestamps || [];
+  
     
-      // Calculate dynamic threshold (15%)
+    return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
+      const actualIndex = startIndex + index;
+      const timestamp = timestamps[actualIndex] || `Step ${index + 1}`;
+      const historicalRealPower = anomalyResult.realPowerHistory ? anomalyResult.realPowerHistory[actualIndex] : 0;
+    
+      // Calculate dynamic threshold (25%)
       const dynamicThreshold = historicalRealPower * 0.25;
-      return{
-        step,
-        residual: anomalyResult.residuals[index],
+      return {
+        step: index + 1,
+        timestamp: formatTimeForAxis(timestamp),
+        fullTimestamp: timestamps[actualIndex] || null,
+        residual: anomalyResult.residuals[actualIndex],
         threshold: dynamicThreshold
       };
     });
@@ -73,26 +166,27 @@ function AnomalyModal({
         Using Linear Regression to detect unusual energy consumption patterns
       </p>
 
-      {/* Refresh Button */}
-      <button
-        onClick={handleAnomalyCheck}
-        disabled={isCheckingAnomaly}
-        style={{
-          width: '100%',
-          padding: '12px',
-          background: '#3498db',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          fontWeight: 'bold',
-          cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
-          opacity: isCheckingAnomaly ? 0.6 : 1,
-          marginBottom: '20px'
-        }}
-      >
-        {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
-      </button>
-
+      {/* Initial Check Button - Show when no data yet */}
+      {(!anomalyResult || anomalyResult.error || !anomalyResult.timeSteps) && (
+        <button
+          onClick={handleAnomalyCheck}
+          disabled={isCheckingAnomaly}
+          style={{
+            width: '100%',
+            padding: '12px',
+            background: '#3498db',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            fontWeight: 'bold',
+            cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
+            opacity: isCheckingAnomaly ? 0.6 : 1,
+            marginBottom: '20px'
+          }}
+        >
+          {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+        </button>
+      )}
 
        {/* Chart Toggle */}
        {anomalyResult && !anomalyResult.error && anomalyResult.timeSteps && (
@@ -130,17 +224,87 @@ function AnomalyModal({
             </button>
           </div>
 
+          {/* Window Size Selector */}
+          <div style={{ 
+            marginBottom: '20px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '10px',
+            padding: '10px',
+            background: '#f8f9fa',
+            borderRadius: '5px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+              <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                  Analysis Window:
+              </label>
+              <select
+                id="anomaly-window-size-select"
+                name="windowSize"
+                value={windowSize || 96}
+                onChange={(e) => setWindowSize(parseInt(e.target.value))}
+                disabled={isCheckingAnomaly}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '5px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
+                  background: 'white'
+                }}
+              >
+                {WINDOW_SIZE_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} ({option.value} steps)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleAnomalyCheck}
+              disabled={isCheckingAnomaly}
+              style={{
+                padding: '12px 20px',
+                background: '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                fontWeight: 'bold',
+                cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
+                opacity: isCheckingAnomaly ? 0.6 : 1,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+            </button>
+          </div>
+            
+
           {/* Chart 1: Power Trend Comparison */}
           {activeChart === 'trend' && (
           <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
             <h4 style={{ marginTop: 0 }}>Power Trend Comparison</h4>
+            <p style={{ 
+              margin: '0 0 15px 0', 
+              fontSize: '12px', 
+              color: '#666',
+              fontStyle: 'italic'
+            }}>
+              {getTimeRangeSubtitle()}
+            </p>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={prepareTrendData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                 <XAxis 
-                  dataKey="step" 
-                  label={{ value: 'Time Step', position: 'insideBottom', offset: -5 }}
+                  dataKey="timestamp" 
+                  label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
                   stroke="#666"
+                  interval={getTickInterval() * 4 - 1} // Convert hours to steps (4 steps per hour)
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
                 />
                 <YAxis 
                   label={{ value: 'Power (kW)', angle: -90, position: 'insideLeft' }}
@@ -148,7 +312,10 @@ function AnomalyModal({
                 />
                 <Tooltip 
                   formatter={(value) => `${value} kW`}
-                  labelFormatter={(label) => `Step ${label}`}
+                  labelFormatter={(label) => {
+                    const dataPoint = prepareTrendData().find(d => d.timestamp === label);
+                    return dataPoint?.fullTimestamp || label;
+                  }}
                 />
                 <Legend />
                 <Line 
@@ -176,14 +343,25 @@ function AnomalyModal({
           {activeChart === 'residual' && (
             <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
               <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
+              <p style={{ 
+                margin: '0 0 15px 0', 
+                fontSize: '12px', 
+                color: '#666',
+                fontStyle: 'italic'
+              }}>
+                {getTimeRangeSubtitle()}
+              </p>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={prepareResidualData()}>
-                  
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                   <XAxis 
-                    dataKey="step" 
-                    label={{ value: 'Time Step', position: 'insideBottom', offset: -5 }}
+                    dataKey="timestamp" 
+                    label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
                     stroke="#666"
+                    interval={getTickInterval() * 4 - 1} // Convert hours to steps
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
                   />
                   <YAxis 
                     label={{ value: 'Residual Power (kW)', angle: -90, position: 'Left' }}
@@ -191,7 +369,10 @@ function AnomalyModal({
                   />
                   <Tooltip 
                     formatter={(value) => `${value} kW`}
-                    labelFormatter={(label) => `Step ${label}`}
+                    labelFormatter={(label) => {
+                      const dataPoint = prepareResidualData().find(d => d.timestamp === label);
+                      return dataPoint?.fullTimestamp || label;
+                    }}
                   />
                   {/* <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" /> */}
                   <Legend />

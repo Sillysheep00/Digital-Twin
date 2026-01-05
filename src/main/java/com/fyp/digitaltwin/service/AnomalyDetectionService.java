@@ -225,6 +225,7 @@ public class AnomalyDetectionService {
 
             // Build chart data arrays
             List<Integer> timeSteps = new ArrayList<>();
+            List<String> timestamps = new ArrayList<>();
             List<Double> realPowerList = new ArrayList<>(); 
             List<Double> simulatedPowerList = new ArrayList<>();
             List<Double> predictedPowerList = new ArrayList<>();
@@ -235,6 +236,29 @@ public class AnomalyDetectionService {
 
                 //Time step index
                 timeSteps.add(i + 1);
+                
+                 // Extract and format timestamp (format: "HH:mm")
+                String timestamp = sr.getTimestamp();
+                if (timestamp != null && !timestamp.isEmpty()) {
+                    try {
+                        // Parse timestamp (assuming format like "2025-03-21 14:00:00" or similar)
+                        String[] parts = timestamp.split(" ");
+                        if (parts.length > 1) {
+                            String timePart = parts[1].substring(0, 5); // Extract "HH:mm"
+                            timestamps.add(timePart);
+                        } else {
+                            timestamps.add(timestamp.substring(0, Math.min(5, timestamp.length())));
+                        }
+                    } catch (Exception e) {
+                        // Fallback: use step number if timestamp parsing fails
+                        timestamps.add(String.format("%02d:00", (i % 24)));
+                    }
+                } else {
+                    // Fallback if no timestamp
+                    timestamps.add(String.format("%02d:00", (i % 24)));
+                }
+
+
                 realPowerList.add(Math.round(sr.getRealPower() * 100.0) / 100.0);
  
                 // 1. GET RAW SIMULATED POWER
@@ -253,6 +277,7 @@ public class AnomalyDetectionService {
             }
             // Set chart data in result
             result.setTimeSteps(timeSteps);
+            result.setTimestamps(timestamps);
             result.setRealPowerHistory(realPowerList);
             result.setSimulatedPowerHistory(simulatedPowerList);
             result.setPredictedPowerHistory(predictedPowerList);

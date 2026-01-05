@@ -21,11 +21,12 @@ public class AnomalyResult {
     private String severity; // "NORMAL", "WARNING", "CRITICAL"
     private String explanation;
     private List <Integer> timeSteps;
+    private List<String> timestamps; // Historical timestamps for chart x-axis
     private List<Double> realPowerHistory; // Historical real(dateset) power
     private List<Double> simulatedPowerHistory;  // Historical raw simulated power
     private List<Double> predictedPowerHistory; // Historical ML-predicted power  
     private List<Double> residuals;            // Historical residuals
-
+    private Integer windowSize;
     
     
     // Default constructor
@@ -118,6 +119,14 @@ public class AnomalyResult {
         this.timeSteps = timeSteps;
     }
 
+    public List<String> getTimestamps() {
+        return timestamps;
+    }
+    
+    public void setTimestamps(List<String> timestamps) {
+        this.timestamps = timestamps;
+    }
+
     public List<Double> getRealPowerHistory() { 
         return realPowerHistory; 
     }
@@ -147,6 +156,15 @@ public class AnomalyResult {
     
     public void setResiduals(List<Double> residuals) {
         this.residuals = residuals;
+    }
+
+    // Add getter and setter:
+    public Integer getWindowSize() {
+        return windowSize;
+    }
+
+    public void setWindowSize(Integer windowSize) {
+        this.windowSize = windowSize;
     }
 
 }

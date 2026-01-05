@@ -35,6 +35,7 @@ function App() {
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
+  const [anomalyWindowSize, setAnomalyWindowSize] = useState(96); // Default: 24 hours
 
   // Fetch Digital Twin data
   const fetchData = async () => {
@@ -96,7 +97,7 @@ function App() {
     setIsCheckingAnomaly(true);
     setAnomalyResult(null);
     try {
-      const response = await axios.get('http://localhost:8080/api/anomaly');
+      const response = await axios.get(`http://localhost:8080/api/anomaly?windowSize=${anomalyWindowSize}`);
       setAnomalyResult(response.data);
     } catch (err) {
       console.error("Anomaly detection failed:", err);
@@ -161,6 +162,8 @@ function App() {
         anomalyResult={anomalyResult}
         handleAnomalyCheck={handleAnomalyCheck}
         isCheckingAnomaly={isCheckingAnomaly}
+        windowSize={anomalyWindowSize}
+        setWindowSize={setAnomalyWindowSize}
       />
       <ChartModal show={showChartModal} whatIfResult={whatIfResult} whatIfParams={whatIfParams} onClose={() => setShowChartModal(false)} />
 
