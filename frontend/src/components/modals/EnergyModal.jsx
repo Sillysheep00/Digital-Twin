@@ -7,6 +7,25 @@ function EnergyModal({show, data, onClose }) {
     <ModalWrapper onClose={onClose}>
       <h2>Energy Consumption Report</h2>
 
+      {/* Simulation Period Section */}
+      {data.simulationStartTime && data.timestamp && (
+        <div style={{
+          marginBottom: '15px',
+          padding: '10px',
+          background: '#e8f4f8',
+          borderRadius: '5px',
+          border: '1px solid #3498db'
+        }}>
+          <strong style={{ display: 'block', marginBottom: '5px', color: '#2c3e50' }}>
+            Simulation Period:
+          </strong>
+          <div style={{ color: '#34495e', fontSize: '14px' }}>
+            {data.simulationStartTime} → {data.timestamp}
+          </div>
+        </div>
+      )}
+
+
       <div style={{marginBottom: '15px',padding: '10px',background: '#f8f9fa',borderRadius: '5px'}}>
         <strong>Total Simulated Energy:</strong> {data.energy.total} kWh
       </div>

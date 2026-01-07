@@ -131,9 +131,26 @@ public class PredictionService {
                 predictionModel = modelService.cloneModel(liveModel);
             } else {
                 // Fallback: load fresh model if live model not available
-                predictionModel = modelService.loadModel();
+                predictionModel = modelService.loadBaseModel();
             }
             predictionModel.setName("SmartOffice");
+            // Reset energy meters for prediction timeline (separate from historical timeline)
+            try {
+                // Ensure model is loaded
+                if (!predictionModel.isLoaded()) {
+                    predictionModel.load();
+                }
+    
+                String resetScript = 
+                    "for (s in SmartOffice!EnergyMeter.all) {\n" +
+                    "    s.energyConsumed = 0.0d;\n" +
+                    "}\n";
+                modelService.runSimpleEolScript(predictionModel, resetScript);
+                System.out.println("   Reset energy meters for prediction (starting from 0 kWh)");
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to reset energy meters: " + e.getMessage());
+                e.printStackTrace();
+            }
 
             // 2. Prepare future data
             int stepsNeeded = hoursToPredict * 4; // 4 steps per hour (15 min intervals)
@@ -166,10 +183,10 @@ public class PredictionService {
                 );
 
                 // Run physics simulation
-                modelService.runEolScript(predictionModel, "hvac.eol", "Prediction", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept);
+                modelService.runEolScript(predictionModel, "hvac.eol", "Prediction", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept, null);
                 
                 // Calculate energy used in this 15-min window
-                String jsonOutput = modelService.runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept);
+                String jsonOutput = modelService.runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
                 JsonNode root = objectMapper.readTree(jsonOutput);
                 double stepPower = root.path("power").path("simulated").asDouble();
                 
@@ -241,6 +258,19 @@ public class PredictionService {
         
         try{
             int stepsNeeded = hours * 4; // 4 steps per hour (15-min intervals)
+
+            // Reset energy meters for prediction timeline (separate from historical timeline)
+            // This ensures energy report only shows energy for the prediction window
+            try {
+                String resetScript = 
+                    "for (s in SmartOffice!EnergyMeter.all) {\n" +
+                    "    s.energyConsumed = 0.0d;\n" +
+                    "}\n";
+                modelService.runSimpleEolScript(model, resetScript);
+                System.out.println("   Reset energy meters for What-If prediction (starting from 0 kWh)");
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to reset energy meters: " + e.getMessage());
+            }
             
             // Get current date from current simulation step
             DataRecord currentRecord = fetchRecordByIndex(currentStepIndex);
@@ -305,10 +335,10 @@ public class PredictionService {
         );
         
         // Run physics simulation
-        modelService.runEolScript(model, "hvac.eol", "Scenario", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept);
+        modelService.runEolScript(model, "hvac.eol", "Scenario", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept, null);
         
         // Get energy consumption
-        String jsonOutput = modelService.runEolScript(model, "json.eol", "ScenarioAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept);
+        String jsonOutput = modelService.runEolScript(model, "json.eol", "ScenarioAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
         
         // Parse energy from result
         double totalEnergy = 0.0;

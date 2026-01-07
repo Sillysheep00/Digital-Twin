@@ -83,10 +83,10 @@ public class DigitalTwinController {
     // Returns anomaly detection results using trained Linear Regression model
     @GetMapping(value = "/anomaly", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<AnomalyResult> detectAnomaly(
-        @RequestParam(value ="windowSize", defaultValue = "96") int windowSize){
+        @RequestParam(value ="windowSize", defaultValue = "32") int windowSize){
          // Validate window size (only allow supported values)
         if (windowSize != 32 && windowSize != 64 && windowSize != 96) {
-            windowSize = 96; // Default to 24 hours if invalid
+            windowSize = 32; // Default to 24 hours if invalid
         }
 
         // Get current dashboard data (contains real and simulated power)

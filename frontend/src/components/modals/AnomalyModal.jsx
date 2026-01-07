@@ -140,6 +140,10 @@ function AnomalyModal({
     const startIndex = Math.max(0, dataLength - currentWindowSize);
 
     const timestamps = anomalyResult.timestamps || [];
+
+     // FIX: Use threshold from backend (Z-score based) instead of calculating 25%
+    // The backend now provides the correct statistical threshold
+    const thresholdValue = anomalyResult.threshold || 0;
   
     
     return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
@@ -147,14 +151,12 @@ function AnomalyModal({
       const timestamp = timestamps[actualIndex] || `Step ${index + 1}`;
       const historicalRealPower = anomalyResult.realPowerHistory ? anomalyResult.realPowerHistory[actualIndex] : 0;
     
-      // Calculate dynamic threshold (25%)
-      const dynamicThreshold = historicalRealPower * 0.25;
       return {
         step: index + 1,
         timestamp: formatTimeForAxis(timestamp),
         fullTimestamp: timestamps[actualIndex] || null,
         residual: anomalyResult.residuals[actualIndex],
-        threshold: dynamicThreshold
+        threshold: thresholdValue
       };
     });
   };
@@ -241,7 +243,7 @@ function AnomalyModal({
               <select
                 id="anomaly-window-size-select"
                 name="windowSize"
-                value={windowSize || 96}
+                value={windowSize || 32}
                 onChange={(e) => setWindowSize(parseInt(e.target.value))}
                 disabled={isCheckingAnomaly}
                 style={{
@@ -331,7 +333,7 @@ function AnomalyModal({
                     dataKey="predicted" 
                     stroke="#51cf66" 
                     strokeWidth={2}
-                    name="ML-Predicted Power"
+                    name="Calibrated Power (Simulation + ML)"
                     dot={{ r: 3 }}
                   />
                 </LineChart>
@@ -364,7 +366,7 @@ function AnomalyModal({
                     height={60}
                   />
                   <YAxis 
-                    label={{ value: 'Residual Power (kW)', angle: -90, position: 'Left' }}
+                    label={{ value: 'Residual Power (kW)', angle: -90, position: 'insideLeft',offset:10,dy: 80}}
                     stroke="#666"
                   />
                   <Tooltip 
@@ -383,7 +385,7 @@ function AnomalyModal({
                     stroke="#f39c12" 
                     strokeWidth={2}
                     strokeDasharray="5 5"   // Dashed line makes it look like a "limit"
-                    name="Warning Limit (25%)" 
+                    name= "Statistical Threshold (Z-score)" 
                     dot={false}             // No dots, just a smooth boundary line
                     isAnimationActive={false}
                   />
@@ -505,8 +507,14 @@ function AnomalyModal({
             >
               <p><strong>Raw Simulated Power:</strong> {anomalyResult.simulatedPower?.toFixed(2)} kW</p>
               <p><strong>ML-Calibrated Power:</strong> {anomalyResult.calibratedSimulatedPower?.toFixed(2)} kW</p>
-              <p><strong>Detection Method:</strong> Residual-based with Linear Regression</p>
-              <p><strong>Threshold:</strong> 25% of real power (min 5 kW)</p>
+              <p><strong>Detection Method:</strong> Z-Score Statistical Analysis (Rolling Mean + Std)</p>
+              <p><strong>Threshold:</strong> {anomalyResult.threshold?.toFixed(2)} kW (Statistical threshold based on rolling statistics)</p>
+              <p><strong>Minimum Absolute Threshold:</strong> 5 kW (ignores residuals below this)</p>
+              {anomalyResult.explanation && anomalyResult.explanation.includes('Z-score') && (
+                <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#666' }}>
+                  <strong>Note:</strong> Detection uses rolling mean and standard deviation of residuals over the last {windowInfo.hours} hours.
+                </p>
+              )}
             </div>
           </details>
         </div>

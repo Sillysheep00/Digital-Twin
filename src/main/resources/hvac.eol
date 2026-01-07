@@ -412,7 +412,7 @@ for (room in SmartOffice!Room.all) {
 if (not SILENT) {
 ('Simulation complete. ' + updatedSystems + ' HVAC systems running.').println();
 }
-SmartOffice.store();
+
 if (not SILENT) {
 'Model saved.'.println();
 }

@@ -5,6 +5,7 @@ import com.fyp.digitaltwin.dto.LinearRegressionModel;
 import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -13,92 +14,29 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
 
-/**
- * Service responsible for detecting anomalies in building energy consumption
- * using a MACHINE LEARNING approach with Linear Regression.
- * 
- * ACADEMIC FYP MACHINE LEARNING JUSTIFICATION:
- * ───────────────────────────────────────────
- * This service uses a TRAINED LINEAR REGRESSION MODEL to predict expected power consumption,
- * qualifying as machine learning because:
- * 
- * 1. LEARNS FROM DATA: Model coefficients (slope, intercept) are learned from historical data
- * 2. PREDICTION: Uses learned model to predict expected power for new simulated values
- * 3. STATISTICAL FOUNDATION: Based on least squares optimization
- * 4. GENERALIZABLE: Model works on unseen data after training
- * 5. ADAPTIVE: Can be retrained as building behavior changes
- * 
- * Methodology:
- * ───────────
- * 1. Use trained Linear Regression model: predictedPower = slope × simulatedPower + intercept
- * 2. Calculate residual: residual = |realPower - predictedPower|
- * 3. Compare residual against adaptive threshold to detect anomalies
- * 
- * Why This Is Machine Learning (Not Just Calibration):
- * ────────────────────────────────────────────────────
- * - Old approach: Simple multiplicative factor (realPower ≈ k × simulatedPower)
- * - ML approach: Linear model with learned slope + intercept (accounts for base loads)
- * - The model LEARNS optimal parameters through statistical optimization
- * - Provides better predictions by capturing both scaling AND offset effects
- * 
- * Follows Single Responsibility Principle - only handles anomaly detection logic.
- */
+
 @Service
 public class AnomalyDetectionService {
     
-    // Configuration: Threshold as percentage of real power
-    // e.g., 0.25 means anomaly if difference > 25% of real power
-    private static final double THRESHOLD_PERCENTAGE = 0.25; // 25%
+   
+    private static final double Z_SCORE_THRESHOLD = 3.0; // 3-sigma rule (99.7% confidence)
+    private static final double MIN_ABSOLUTE_THRESHOLD = 5.0; // Ignore residuals < 5 kW
+    private static final int ROLLING_WINDOW_SIZE = 32; // Last 32 steps = 8 hours (15-min intervals)
+
+    // Autowire repository for Z-score calculation
+    @Autowired
+    private SimulationResultRepository resultRepository;
     
-    // Severity levels (percentage-based)
-    private static final double WARNING_THRESHOLD = 0.15;  // 15% difference = warning
-    private static final double CRITICAL_THRESHOLD = 0.30; // 30% difference = critical
     
-    /**
-     * Detects anomalies by comparing real power against ML-predicted power.
-     * 
-     * MACHINE LEARNING-BASED ANOMALY DETECTION:
-     * ─────────────────────────────────────────
-     * Step 1: Use trained Linear Regression model to predict expected power
-     *         predictedPower = slope × simulatedPower + intercept
-     *         
-     *         WHY MACHINE LEARNING: The model coefficients (slope, intercept) were LEARNED
-     *         from historical data using least squares optimization. This is supervised
-     *         learning where we trained on (simulatedPower, realPower) pairs to learn
-     *         the optimal mapping function.
-     *         
-     *         ADVANTAGE OVER SIMPLE CALIBRATION:
-     *         - Old: calibratedPower = k × simulatedPower (single parameter)
-     *         - ML:  predictedPower = a × simulatedPower + b (two learned parameters)
-     *         - The intercept 'b' captures constant base loads that simple scaling misses
-     *         - More accurate predictions = better anomaly detection
-     * 
-     * Step 2: Calculate residual (prediction error)
-     *         residual = |realPower - predictedPower|
-     *         
-     *         WHY: The residual represents how much the actual consumption deviates from
-     *         what our trained ML model predicts. Large residuals indicate anomalous
-     *         behavior that the model didn't learn from historical patterns.
-     * 
-     * Step 3: Determine adaptive threshold
-     *         threshold = realPower × THRESHOLD_PERCENTAGE
-     *         
-     *         WHY: Percentage-based threshold makes detection robust across different
-     *         load conditions (low power vs high power scenarios).
-     * 
-     * Step 4: Anomaly decision
-     *         anomaly = (residual > threshold)
-     *         
-     *         WHY: If the prediction error exceeds our tolerance, we flag it as an
-     *         anomaly requiring investigation (equipment fault, sensor error, etc.).
-     * 
+    /* 
      * @param realPower Actual power consumption from sensors (kW)
      * @param simulatedPower Raw simulated power from physics model (kW)
      * @param regressionModel Trained Linear Regression model (learned from data)
      * @return AnomalyResult containing detection outcome and diagnostic information
      */
     public AnomalyResult detectAnomalyWithML(double realPower, double simulatedPower, 
-                                              LinearRegressionModel regressionModel) {
+                                              LinearRegressionModel regressionModel
+                                            ) {
         
         // ═════════════════════════════════════════════════════════════════
         // STEP 1: ML PREDICTION (Machine Learning Step!)
@@ -114,67 +52,158 @@ public class AnomalyDetectionService {
         // The residual is the difference between reality and ML prediction.
         // This measures how well our learned model generalizes to current data.
         double residual = Math.abs(realPower - predictedPower);
-        
+    
         // ═════════════════════════════════════════════════════════════════
-        // STEP 3: Calculate Adaptive Threshold
+        // STEP 3: Get Historical Residuals for Rolling Statistics
         // ═════════════════════════════════════════════════════════════════
-        // Use percentage-based threshold to handle varying load conditions.
-        double threshold = realPower * THRESHOLD_PERCENTAGE;
+        List<Double> historicalResiduals = getHistoricalResiduals(
+            regressionModel, 
+            ROLLING_WINDOW_SIZE
+        );
+    
+
+        historicalResiduals.add(residual);
+    
+        // ═════════════════════════════════════════════════════════════════
+        // STEP 4: Calculate Rolling Mean and Standard Deviation
+        // ═════════════════════════════════════════════════════════════════
+        double meanResidual = calculateMean(historicalResiduals);
+        double stdResidual = calculateStandardDeviation(historicalResiduals, meanResidual);
         
-        // Handle edge case: minimum threshold to avoid false positives
-        if (threshold < 1.0) {
-            threshold = 1.0; // Minimum 1 kW threshold
+       
+        // ═════════════════════════════════════════════════════════════════
+        // STEP 5: Calculate Z-Score
+        // ═════════════════════════════════════════════════════════════════
+        double zScore = 0.0;
+        boolean hasEnoughData = historicalResiduals.size() >= 10 && stdResidual > 0.1;
+        
+        if (hasEnoughData) {
+            zScore = (residual - meanResidual) / stdResidual;
+        } else {
+            // Fallback: Use simple threshold if not enough historical data
+            double fallbackThreshold = predictedPower * 0.25; // Original method
+            zScore = (residual > fallbackThreshold) ? 4.0 : 0.0; // Treat as anomaly if exceeds fallback
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        // STEP 6: Anomaly Decision (Z-Score + Minimum Absolute Threshold)
+        // ═════════════════════════════════════════════════════════════════
+        boolean anomalyDetected = false;
+        
+        // Rule 1: Ignore tiny residuals (noise filtering)
+        if (residual < MIN_ABSOLUTE_THRESHOLD) {
+            anomalyDetected = false;
+        }
+        // Rule 2: Z-score threshold (statistical significance)
+        else if (hasEnoughData && Math.abs(zScore) > Z_SCORE_THRESHOLD) {
+            anomalyDetected = true;
+        }
+        // Rule 3: Fallback for insufficient data
+        else if (!hasEnoughData && residual > predictedPower * 0.25) {
+            anomalyDetected = true;
         }
         
         // ═════════════════════════════════════════════════════════════════
-        // STEP 4: Anomaly Decision (ML-Based)
-        // ═════════════════════════════════════════════════════════════════
-        boolean anomalyDetected = residual > threshold;
-        
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 5: Classify Severity
+        // STEP 7: Classify Severity
         // ═════════════════════════════════════════════════════════════════
         String severity;
         String explanation;
         
-        double residualPercentage = (realPower > 0) ? (residual / realPower) * 100 : 0;
-        
-        if (residualPercentage >= CRITICAL_THRESHOLD * 100) {
+        if (!hasEnoughData) {
+            severity = "NORMAL";
+            explanation = "Insufficient historical data for statistical analysis. Using fallback threshold.";
+        } else if (residual < MIN_ABSOLUTE_THRESHOLD) {
+            severity = "NORMAL";
+            explanation = String.format(
+                "Residual (%.2f kW) is below minimum threshold (%.2f kW). Normal operation.",
+                residual, MIN_ABSOLUTE_THRESHOLD
+            );
+        } else if (Math.abs(zScore) >= 3.0) {
             severity = "CRITICAL";
             explanation = String.format(
-                "CRITICAL ANOMALY: Real power deviates by %.1f%% from ML prediction. " +
-                "Possible causes: major equipment failure, sensor malfunction, or significant unexpected load.",
-                residualPercentage
+                "CRITICAL ANOMALY: Z-score = %.2f (residual = %.2f kW, mean = %.2f kW, std = %.2f kW). " +
+                "This is %.1f standard deviations from normal. Possible equipment failure or sensor error.",
+                zScore, residual, meanResidual, stdResidual, Math.abs(zScore)
             );
-        } else if (residualPercentage >= WARNING_THRESHOLD * 100) {
+        } else if (Math.abs(zScore) >= 2.0) {
             severity = "WARNING";
             explanation = String.format(
-                "WARNING: Real power deviates by %.1f%% from ML prediction. " +
-                "Possible causes: minor equipment inefficiency, model drift, or unusual occupancy pattern.",
-                residualPercentage
+                "WARNING: Z-score = %.2f (residual = %.2f kW, mean = %.2f kW, std = %.2f kW). " +
+                "This is %.1f standard deviations from normal. Monitor for potential issues.",
+                zScore, residual, meanResidual, stdResidual, Math.abs(zScore)
             );
         } else {
             severity = "NORMAL";
             explanation = String.format(
-                "Normal operation. Real power is within %.1f%% of ML model predictions.",
-                residualPercentage
+                "Normal operation. Z-score = %.2f (residual = %.2f kW, mean = %.2f kW, std = %.2f kW).",
+                zScore, residual, meanResidual, stdResidual
             );
         }
-        
+
         // ═════════════════════════════════════════════════════════════════
-        // STEP 6: Build Result
+        // STEP 8: Build Result
         // ═════════════════════════════════════════════════════════════════
         AnomalyResult result = new AnomalyResult();
         result.setAnomalyDetected(anomalyDetected);
         result.setRealPower(Math.round(realPower * 100.0) / 100.0);
         result.setSimulatedPower(Math.round(simulatedPower * 100.0) / 100.0);
-        result.setCalibratedSimulatedPower(Math.round(predictedPower * 100.0) / 100.0); // ML prediction
+        result.setCalibratedSimulatedPower(Math.round(predictedPower * 100.0) / 100.0);
         result.setResidual(Math.round(residual * 100.0) / 100.0);
-        result.setThreshold(Math.round(threshold * 100.0) / 100.0);
+        result.setThreshold(Math.round((meanResidual + Z_SCORE_THRESHOLD * stdResidual) * 100.0) / 100.0);
         result.setSeverity(severity);
         result.setExplanation(explanation);
-        
+
         return result;
+    }
+
+    //Helper method : Get historical residuals from recent simulation results
+    private List<Double> getHistoricalResiduals(
+        LinearRegressionModel regressionModel,
+        int windowSize) {
+        
+        List<Double> residuals = new ArrayList<>();
+        
+        try {
+            List<SimulationResult> recentResults = resultRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "timestamp"))
+                .stream()
+                .limit(windowSize)
+                .sorted(Comparator.comparing(SimulationResult::getTimestamp))
+                .collect(Collectors.toList());
+            
+            for (SimulationResult sr : recentResults) {
+                double predicted = regressionModel.predict(sr.getSimulatedPower());
+                double residual = Math.abs(sr.getRealPower() - predicted);
+                residuals.add(residual);
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching historical residuals: " + e.getMessage());
+        }
+        
+        return residuals;
+    }
+
+        /**
+     * Helper: Calculate mean of a list
+     */
+    private double calculateMean(List<Double> values) {
+        if (values.isEmpty()) return 0.0;
+        return values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+    }
+
+    /**
+     * Helper: Calculate standard deviation
+     */
+    private double calculateStandardDeviation(List<Double> values, double mean) {
+        if (values.size() < 2) return 1.0; // Avoid division by zero
+        
+        double variance = values.stream()
+            .mapToDouble(v -> Math.pow(v - mean, 2))
+            .average()
+            .orElse(0.0);
+        
+        return Math.sqrt(variance);
     }
     
     /**

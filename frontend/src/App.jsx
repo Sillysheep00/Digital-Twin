@@ -35,7 +35,7 @@ function App() {
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
-  const [anomalyWindowSize, setAnomalyWindowSize] = useState(96); // Default: 24 hours
+  const [anomalyWindowSize, setAnomalyWindowSize] = useState(32); // Default: 8 hours
 
   // Fetch Digital Twin data
   const fetchData = async () => {

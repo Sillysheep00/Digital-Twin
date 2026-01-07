@@ -42,7 +42,7 @@ public class ModelService {
      * @return Loaded EMF model with all cross-references resolved
      * @throws Exception if model loading fails
      */
-    public EmfModel loadModel() throws Exception {
+    public EmfModel loadBaseModel() throws Exception {
         System.out.println("Loading SmartOffice model from resources...");
         
         EmfModel model = new EmfModel();
@@ -55,6 +55,17 @@ public class ModelService {
         
         // Resolves all proxy references (required for non-containment references like neighbors)
         EcoreUtil.resolveAll(model.getResource());
+
+        try {
+            String resetScript = 
+                "for (s in SmartOffice!EnergyMeter.all) {\n" +
+                "    s.energyConsumed = 0.0d;\n" +
+                "}\n";
+            runSimpleEolScript(model, resetScript);
+            System.out.println("   Reset energy meters to ensure clean base model state");
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to reset energy meters in base model: " + e.getMessage());
+        }
         
         return model;
     }
@@ -69,15 +80,15 @@ public class ModelService {
      */
     public EmfModel cloneModel(EmfModel sourceModel) throws Exception {
         // Create a new model instance pointing to the same resources
-        EmfModel clonedModel = new EmfModel();
-        clonedModel.setName("SmartOffice");
-        clonedModel.setModelFileUri(toEmfUri(resolveResource(MODEL_RESOURCE)));
-        clonedModel.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
-        clonedModel.setReadOnLoad(true);
-        clonedModel.setStoredOnDisposal(false);
+        EmfModel clonedModel = loadBaseModel();
+        // clonedModel.setName("SmartOffice");
+        // clonedModel.setModelFileUri(toEmfUri(resolveResource(MODEL_RESOURCE)));
+        // clonedModel.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
+        // clonedModel.setReadOnLoad(true);
+        // clonedModel.setStoredOnDisposal(false);
         
-        // Load the model from disk
-        clonedModel.load();
+        // // Load the model from disk
+        // clonedModel.load();
         
         // Copy the current state from source model using EOL
         EolModule copyModule = new EolModule();
@@ -149,7 +160,7 @@ public class ModelService {
      */
     public synchronized String runEolScript(EmfModel model, String scriptName, String logPrefix, 
                                Object data, Double timeStep, Map<String, String> overrides, 
-                               double mlSlope, double mlIntercept) throws Exception {
+                               double mlSlope, double mlIntercept,String simulationStartTime) throws Exception {
         EolModule module = new EolModule();
         parseModule(module, scriptName);
         
@@ -169,6 +180,10 @@ public class ModelService {
         // Pass ML model parameters to EOL scripts (Linear Regression: y = a*x + b)
         module.getContext().getFrameStack().put("ML_SLOPE", mlSlope);          // slope (a)
         module.getContext().getFrameStack().put("ML_INTERCEPT", mlIntercept);  // intercept (b)
+
+        if (simulationStartTime != null) {
+            module.getContext().getFrameStack().put("SIMULATION_START_TIME", simulationStartTime);
+        }
         
         // Enable silent mode for predictions to reduce console output
         boolean silentMode = logPrefix != null && 

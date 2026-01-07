@@ -69,7 +69,7 @@ public class WhatIfAnalysisService {
             
             // STEP 2: Clone live model for scenario testing
             System.out.println("\n[2/5] Cloning live model for scenario...");
-            EmfModel scenarioModel = modelService.loadModel();
+            EmfModel scenarioModel = modelService.loadBaseModel();
             
             // STEP 3: Apply changes using EOL model transformation
             System.out.println("\n[3/5] Applying what-if changes to model...");

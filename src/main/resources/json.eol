@@ -94,6 +94,14 @@ var jsonOutput = "{" + "\n";
     jsonOutput = jsonOutput + '"timestamp": "N/A",' + "\n";
     }
 
+
+// Add simulation start time
+var simStartTime = "N/A";
+if (SIMULATION_START_TIME.isDefined()) {
+    simStartTime = SIMULATION_START_TIME;
+}
+jsonOutput = jsonOutput + '"simulationStartTime": "' + simStartTime + '",' + "\n";
+
 jsonOutput = jsonOutput + '"power": {' + "\n";
 jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated_raw": ' + simulatedTotalPower.format("%.2f") + ',' + "\n";

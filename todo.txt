@@ -18,7 +18,7 @@ minor fix（之后才fix）:
 washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
 go whatifimplementation.md and analysisguide.md to check for future enhancement
 current power should display the power that is calculated using the regression model
-whatifanaylsis： 把baseline 跟scenario 换个可以一眼懂得名字
+
 
 
 Note 
@@ -219,6 +219,16 @@ Cost Analysis WITH What-If can answer:
   “How long until it pays for itself?”
   “What is the financial impact of my design choice?”
 
+8. why when selected 24 hour analysis window for power trend and residual graph, the result does not show full 24 hour?
+The power trend and anomaly detection graphs are data-driven and depend on historical observations. 
+Therefore, at system startup, only partial windows are available. This reflects realistic monitoring 
+constraints and avoids misleading analysis.
+
+9. Why not display ML-calibrated energy in the energy consumption report?
+The energy consumption report reflects the Digital Twin’s internal state based on physical and rule-based simulation. 
+Machine learning is used only for calibration, comparison, and anomaly detection, not as a source of truth for operational 
+energy reporting
 
 
+“During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin instance, and predictive twin clones, ensuring timeline isolation and correctness of energy analytics.”
 

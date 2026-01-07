@@ -72,6 +72,8 @@ public class DigitalTwinEngine {
     private double mlIntercept = 0.0;  // ML intercept (b) - learned regression parameter
     private boolean isCalibrated = false;
 
+    private String simulationStartTime = null;
+
     //Initialization
     @PostConstruct
     public void init() {
@@ -83,7 +85,13 @@ public class DigitalTwinEngine {
             System.out.println("!!! DATABASE CLEARED !!!");
             // ---------------------------------------------------
 
-            this.smartOfficeModel = modelService.loadModel();
+             // ARCHITECTURAL FIX: Load base model and clone for runtime
+            // Base model is read-only, runtime model is the working copy
+            EmfModel baseModel = modelService.loadBaseModel();
+            this.smartOfficeModel = modelService.cloneModel(baseModel);
+            baseModel.dispose(); // Clean up base model, we only need the runtime clone
+            
+            System.out.println("Runtime twin model created from base model (read-only)");
 
             // Check if MongoDB has data
             totalDataCount = repository.count();
@@ -114,6 +122,14 @@ public class DigitalTwinEngine {
             
             // Fast-forward initialization for demo readiness
             fastForwardInitialization(20); // Run 20 steps = 5 hours of simulation
+            
+            //Capture the start time
+            if(totalDataCount > 0){
+                DataRecord firstDate = fetchRecordByIndex(0);
+                if(firstDate != null){
+                    simulationStartTime = firstDate.getDate();
+                }
+            }
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -219,7 +235,8 @@ public class DigitalTwinEngine {
                     TIME_STEP_HOURS, 
                     manualOverrides,
                     mlSlope,
-                    mlIntercept
+                    mlIntercept,
+                    null  // Not needed for hvac.eol
                 );
                 if (!physicsLog.isBlank()) {
                     System.out.println(physicsLog);
@@ -252,7 +269,8 @@ public class DigitalTwinEngine {
                 TIME_STEP_HOURS, 
                 null,
                 mlSlope,
-                mlIntercept
+                mlIntercept,
+                simulationStartTime
             );
 
             System.out.println("DEBUG JSON OUTPUT: " + jsonOutput);
@@ -303,7 +321,8 @@ public class DigitalTwinEngine {
                 TIME_STEP_HOURS, 
                 null,
                 mlSlope,
-                mlIntercept
+                mlIntercept,
+                null  // Not needed for query.eol
             );
         } catch (Exception e) {
             return "Error retrieving status: " + e.getMessage();
@@ -326,7 +345,8 @@ public class DigitalTwinEngine {
                 TIME_STEP_HOURS, 
                 null,
                 mlSlope,
-                mlIntercept
+                mlIntercept,
+                simulationStartTime
             );
 
         } catch (Exception e) {
