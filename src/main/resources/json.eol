@@ -79,8 +79,15 @@ if (realPower > 0) {
     gapPercentage = (gap / realPower) * 100;
 }
 
-var simulatedEnergyTotal = allEnergySensors.collect(s | s.energyConsumed).sum();
-var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
+var simulatedEnergyTotal = allEnergySensors.collect(s | s.energyConsumed).sum().asReal();
+var avgTemp = 0.0d;
+if (allRooms.size() > 0) {
+    avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
+} else {
+    // Fallback: use default temperature if no rooms found
+    avgTemp = 22.0d;
+    System.err.println("WARNING: No rooms found in model, using default avgTemp = 22.0°C");
+}
 
 
 // --- 2. GENERATE JSON STRING ---

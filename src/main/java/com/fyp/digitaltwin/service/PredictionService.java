@@ -6,6 +6,7 @@ import com.fyp.digitaltwin.model.DataRecord;
 import com.fyp.digitaltwin.model.SensorData;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import org.eclipse.epsilon.emc.emf.EmfModel;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -41,6 +42,7 @@ public class PredictionService {
     private EmfModel liveModel = null;
     private double mlSlope = 1.0;       // ML slope (a) - learned regression parameter
     private double mlIntercept = 0.0;   // ML intercept (b) - learned regression parameter
+
     
     /**
      * Sets the current simulation step index (called by DigitalTwinEngine)
@@ -55,7 +57,7 @@ public class PredictionService {
     public void setManualOverrides(Map<String, String> overrides) {
         this.manualOverrides = overrides;
     }
-    
+
     /**
      * Sets the live model for predictions (called by DigitalTwinEngine)
      */
@@ -69,6 +71,9 @@ public class PredictionService {
     public void setMlSlope(double slope) {
         this.mlSlope = slope;
         System.out.println("PredictionService: ML slope set to " + String.format("%.4f", slope));
+    }
+    public EmfModel getLiveModel() {
+        return liveModel;
     }
     
     /**
@@ -128,7 +133,8 @@ public class PredictionService {
             // 1. Clone the live model to preserve current state
             EmfModel predictionModel;
             if (liveModel != null) {
-                predictionModel = modelService.cloneModel(liveModel);
+                Resource clonedResource = modelService.deepCloneModel(liveModel);
+                predictionModel = modelService.createEmfModelFromResource(clonedResource);
             } else {
                 // Fallback: load fresh model if live model not available
                 predictionModel = modelService.loadBaseModel();
@@ -187,7 +193,27 @@ public class PredictionService {
                 
                 // Calculate energy used in this 15-min window
                 String jsonOutput = modelService.runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
-                JsonNode root = objectMapper.readTree(jsonOutput);
+                // Validate JSON output before parsing
+                if (jsonOutput == null || jsonOutput.trim().isEmpty() || 
+                (!jsonOutput.trim().startsWith("{") && !jsonOutput.trim().startsWith("["))) {
+                System.err.println("Warning: Invalid JSON output from json.eol, skipping step. Output: " + 
+                                (jsonOutput != null ? jsonOutput.substring(0, Math.min(100, jsonOutput.length())) : "null"));
+                // Skip this step and continue with next
+                stepEnergyList.add(0.0);
+                continue;
+                }
+             
+                JsonNode root;
+                try {
+                    root = objectMapper.readTree(jsonOutput);
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to parse JSON from json.eol: " + e.getMessage());
+                    System.err.println("JSON output (first 200 chars): " + 
+                                    (jsonOutput.length() > 200 ? jsonOutput.substring(0, 200) : jsonOutput));
+                    // Skip this step and continue with next
+                    stepEnergyList.add(0.0);
+                    continue;
+                }
                 double stepPower = root.path("power").path("simulated").asDouble();
                 
                 // Energy (kWh) = Power (kW) * Time (0.25h)
@@ -247,6 +273,9 @@ public class PredictionService {
     /**
      * Runs a prediction on a specific model with step-by-step data (for What-If scenarios with charting)
      * This allows testing different scenarios without affecting the live model
+     * 
+     * The provided model is assumed to be an isolated scenario clone.
+     * This method will mutate the model state during simulation.
      * 
      * @param model The model to predict on
      * @param hours Prediction horizon in hours

@@ -8,6 +8,7 @@ import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import org.eclipse.epsilon.emc.emf.EmfModel;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -86,12 +87,13 @@ public class DigitalTwinEngine {
             // ---------------------------------------------------
 
              // ARCHITECTURAL FIX: Load base model and clone for runtime
-            // Base model is read-only, runtime model is the working copy
+           // Base model is read-only, runtime model is the working copy
             EmfModel baseModel = modelService.loadBaseModel();
-            this.smartOfficeModel = modelService.cloneModel(baseModel);
+            Resource clonedResource = modelService.deepCloneModel(baseModel);
+            this.smartOfficeModel = modelService.createEmfModelFromResource(clonedResource);
             baseModel.dispose(); // Clean up base model, we only need the runtime clone
-            
-            System.out.println("Runtime twin model created from base model (read-only)");
+
+            System.out.println("Runtime twin model created from base model (deep cloned, isolated)");
 
             // Check if MongoDB has data
             totalDataCount = repository.count();
@@ -388,7 +390,7 @@ public class DigitalTwinEngine {
     public Map<String, Double> predictFutureEnergy(int hours) {
         // Update prediction service with current state
         predictionService.setCurrentStepIndex(currentStepIndex);
-        predictionService.setManualOverrides(manualOverrides);
+        predictionService.setManualOverrides(new HashMap<>(manualOverrides));
         
         // Delegate to prediction service
         return predictionService.predictFutureEnergy(hours);
@@ -404,7 +406,7 @@ public class DigitalTwinEngine {
     public Map<String, Object> predictWithWhatIf(Map<String, Object> changes, int hours,Double investmentCost) {
         // Update prediction service with current state
         predictionService.setCurrentStepIndex(currentStepIndex);
-        predictionService.setManualOverrides(manualOverrides);
+        predictionService.setManualOverrides(new HashMap<>(manualOverrides));
         predictionService.setLiveModel(smartOfficeModel);
         
         // Delegate to what-if service

@@ -281,15 +281,15 @@ for (room in SmartOffice!Room.all) {
 
                 // Calculate load factor based on gap
                 var gap = (previousTemp - targetTemp).abs();
-                // Aggressive cooling: Gap of 0.8°C = 100% Power
-                var loadFactor = gap / 0.8d;
+                // Aggressive cooling: Gap of 2.0 C = 100% Power
+                var loadFactor = gap / 2.0d;
                 
                 // MINIMUM POWER RULES:
                 // 1. Hysteresis Mode: If cooling is already ON, force 100% until target reached
                 // 2. Otherwise: Run at minimum 50% to prevent stalling.
                 if (isCooling and loadFactor < 1.0d) { 
                     loadFactor = 1.0d; 
-                } else if (loadFactor < 0.5d) { 
+                } else if (loadFactor < 0.25d) { 
                     loadFactor = 0.5d; 
                 }
                 if (loadFactor > 1.0d) { loadFactor = 1.0d; }
@@ -299,10 +299,10 @@ for (room in SmartOffice!Room.all) {
                 //Calculate cooling effect
                 //Negative delta indicating lowering the temperature
                 //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
-                delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
+                delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor * 0.6d;
 
                 // REALISM CAP: Limit max temperature change to 2.0°C per step (15 mins)
-                if (delta_from_ac < -1.5d) { delta_from_ac = -1.5d; }
+                if (delta_from_ac < -1.0d) { delta_from_ac = -1.0d; }
             }
             // --- HEATING LOGIC ---
             // Trigger: Temp < Lower Limit OR (Already Heating AND Temp < Target + 0.5°C Overshoot)
@@ -314,17 +314,14 @@ for (room in SmartOffice!Room.all) {
                 //Calculate how far are we from the targetTemp
                 var gap = (targetTemp - previousTemp).abs();
 
-                // CONTROL LOGIC:
-                // Aggressive divisor (0.8) ensures high power near the target.
-                // Gap of 0.8°C = 100% Power. Gap of 0.4°C = 50% Power.
-                var loadFactor = gap / 0.8d;
+                var loadFactor = gap / 2.0d;
                 
                 // MINIMUM POWER RULES:
                 // 1. Hysteresis Mode: If heater is already ON, force 100% power until target reached
                 // 2. Otherwise: Run at minimum 50% to prevent stalling.
                 if (isHeating and loadFactor < 1.0d) { 
                     loadFactor = 1.0d; 
-                } else if (loadFactor < 0.5d) { 
+                } else if (loadFactor < 0.25d) { 
                     loadFactor = 0.5d; 
                 }
                 if (loadFactor > 1.0d) { loadFactor = 1.0d; }
@@ -333,11 +330,11 @@ for (room in SmartOffice!Room.all) {
                 room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
 
                  //eg:(target - previous) * 0.1d,  this is to simulate 10% increase of the temperature
-                 delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor;
+                 delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor * 0.6d;
                  
                  // REALISM CAP: Limit max temperature change to 2.0°C per step (15 mins)
                  // Allows reaching 22°C within 1-2 hours even with cold outdoor temps
-                 if (delta_from_ac > 1.5d) { delta_from_ac = 1.5d; }
+                 if (delta_from_ac > 1.0d) { delta_from_ac = 1.0d; }
             }
             // --- COMFORT ZONE (OFF) ---
             // If temp is exactly at target (or within hysteresis completion), Turn OFF

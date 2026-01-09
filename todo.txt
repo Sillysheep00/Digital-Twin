@@ -1,23 +1,20 @@
-think of any implementation for the simulation result repository file
-模拟夏天的温度， 然后看energy usage 是多少
-maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等之后demo 的时候应该很麻烦
+
+
 
 
 Task
-saw the whatifanalysis allow setting of per room baseload and baseload but the frontend does not show this selection (can implement or remove this baseload changing function)
 saw there is cost in the what if analysis ask gpt which cost value is reasonable
+write api test to test hvac logic on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
+double check prediction service and digital twin engine ensure no hidden sharing remain
+design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
+display per room base load in frontend
 
-for what if analysis add extreme testing for the temperature 10 celsius and 30 celsius
 Debug
 
 minor fix（之后才fix）:
-先改frontend的design 
-白天厕所的温度跟房间温度差 4度
-
 当manual 按cooling 和 heating temperature 变化太大（ 不确定是否还需要留这个功能）
 washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
-go whatifimplementation.md and analysisguide.md to check for future enhancement
-current power should display the power that is calculated using the regression model
+
 
 
 
@@ -230,5 +227,37 @@ Machine learning is used only for calibration, comparison, and anomaly detection
 energy reporting
 
 
-“During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin instance, and predictive twin clones, ensuring timeline isolation and correctness of energy analytics.”
+During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into 
+the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction
+and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin 
+instance, and predictive twin clones, ensuring timeline isolation and correctness of energy analytics(guarantees that all prediction and what-if analysis
+start from a clean semantic state).
 
+Timeline	Model Source	Energy State
+Live DT	in-memory model	accumulated
+Prediction	cloneModel()	reset → accumulate
+What-If	loadBaseModel()	reset → accumulate
+Energy Report	live model	accumulated
+
+
+Model Isolation and Timeline Separation
+
+To ensure correctness and prevent state contamination between live simulation, prediction, and what-if analysis, a strict model isolation strategy was implemented. 
+The base EMF model is loaded once as a read-only template and is never mutated. At system initialisation, a deep clone of the base model is created to serve as the 
+live runtime digital twin. This cloning process constructs a completely independent ResourceSet and EObject graph, ensuring that all model elements are isolated at memory level.
+
+For prediction and what-if analysis, the current live model is deep-cloned again to create separate scenario models. These scenario models are used exclusively for
+ fast-forward simulation and hypothetical modifications, and are disposed of after use. This guarantees that neither predictions nor what-if experiments can affect the live simulation
+  state. In addition, energy meters are explicitly reset at the start of each prediction or scenario run, ensuring that energy accumulation is strictly scoped to the relevant timeline.
+
+This design enforces a clear separation between historical simulation data, future prediction timelines, and hypothetical what-if scenarios. By avoiding shared references and using 
+deep cloning rather than shallow wrappers, the system eliminates hidden coupling and prevents cross-timeline contamination. As a result, all simulation outputs remain deterministic, 
+reproducible, and architecturally sound.
+
+🎤 Viva Version (Short, Natural Answer)
+
+If the examiner asks “How do you prevent predictions from affecting the live simulation?”, you can say:
+
+“I use deep cloning at the EMF Resource level. The live digital twin is already a clone of the base model, and every prediction or 
+what-if analysis is run on a further deep-cloned copy. That means each timeline – live, prediction, and scenario – has its own isolated EObject graph.
+ There is no shared state, so contamination is structurally impossible.”

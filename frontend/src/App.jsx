@@ -26,6 +26,7 @@ function App() {
   const [whatIfParams, setWhatIfParams] = useState({
     targetTemp: 22,
     insulation: 0.04,
+    baseLoad: 0.5,  
     hours: 24,
     investmentCost: null
   });
@@ -75,6 +76,7 @@ function App() {
       const changes = {};
       if (whatIfParams.targetTemp !== 22) changes.targetTemp = parseFloat(whatIfParams.targetTemp);
       if (whatIfParams.insulation !== 0.04) changes.insulation = parseFloat(whatIfParams.insulation);
+      if (whatIfParams.baseLoad !== 0.5) changes.baseLoad = parseFloat(whatIfParams.baseLoad); 
 
       const response = await axios.post('http://localhost:8080/api/what-if', {
         changes,

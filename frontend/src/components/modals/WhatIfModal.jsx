@@ -69,6 +69,27 @@ function WhatIfModal({
           </div>
         </div>
 
+         {/* Base Load*/}
+         <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Base Load (Equipment Power): {whatIfParams.baseLoad} kW per room
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            value={whatIfParams.baseLoad }
+            onChange={(e) => setWhatIfParams({ ...whatIfParams, baseLoad: parseFloat(e.target.value) })}
+            style={{ width: '100%' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+            <span>0 kW (Minimal)</span>
+            <span>2 kW (High)</span>
+          </div>
+        </div>
+
+
         {/* Prediction Horizon */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
@@ -272,6 +293,7 @@ function WhatIfModal({
               </tr>
             </thead>
             <tbody>
+              {/* Energy Usage - Always shown */}
               <tr style={{ borderBottom: '1px solid #ddd' }}>
                 <td style={{ padding: '10px' }}><strong>Energy Usage</strong></td>
                 <td style={{ textAlign: 'center', padding: '10px' }}>
@@ -295,6 +317,87 @@ function WhatIfModal({
                   </span>
                 </td>
               </tr>
+
+                {/* Target Temperature - Only show if changed */}
+                {whatIfResult.baseline?.targetTemp !== undefined && whatIfResult.scenario?.targetTemp !== undefined && (
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Target Temperature</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.targetTemp?.toFixed(1)}°C
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.targetTemp?.toFixed(1)}°C
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.targetTempDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.targetTempDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.targetTempDifference || 0).toFixed(1)}°C
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.targetTempDifference < 0 ? 'Reduced' : 'Increased'} target temperature
+                    </span>
+                  </td>
+                </tr>
+              )}
+
+              {/* Insulation - Only show if changed */}
+              {whatIfResult.baseline?.insulation !== undefined && whatIfResult.scenario?.insulation !== undefined && (
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Insulation</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.insulation?.toFixed(3)}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.insulation?.toFixed(3)}
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.insulationDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.insulationDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.insulationDifference || 0).toFixed(3)}
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.insulationDifference < 0 ? 'Improved' : 'Worsened'} insulation
+                    </span>
+                  </td>
+                </tr>
+              )}
+              
+               {/* Base Load - Only show if changed */}
+               {whatIfResult.baseline?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined && (
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Base Load</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.baseLoad?.toFixed(2)} kW
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.baseLoad?.toFixed(2)} kW
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.baseLoadDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.baseLoadDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.baseLoadDifference || 0).toFixed(2)} kW
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.baseLoadDifference < 0 ? 'Reduced' : 'Increased'} equipment load
+                    </span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
 

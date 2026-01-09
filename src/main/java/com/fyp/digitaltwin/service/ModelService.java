@@ -9,6 +9,9 @@ import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.EolModule;
 import org.eclipse.epsilon.eol.IEolModule;
 import org.eclipse.epsilon.evl.EvlModule;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.resource.ResourceSet;
+import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.epsilon.evl.execute.UnsatisfiedConstraint;
 import org.springframework.stereotype.Service;
 
@@ -64,11 +67,123 @@ public class ModelService {
             runSimpleEolScript(model, resetScript);
             System.out.println("   Reset energy meters to ensure clean base model state");
         } catch (Exception e) {
-            System.err.println("Warning: Failed to reset energy meters in base model: " + e.getMessage());
+            throw new IllegalStateException("Failed to reset energy meters in base model", e);
         }
         
         return model;
     }
+
+     /**
+     * Deep clones an EMF model by creating a completely isolated Resource and EObject graph.
+     * This ensures no contamination between live simulation and What-If scenarios.
+     * 
+     * CRITICAL: This creates a true deep copy, not just a new EmfModel wrapper.
+     * Each call returns a model with completely independent EObject instances.
+     * 
+     * @param sourceModel The model to clone from
+     * @return A deep-cloned model with isolated Resource and EObject graph
+     * @throws Exception if cloning fails
+     */
+    public Resource deepCloneModel(EmfModel sourceModel) throws Exception {
+        if (sourceModel == null) {
+            throw new IllegalArgumentException("Source model cannot be null");
+        }
+        
+        System.out.println("Deep cloning model (creating isolated Resource and EObject graph)...");
+        
+        // 1. Get original resource
+        Resource originalResource = sourceModel.getResource();
+        if (originalResource == null || originalResource.getContents().isEmpty()) {
+            throw new IllegalStateException("Source model has no resource or contents");
+        }
+        
+        // 2. Create new ResourceSet & Resource (completely isolated)
+        ResourceSetImpl resourceSet = new ResourceSetImpl();
+        Resource clonedResource = resourceSet.createResource(
+            URI.createURI("memory:/cloned_" + System.nanoTime() + ".xmi")
+        );
+        resourceSet.getResourceFactoryRegistry()
+        .getExtensionToFactoryMap()
+        .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+        
+        // 3. Deep copy all root objects (this creates new EObject instances)
+        for (EObject root : originalResource.getContents()) {
+            EObject copy = EcoreUtil.copy(root);
+            clonedResource.getContents().add(copy);
+        }
+        
+        // 4. Resolve all references in the cloned resource
+        EcoreUtil.resolveAll(clonedResource);
+        
+
+        if (originalResource.getContents().size() > 0 && clonedResource.getContents().size() > 0) {
+            EObject originalRoot = originalResource.getContents().get(0);
+            EObject clonedRoot = clonedResource.getContents().get(0);
+            System.out.println("   VERIFICATION - Original root hash: " + System.identityHashCode(originalRoot));
+            System.out.println("   VERIFICATION - Cloned root hash: " + System.identityHashCode(clonedRoot));
+            if (System.identityHashCode(originalRoot) == System.identityHashCode(clonedRoot)) {
+                System.err.println("   ⚠️ WARNING: Hash codes match! Cloning may have failed!");
+            } else {
+                System.out.println("   ✅ VERIFIED: Models are isolated (different hash codes)");
+            }
+        }
+        return clonedResource;
+    }
+
+
+        /**
+     * Wraps a Resource in an EmfModel for EOL script execution.
+     * This allows us to use pure EMF Resources while still being able to run EOL scripts.
+     * 
+     * @param resource The EMF Resource to wrap
+     * @return EmfModel wrapper around the Resource
+     * @throws Exception if wrapping fails
+     */
+    public EmfModel createEmfModelFromResource(Resource resource) throws Exception {
+        if (resource == null) {
+            throw new IllegalArgumentException("Resource cannot be null");
+        }
+        
+        // Create EmfModel wrapper
+        EmfModel model = new EmfModel();
+        model.setName("SmartOffice");
+        model.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
+        model.setModelFileUri(resource.getURI());
+        model.setReadOnLoad(false);
+        model.setStoredOnDisposal(false);
+        
+        // Use reflection to inject the resource directly into EmfModel
+        // This avoids load() which would create a new empty resource
+        try {
+            java.lang.reflect.Field resourceField = model.getClass().getDeclaredField("resource");
+            resourceField.setAccessible(true);
+            resourceField.set(model, resource);
+            
+            // Also ensure the ResourceSet contains our resource
+            ResourceSet resourceSet = resource.getResourceSet();
+            if (resourceSet != null && !resourceSet.getResources().contains(resource)) {
+                resourceSet.getResources().add(resource);
+            }
+            
+            System.out.println("   Wrapped Resource in EmfModel for EOL execution");
+        } catch (Exception e) {
+            // Fallback: Save to temp file and load
+            File tempFile = File.createTempFile("eol_model_", ".smartoffice");
+            tempFile.deleteOnExit();
+            resource.setURI(URI.createFileURI(tempFile.getAbsolutePath()));
+            resource.save(null);
+            
+            model.setModelFileUri(URI.createFileURI(tempFile.getAbsolutePath()));
+            model.setReadOnLoad(true);
+            model.load();
+            
+            System.out.println("   Wrapped Resource in EmfModel via temp file: " + tempFile.getAbsolutePath());
+        }
+        
+        return model;
+    }
+
+
     
     /**
      * Clones a model by copying its current state
@@ -78,18 +193,11 @@ public class ModelService {
      * @return A new model with the same state as the source
      * @throws Exception if cloning fails
      */
+    @Deprecated
     public EmfModel cloneModel(EmfModel sourceModel) throws Exception {
         // Create a new model instance pointing to the same resources
         EmfModel clonedModel = loadBaseModel();
-        // clonedModel.setName("SmartOffice");
-        // clonedModel.setModelFileUri(toEmfUri(resolveResource(MODEL_RESOURCE)));
-        // clonedModel.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
-        // clonedModel.setReadOnLoad(true);
-        // clonedModel.setStoredOnDisposal(false);
-        
-        // // Load the model from disk
-        // clonedModel.load();
-        
+           
         // Copy the current state from source model using EOL
         EolModule copyModule = new EolModule();
         String copyScript = 
@@ -159,8 +267,8 @@ public class ModelService {
      * @throws Exception if script execution fails
      */
     public synchronized String runEolScript(EmfModel model, String scriptName, String logPrefix, 
-                               Object data, Double timeStep, Map<String, String> overrides, 
-                               double mlSlope, double mlIntercept,String simulationStartTime) throws Exception {
+                            Object data, Double timeStep, Map<String, String> overrides, 
+                            double mlSlope, double mlIntercept,String simulationStartTime) throws Exception {
         EolModule module = new EolModule();
         parseModule(module, scriptName);
         
@@ -188,8 +296,8 @@ public class ModelService {
         // Enable silent mode for predictions to reduce console output
         boolean silentMode = logPrefix != null && 
                             (logPrefix.contains("Prediction") || 
-                             logPrefix.contains("Scenario") ||
-                             logPrefix.contains("Calibration"));
+                            logPrefix.contains("Scenario") ||
+                            logPrefix.contains("Calibration"));
         module.getContext().getFrameStack().put("SILENT_MODE", silentMode);
         
         // Capture console output - synchronized to prevent race conditions
@@ -259,6 +367,16 @@ public class ModelService {
         
         for (String line : lines) {
             String trimmed = line.trim();
+
+            // Skip lines that are clearly not JSON (simulation messages, debug output, etc.)
+            if (trimmed.startsWith(">>") || 
+                trimmed.startsWith("DEBUG") || 
+                trimmed.startsWith("Warning") ||
+                trimmed.startsWith("Error") ||
+                trimmed.isEmpty()) {
+                continue;
+            }
+            
             
             // Start of JSON object or array
             if (!inJson && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
@@ -281,7 +399,15 @@ public class ModelService {
         }
         
         String filtered = jsonBuilder.toString().trim();
-        return filtered.isEmpty() ? output : filtered;
+
+        // Validate that we actually have JSON (starts with { or [)
+        if (filtered.isEmpty() || (!filtered.startsWith("{") && !filtered.startsWith("["))) {
+            // If no valid JSON found, return empty string instead of original output
+            // This will cause the caller to handle the error gracefully
+            return "";
+        }
+        
+        return filtered;
     }
     
     /**
