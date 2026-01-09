@@ -4,15 +4,13 @@ saw there is cost in the what if analysis ask gpt which cost value is reasonable
 write api test to test hvac logic on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
 
-check hvac.eol line 74 to 94 ,whether to remove
 
 Debug
 
 minor fix（之后才fix）:
 today task
-check manual override will affect graph or not    
 build per room anomlay detection 
-display per room base load in frontend
+
 
 
 
@@ -30,6 +28,8 @@ Delete branch (Git commits are the checkpoint not the branch)
 Note:
 Power(kW) = instantaneous rate(current consumption ) 
 Energy(kWh) = cumulative consumption over time 
+
+manual override will affect graph (checked)
 
 Answer for Question
 1. dataManager and predictiveModel and digital twin in the metamodel 的用处是什么 because seems like we are not using them

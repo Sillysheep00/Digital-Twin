@@ -72,29 +72,6 @@
         }
     }
 
-    // --- UPDATE DATA MANAGER (Write real-world data to the twin) ---
-    var dataManager = SmartOffice!DataManager.all.first();
-    if (dataManager.isDefined()) {
-        // Storing the current Real Power (from CSV) in the Data Manager
-        //dataManager.currentPowerUsage = simulateData.powerConsumption;
-        }
-
-    // --- UPDATE DIGITAL TWIN (Set overall status) ---
-    var digitalTwin = SmartOffice!DigitalTwin.all.first();
-    if (digitalTwin.isDefined()) {
-        // Set status to OPERATIONAL since the engine is running
-        digitalTwin.status = SmartOffice!SystemStatus#OPERATIONAL;
-
-        // Placeholder for Predictive Model output (Optional, for integration testing)
-        var predictiveModel = digitalTwin.predictiveModel.first();
-        if (predictiveModel.isDefined()) {
-            // Simple prediction: Next outdoor temperature will be 0.5 degrees lower
-            predictiveModel.outputVar = (simulateData.outdoorTemperature - 0.5).format("%.2f") + " °C";
-        }
-    }
-    //----------------------------------------------------------------------------------------------------
-
-
     // --- Calculate Total Building Capacity ---
     var totalCapacity = SmartOffice!Room.all.collect(r | r.capacity).sum();
 

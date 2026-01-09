@@ -36,6 +36,9 @@ function App() {
   const [whatIfResult, setWhatIfResult] = useState(null);
   const [isRunningWhatIf, setIsRunningWhatIf] = useState(false);
 
+  const [baseLoadMode, setBaseLoadMode] = useState('all'); // 'all' or 'perRoom'
+  const [roomBaseLoads, setRoomBaseLoads] = useState({}); // { roomName: value }
+
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
@@ -85,7 +88,35 @@ function App() {
       const changes = {};
       if (whatIfParams.targetTemp !== 22) changes.targetTemp = parseFloat(whatIfParams.targetTemp);
       if (whatIfParams.insulation !== 0.04) changes.insulation = parseFloat(whatIfParams.insulation);
-      if (whatIfParams.baseLoad !== 0.5) changes.baseLoad = parseFloat(whatIfParams.baseLoad); 
+      
+      // Base Load Logic - Handle both modes
+      if (baseLoadMode === 'all') {
+        // Use global baseLoad if different from default
+        if (whatIfParams.baseLoad !== 1.0) {
+          changes.baseLoad = parseFloat(whatIfParams.baseLoad);
+        }
+      } else {
+        // Per-room mode: check if any room has a different value
+        const roomBaseLoadChanges = {};
+        const defaultBaseLoad = whatIfParams.baseLoad ?? 1.0;
+        let hasChanges = false;
+        
+        data?.rooms?.forEach(room => {
+          const roomValue = roomBaseLoads[room.name];
+          // Only include if explicitly set and different from default
+          if (roomValue !== undefined && roomValue !== defaultBaseLoad) {
+            roomBaseLoadChanges[room.name] = roomValue;
+            hasChanges = true;
+          }
+        });
+        
+        if (hasChanges) {
+          changes.roomBaseLoad = roomBaseLoadChanges;
+        } else if (whatIfParams.baseLoad !== 1.0) {
+          // If no per-room changes but global is different, use global
+          changes.baseLoad = parseFloat(whatIfParams.baseLoad);
+        }
+      }
 
       const response = await axios.post('http://localhost:8080/api/what-if', {
         changes,
@@ -169,6 +200,11 @@ function App() {
         isRunningWhatIf={isRunningWhatIf}
         whatIfResult={whatIfResult}
         setShowChartModal={setShowChartModal}
+        data={data}  
+        baseLoadMode={baseLoadMode} 
+        setBaseLoadMode={setBaseLoadMode}  
+        roomBaseLoads={roomBaseLoads}  
+        setRoomBaseLoads={setRoomBaseLoads}  
       />
       <AnomalyModal
         showAnomaly={showAnomalyModal}

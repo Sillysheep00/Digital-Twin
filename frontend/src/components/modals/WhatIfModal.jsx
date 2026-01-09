@@ -9,7 +9,12 @@ function WhatIfModal({
   handleWhatIfAnalysis,
   isRunningWhatIf,
   whatIfResult,
-  setShowChartModal
+  setShowChartModal,
+  data,  
+  baseLoadMode,  
+  setBaseLoadMode,  
+  roomBaseLoads,
+  setRoomBaseLoads 
 }) {
   if (!showWhatIfModal) return null;
 
@@ -69,26 +74,153 @@ function WhatIfModal({
           </div>
         </div>
 
-         {/* Base Load*/}
-         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Base Load (Equipment Power): {whatIfParams.baseLoad} kW per room
+        {/* Base Load - Toggle Mode */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+            Base Load (Equipment Power)
           </label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.1"
-            value={whatIfParams.baseLoad }
-            onChange={(e) => setWhatIfParams({ ...whatIfParams, baseLoad: parseFloat(e.target.value) })}
-            style={{ width: '100%' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-            <span>0 kW (Minimal)</span>
-            <span>2 kW (High)</span>
+          
+          {/* Mode Toggle */}
+          <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setBaseLoadMode('all')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                background: baseLoadMode === 'all' ? '#00b894' : '#ddd',
+                color: baseLoadMode === 'all' ? 'white' : '#333',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                transition: 'all 0.2s'
+              }}
+            >
+              Apply to All Rooms
+            </button>
+            <button
+              onClick={() => setBaseLoadMode('perRoom')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                background: baseLoadMode === 'perRoom' ? '#00b894' : '#ddd',
+                color: baseLoadMode === 'perRoom' ? 'white' : '#333',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                transition: 'all 0.2s'
+              }}
+            >
+              Per-Room Control
+            </button>
           </div>
-        </div>
 
+          {/* All Rooms Mode */}
+          {baseLoadMode === 'all' && (
+            <>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={whatIfParams.baseLoad ?? 1.0}
+                onChange={(e) => setWhatIfParams({ ...whatIfParams, baseLoad: parseFloat(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                <span>0 kW (Minimal)</span>
+                <span><b>{whatIfParams.baseLoad ?? 1.0} kW</b></span>
+                <span>2 kW (High)</span>
+              </div>
+            </>
+          )}
+
+          {/* Per-Room Mode - Expandable */}
+          {baseLoadMode === 'perRoom' && (
+            <div>
+              {/* Global Slider (for quick set all) */}
+              <div style={{ marginBottom: '10px', padding: '10px', background: '#f0f0f0', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '500' }}>Quick Set All Rooms:</span>
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    {whatIfParams.baseLoad ?? 1.0} kW
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={whatIfParams.baseLoad ?? 1.0}
+                  onChange={(e) => {
+                    const newValue = parseFloat(e.target.value);
+                    setWhatIfParams({ ...whatIfParams, baseLoad: newValue });
+                    // Optionally update all room values when dragging
+                    if (data?.rooms) {
+                      const updates = {};
+                      data.rooms.forEach(room => {
+                        updates[room.name] = newValue;
+                      });
+                      setRoomBaseLoads(prev => ({ ...prev, ...updates }));
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '5px', fontStyle: 'italic' }}>
+                  Drag to set all rooms, then adjust individual rooms below
+                </div>
+              </div>
+
+               {/* Expandable Room List */}
+              <div style={{ 
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                background: 'white',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {data?.rooms && data.rooms.length > 0 ? (
+                  data.rooms.map(room => (
+                    <div 
+                      key={room.id} 
+                      style={{ 
+                        padding: '12px',
+                        borderBottom: '1px solid #eee',
+                        ':last-child': { borderBottom: 'none' }
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <label style={{ fontWeight: '500', fontSize: '13px' }}>{room.name}</label>
+                        <span style={{ color: '#666', fontSize: '13px', fontWeight: 'bold' }}>
+                          {roomBaseLoads[room.name] ?? whatIfParams.baseLoad ?? 1.0} kW
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={roomBaseLoads[room.name] ?? whatIfParams.baseLoad ?? 1.0}
+                        onChange={(e) => {
+                          setRoomBaseLoads(prev => ({
+                            ...prev,
+                            [room.name]: parseFloat(e.target.value)
+                          }));
+                        }}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  ))  
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px' }}>
+                    No room data available. Please wait for simulation to load.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>  
 
         {/* Prediction Horizon */}
         <div style={{ marginBottom: '15px' }}>
