@@ -21,6 +21,7 @@ for (r in allRooms) {
     // HVAC Power
     var hvacStatus = "OFF";
     var currentHvacPower = 0.0d;
+    var hasHvac = r.hvac.isDefined(); 
     
     if (r.hvac.isDefined() and r.hvac.status == true) {
         currentHvacPower = r.hvac.powerUsage;
@@ -51,7 +52,7 @@ for (r in allRooms) {
     }
 
     // Create individual room JSON string
-    var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '", "power": ' + roomCurrentPower.format("%.2f") + ', "energy": ' + energyVal.format("%.2f") + ' }';
+    var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '", "hasHvac": ' + hasHvac + ', "power": ' + roomCurrentPower.format("%.2f") + ', "energy": ' + energyVal.format("%.2f") + ' }';
     roomJsonList.add(roomJson);
 }
 

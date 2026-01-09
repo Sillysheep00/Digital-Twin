@@ -24,6 +24,9 @@ function StatusBar({ data }) {
       <div>
         <b>Total Power:</b> {data.power.simulated} kW
       </div>
+      <div>
+        <b>Energy:</b> {data.energy?.total?.toFixed(2)} kWh
+      </div>
       <div style={{ marginLeft: 'auto', color: '#666' }}>
         Select a room in 3D to control it
       </div>

@@ -1,19 +1,18 @@
 
-
-
-
 Task
 saw there is cost in the what if analysis ask gpt which cost value is reasonable
 write api test to test hvac logic on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
-double check prediction service and digital twin engine ensure no hidden sharing remain
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
-display per room base load in frontend
+
+check hvac.eol line 74 to 94 ,whether to remove
 
 Debug
 
 minor fix（之后才fix）:
-当manual 按cooling 和 heating temperature 变化太大（ 不确定是否还需要留这个功能）
-washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
+today task
+check manual override will affect graph or not    
+build per room anomlay detection 
+display per room base load in frontend
 
 
 
@@ -27,6 +26,10 @@ Add,commit and push( git push origin branch name) to that branch ( if will go in
 Merge it to main   ( git merge branch name)
 Delete branch (Git commits are the checkpoint not the branch)
 
+
+Note:
+Power(kW) = instantaneous rate(current consumption ) 
+Energy(kWh) = cumulative consumption over time 
 
 Answer for Question
 1. dataManager and predictiveModel and digital twin in the metamodel 的用处是什么 because seems like we are not using them
@@ -226,7 +229,35 @@ The energy consumption report reflects the Digital Twin’s internal state based
 Machine learning is used only for calibration, comparison, and anomaly detection, not as a source of truth for operational 
 energy reporting
 
+10. Explanation on the threshold implementation.
+Previous implmentation : I uses fixed percentage(25%)of real power as the threshold, threshold will change every time steps as i take 25% of the
+real power of the current step as the threshold so the threshold will look different every timestep. I use simple comparison residual > comparison and no statistical
+analysis(no rolling mean / std).This causes the simulated power always exceed the threshold in the graph and showing office is in abnormal condition.
 
+Reason of replacing it to new implementation:
+Always anomalous: when predicted power was small, even tiny absolute errors looked large in percentage terms
+No statistical context: didn't account for normal variation
+Biased model: systematic under/over-prediction caused constant false positives
+
+I change the implmentation to :
+Rolling mean and standard deviation over last 32 steps (8 hours)
+Z-score calculation: zScore = (residual - meanResidual) / stdResidual
+Threshold: meanResidual + 3.0 * stdResidual (3-sigma rule)
+Fallback: Still uses predictedPower * 0.25 when insufficient data (line 84, 103)
+
+The anomaly decision will have 3 rule:
+1. Ignore tiny residuals for noise filterring
+2. In Z-score threshold
+3. fallback for insufficient data
+
+This implementation is better is because the threshold is adjust based on recent behavior,with this implementation
+it solves always anomalous problem(reduce false positives), adaptive threshold (adjust to system behaviour), works at 
+all power levels(handles low power scenario(by the rule 1 in the anomay decision)), better diagonistics (z-score show how unusual
+values are).
+
+11.When they ask why u implement manual override
+
+Clonning isse explanation
 During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into 
 the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction
 and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin 
@@ -239,9 +270,7 @@ Prediction	cloneModel()	reset → accumulate
 What-If	loadBaseModel()	reset → accumulate
 Energy Report	live model	accumulated
 
-
 Model Isolation and Timeline Separation
-
 To ensure correctness and prevent state contamination between live simulation, prediction, and what-if analysis, a strict model isolation strategy was implemented. 
 The base EMF model is loaded once as a read-only template and is never mutated. At system initialisation, a deep clone of the base model is created to serve as the 
 live runtime digital twin. This cloning process constructs a completely independent ResourceSet and EObject graph, ensuring that all model elements are isolated at memory level.

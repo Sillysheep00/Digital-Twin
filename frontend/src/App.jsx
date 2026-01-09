@@ -15,6 +15,9 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
 
+  // Track active manual control mode per room
+  const [roomControlModes, setRoomControlModes] = useState({});
+
   // Modal states
   const [showTempModal, setShowTempModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
@@ -52,10 +55,11 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
+  
   const selectedRoom = data?.rooms?.find(r => r.id === selectedRoomId) || null;
 
   const handleControl = async (action) => {
@@ -63,6 +67,11 @@ function App() {
     try {
       await axios.post(`http://localhost:8080/api/control?roomId=${selectedRoomId}&action=${action}`);
       console.log(`Sent command: ${action} to ${selectedRoomId}`);
+        // Update local state to track active mode
+        setRoomControlModes(prev => ({
+          ...prev,
+          [selectedRoomId]: action
+        }));
     } catch (err) {
       console.error(err);
       alert("Failed to send command");
@@ -143,7 +152,10 @@ function App() {
       </div>
 
       {/* TOP RIGHT - SELECTED ROOM PANEL */}
-      <SelectedRoomPanel selectedRoom={selectedRoom} handleControl={handleControl} />
+      <SelectedRoomPanel selectedRoom={selectedRoom} 
+      handleControl={handleControl} 
+      activeMode={selectedRoomId ? roomControlModes[selectedRoomId] : null}
+      />
 
       {/* MODALS */}
       <TemperatureModal show={showTempModal} data={data} onClose={() => setShowTempModal(false)} />
