@@ -9,6 +9,7 @@ import AnomalyModal from './components/modals/AnomalyModal';
 import ChartModal from './components/modals/ChartModal';
 import SelectedRoomPanel from './components/layout/SelectedRoomPanel';
 import StatusBar from './components/layout/StatusBar';
+import PowerTrendModal from './components/modals/PowerTrendModal';
 
 function App() {
   const [data, setData] = useState(null);
@@ -23,6 +24,7 @@ function App() {
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showWhatIfModal, setShowWhatIfModal] = useState(false);
   const [showAnomalyModal, setShowAnomalyModal] = useState(false);
+  const [showPowerTrendModal, setShowPowerTrendModal] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
 
   // What-If Analysis states
@@ -39,6 +41,9 @@ function App() {
   const [baseLoadMode, setBaseLoadMode] = useState('all'); // 'all' or 'perRoom'
   const [roomBaseLoads, setRoomBaseLoads] = useState({}); // { roomName: value }
 
+  //Power Trend
+  const [powerTrendData, setPowerTrendData] = useState(null);
+  const [isLoadingPowerTrend, setIsLoadingPowerTrend] = useState(false);
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
@@ -150,6 +155,21 @@ function App() {
     }
   };
 
+  const handlePowerTrendFetch = async () => {
+    setIsLoadingPowerTrend(true);
+    setPowerTrendData(null);
+    try {
+      const response = await axios.get(`http://localhost:8080/api/anomaly?windowSize=${anomalyWindowSize || 32}`);
+      setPowerTrendData(response.data);
+    } catch (err) {
+      console.error("Power trend fetch failed:", err);
+      setPowerTrendData({ error: true, message: "Failed to load power trend data" });
+    } finally {
+      setIsLoadingPowerTrend(false);
+    }
+  };
+
+
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial' }}>
       
@@ -178,6 +198,7 @@ function App() {
           <button onClick={() => setShowTempModal(true)} style={buttonStyle('#fff')}>🌡️ View All Temps</button>
           <button onClick={() => setShowEnergyModal(true)} style={buttonStyle('#fff')}>⚡ View Energy</button>
           <button onClick={() => setShowWhatIfModal(true)} style={buttonStyle('#00b894', 'white')}>🔬 What-If Analysis</button>
+          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={buttonStyle('#3498db', 'white')}>📈 Power Trends</button>
           <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={buttonStyle('#e74c3c', 'white')}>🚨 Anomaly Detection</button>
         </div>
       </div>
@@ -206,6 +227,16 @@ function App() {
         roomBaseLoads={roomBaseLoads}  
         setRoomBaseLoads={setRoomBaseLoads}  
       />
+      <PowerTrendModal
+        showPowerTrend={showPowerTrendModal}
+        setShowPowerTrend={setShowPowerTrendModal}
+        windowSize={anomalyWindowSize}
+        setWindowSize={setAnomalyWindowSize}
+        trendData={powerTrendData}
+        handleFetchTrends={handlePowerTrendFetch}
+        isLoading={isLoadingPowerTrend}
+      />
+
       <AnomalyModal
         showAnomaly={showAnomalyModal}
         setShowAnomaly={setShowAnomalyModal}

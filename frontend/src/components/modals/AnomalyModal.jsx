@@ -1,5 +1,5 @@
+import React from 'react';
 import ModalWrapper from '../ui/ModalWrapper';
-import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 const WINDOW_SIZE_OPTIONS = [
@@ -17,7 +17,6 @@ function AnomalyModal({
   windowSize,
   setWindowSize
 }) {
-  const [activeChart, setActiveChart] = useState('trend'); // 'trend' or 'residual'
 
   if (!showAnomaly) return null;
   console.log('Anomaly Result:', anomalyResult);
@@ -27,15 +26,15 @@ function AnomalyModal({
   console.log('Has simulatedPowerHistory:', anomalyResult?.simulatedPowerHistory);
   console.log('Has predictedPowerHistory:', anomalyResult?.predictedPowerHistory);
 
-  const getBorderColor = () =>{
+  const getBorderColor = () => {
     const severity = anomalyResult?.severity;
-      switch (severity) {
-        case 'CRITICAL':
-          return '#e74c3c'; // Red
-        case 'WARNING':
-          return '#f39c12'; // Orange
-        default:
-          return '#27ae60'; // Green (NORMAL)
+    switch (severity) {
+      case 'CRITICAL':
+        return '#e74c3c'; // Red
+      case 'WARNING':
+        return '#f39c12'; // Orange
+      default:
+        return '#27ae60'; // Green (NORMAL)
     }
   }
 
@@ -88,7 +87,7 @@ function AnomalyModal({
       return `Window: Last ${windowInfo.hours} hours (${windowInfo.steps} steps, 15-min resolution)`;
     }
     
-    const currentWindowSize = windowSize || 96;
+    const currentWindowSize = windowSize || 32;
     const dataLength = anomalyResult.timestamps.length;
     const startIndex = Math.max(0, dataLength - currentWindowSize);
     
@@ -119,51 +118,22 @@ function AnomalyModal({
     return timestamp;
   };
 
-  
-
-   // Prepare chart data
-   const prepareTrendData = () => {
-    if (!anomalyResult?.timeSteps || !anomalyResult.simulatedPowerHistory || !anomalyResult.predictedPowerHistory) {
-      return [];
-    }
-     // Filter to show only the last N steps based on selected window size
-    const currentWindowSize = windowSize || 96;
-    const dataLength = anomalyResult.timeSteps.length;
-    const startIndex = Math.max(0, dataLength - currentWindowSize);
-
-    const timestamps = anomalyResult.timestamps || [];
-    
-    return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
-      const actualIndex = startIndex + index;
-      const timestamp = timestamps[actualIndex] || `Step ${index + 1}`;
-      
-      return {
-        step: index + 1,
-        timestamp: formatTimeForAxis(timestamp),
-        fullTimestamp: timestamps[actualIndex] || null,
-        simulated: anomalyResult.simulatedPowerHistory[actualIndex],
-        predicted: anomalyResult.predictedPowerHistory[actualIndex]
-      };
-    });
-  };
-
+  // Prepare residual chart data
   const prepareResidualData = () => {
     if (!anomalyResult?.timeSteps || !anomalyResult.residuals) {
       return [];
     }
 
     // Filter to show only the last N steps based on selected window size
-    const currentWindowSize = windowSize || 96;
+    const currentWindowSize = windowSize || 32;
     const dataLength = anomalyResult.timeSteps.length;
     const startIndex = Math.max(0, dataLength - currentWindowSize);
-
     const timestamps = anomalyResult.timestamps || [];
 
-     // FIX: Use threshold from backend (Z-score based) instead of calculating 25%
+    // Use threshold from backend (Z-score based) instead of calculating 25%
     // The backend now provides the correct statistical threshold
     const thresholdValue = anomalyResult.threshold || 0;
   
-    
     return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
       const actualIndex = startIndex + index;
       const timestamp = timestamps[actualIndex] || `Step ${index + 1}`;
@@ -179,11 +149,10 @@ function AnomalyModal({
     });
   };
 
-
   return (
     <ModalWrapper onClose={() => setShowAnomaly(false)} title="🚨 ML-Based Anomaly Detection">
       <p style={{ color: '#666', marginBottom: '20px' }}>
-        Using Linear Regression to detect unusual energy consumption patterns
+        Detect anomalies in energy consumption using machine learning and statistical analysis
       </p>
 
       {/* Initial Check Button - Show when no data yet */}
@@ -208,42 +177,9 @@ function AnomalyModal({
         </button>
       )}
 
-       {/* Chart Toggle */}
-       {anomalyResult && !anomalyResult.error && anomalyResult.timeSteps && (
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-            <button
-              onClick={() => setActiveChart('trend')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: activeChart === 'trend' ? '#3498db' : '#ecf0f1',
-                color: activeChart === 'trend' ? 'white' : '#2c3e50',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              📈 Power Trend Comparison
-            </button>
-            <button
-              onClick={() => setActiveChart('residual')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: activeChart === 'residual' ? '#3498db' : '#ecf0f1',
-                color: activeChart === 'residual' ? 'white' : '#2c3e50',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              📊 Residual Plot
-            </button>
-          </div>
-
+      {/* Window Size Selector and Residual Chart - Show when data is available */}
+      {anomalyResult && !anomalyResult.error && anomalyResult.timeSteps && (
+        <>
           {/* Window Size Selector */}
           <div style={{ 
             marginBottom: '20px', 
@@ -256,7 +192,7 @@ function AnomalyModal({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
               <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                  Analysis Window:
+                Analysis Window:
               </label>
               <select
                 id="anomaly-window-size-select"
@@ -300,12 +236,10 @@ function AnomalyModal({
               {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
             </button>
           </div>
-            
 
-          {/* Chart 1: Power Trend Comparison */}
-          {activeChart === 'trend' && (
+          {/* Residual Plot Chart */}
           <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-            <h4 style={{ marginTop: 0 }}>Power Trend Comparison</h4>
+            <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
             <p style={{ 
               margin: '0 0 15px 0', 
               fontSize: '12px', 
@@ -315,112 +249,51 @@ function AnomalyModal({
               {getTimeRangeSubtitle()}
             </p>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={prepareTrendData()}>
+              <LineChart data={prepareResidualData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                 <XAxis 
                   dataKey="timestamp" 
                   label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
                   stroke="#666"
-                  interval={getTickInterval() * 4 - 1} // Convert hours to steps (4 steps per hour)
+                  interval={getTickInterval() * 4 - 1}
                   angle={-45}
                   textAnchor="end"
                   height={60}
                 />
                 <YAxis 
-                  label={{ value: 'Power (kW)', angle: -90, position: 'insideLeft' }}
+                  label={{ value: 'Residual Power (kW)', angle: -90, position: 'insideLeft', offset: 10, dy: 80 }}
                   stroke="#666"
                 />
                 <Tooltip 
                   formatter={(value) => `${value} kW`}
                   labelFormatter={(label) => {
-                    const dataPoint = prepareTrendData().find(d => d.timestamp === label);
+                    const dataPoint = prepareResidualData().find(d => d.timestamp === label);
                     return dataPoint?.fullTimestamp || label;
                   }}
                 />
                 <Legend />
                 <Line 
                   type="monotone" 
-                  dataKey="simulated" 
-                  stroke="#ff6b6b" 
+                  dataKey="threshold" 
+                  stroke="#f39c12" 
                   strokeWidth={2}
-                  name="Simulated Power"
-                  dot={{ r: 3 }}
+                  strokeDasharray="5 5"
+                  name="Statistical Threshold (Z-score)" 
+                  dot={false}
+                  isAnimationActive={false}
                 />
                 <Line 
-                    type="monotone" 
-                    dataKey="predicted" 
-                    stroke="#51cf66" 
-                    strokeWidth={2}
-                    name="Calibrated Power (Simulation + ML)"
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Chart 2: Residual Plot */}
-          {activeChart === 'residual' && (
-            <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-              <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
-              <p style={{ 
-                margin: '0 0 15px 0', 
-                fontSize: '12px', 
-                color: '#666',
-                fontStyle: 'italic'
-              }}>
-                {getTimeRangeSubtitle()}
-              </p>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={prepareResidualData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                  <XAxis 
-                    dataKey="timestamp" 
-                    label={{ value: 'Time', position: 'insideBottom', offset: -5 }}
-                    stroke="#666"
-                    interval={getTickInterval() * 4 - 1} // Convert hours to steps
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    label={{ value: 'Residual Power (kW)', angle: -90, position: 'insideLeft',offset:10,dy: 80}}
-                    stroke="#666"
-                  />
-                  <Tooltip 
-                    formatter={(value) => `${value} kW`}
-                    labelFormatter={(label) => {
-                      const dataPoint = prepareResidualData().find(d => d.timestamp === label);
-                      return dataPoint?.fullTimestamp || label;
-                    }}
-                  />
-                  {/* <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" /> */}
-                  <Legend />
-                  {/* --- ADD THIS DYNAMIC THRESHOLD LINE --- */}
-                  <Line 
-                    type="monotone" 
-                    dataKey="threshold" 
-                    stroke="#f39c12" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"   // Dashed line makes it look like a "limit"
-                    name= "Statistical Threshold (Z-score)" 
-                    dot={false}             // No dots, just a smooth boundary line
-                    isAnimationActive={false}
-                  />
-
-                  <Line 
-                    type="monotone" 
-                    dataKey="residual" 
-                    stroke="#e74c3c" 
-                    strokeWidth={2}
-                    name="Residual"
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+                  type="monotone" 
+                  dataKey="residual" 
+                  stroke="#e74c3c" 
+                  strokeWidth={2}
+                  name="Residual"
+                  dot={{ r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
       )}
 
       {/* Room Anomaly Breakdown - Only show if room data exists */}
@@ -491,9 +364,7 @@ function AnomalyModal({
                         e.currentTarget.style.background = room.anomalyDetected ? '#fff5f5' : 'white';
                       }}
                       onClick={() => {
-                        // Optional: Open room detail modal
                         console.log('Room clicked:', room.roomName);
-                        // You can implement room detail modal here
                       }}
                     >
                       <td style={{ padding: '10px', fontWeight: '500' }}>
