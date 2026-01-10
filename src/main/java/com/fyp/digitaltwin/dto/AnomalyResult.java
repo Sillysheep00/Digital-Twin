@@ -1,6 +1,7 @@
 package com.fyp.digitaltwin.dto;
 
 import java.util.List;
+
 /**
  * Data Transfer Object for Anomaly Detection Results
  * 
@@ -26,7 +27,9 @@ public class AnomalyResult {
     private List<Double> simulatedPowerHistory;  // Historical raw simulated power
     private List<Double> predictedPowerHistory; // Historical ML-predicted power  
     private List<Double> residuals;            // Historical residuals
+    private List<RoomAnomaly> roomAnomalies;  // Per-room anomaly breakdown
     private Integer windowSize;
+    private Double zScore;
     
     
     // Default constructor
@@ -158,13 +161,28 @@ public class AnomalyResult {
         this.residuals = residuals;
     }
 
-    // Add getter and setter:
+    public List<RoomAnomaly> getRoomAnomalies() {
+        return roomAnomalies;
+    }
+    
+    public void setRoomAnomalies(List<RoomAnomaly> roomAnomalies) {
+        this.roomAnomalies = roomAnomalies;
+    }
+
     public Integer getWindowSize() {
         return windowSize;
     }
 
     public void setWindowSize(Integer windowSize) {
         this.windowSize = windowSize;
+    }
+
+    public Double getZScore() {
+        return zScore;
+    }
+
+    public void setZScore(Double zScore) {
+        this.zScore = zScore;
     }
 
 }

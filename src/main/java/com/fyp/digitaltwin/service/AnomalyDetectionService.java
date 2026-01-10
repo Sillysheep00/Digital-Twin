@@ -1,18 +1,21 @@
 package com.fyp.digitaltwin.service;
 
-import com.fyp.digitaltwin.dto.AnomalyResult;
-import com.fyp.digitaltwin.dto.LinearRegressionModel;
-import com.fyp.digitaltwin.model.SimulationResult;
-import com.fyp.digitaltwin.repository.SimulationResultRepository;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.ArrayList;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fyp.digitaltwin.dto.AnomalyResult;
+import com.fyp.digitaltwin.dto.LinearRegressionModel;
+import com.fyp.digitaltwin.dto.RoomAnomaly;
+import com.fyp.digitaltwin.model.SimulationResult;
+import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
 
 @Service
@@ -153,59 +156,11 @@ public class AnomalyDetectionService {
         result.setThreshold(Math.round((meanResidual + Z_SCORE_THRESHOLD * stdResidual) * 100.0) / 100.0);
         result.setSeverity(severity);
         result.setExplanation(explanation);
+        result.setZScore(zScore);  
 
         return result;
     }
 
-    //Helper method : Get historical residuals from recent simulation results
-    private List<Double> getHistoricalResiduals(
-        LinearRegressionModel regressionModel,
-        int windowSize) {
-        
-        List<Double> residuals = new ArrayList<>();
-        
-        try {
-            List<SimulationResult> recentResults = resultRepository
-                .findAll(Sort.by(Sort.Direction.DESC, "timestamp"))
-                .stream()
-                .limit(windowSize)
-                .sorted(Comparator.comparing(SimulationResult::getTimestamp))
-                .collect(Collectors.toList());
-            
-            for (SimulationResult sr : recentResults) {
-                double predicted = regressionModel.predict(sr.getSimulatedPower());
-                double residual = Math.abs(sr.getRealPower() - predicted);
-                residuals.add(residual);
-            }
-        } catch (Exception e) {
-            System.err.println("Error fetching historical residuals: " + e.getMessage());
-        }
-        
-        return residuals;
-    }
-
-        /**
-     * Helper: Calculate mean of a list
-     */
-    private double calculateMean(List<Double> values) {
-        if (values.isEmpty()) return 0.0;
-        return values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-    }
-
-    /**
-     * Helper: Calculate standard deviation
-     */
-    private double calculateStandardDeviation(List<Double> values, double mean) {
-        if (values.size() < 2) return 1.0; // Avoid division by zero
-        
-        double variance = values.stream()
-            .mapToDouble(v -> Math.pow(v - mean, 2))
-            .average()
-            .orElse(0.0);
-        
-        return Math.sqrt(variance);
-    }
-    
     /**
      * Convenience method: Detect anomaly using current dashboard data and ML model.
      * Extracts power values from dashboard JSON and performs ML-based detection.
@@ -244,6 +199,34 @@ public class AnomalyDetectionService {
         
         // Get current anomaly detection result
         AnomalyResult result = detectAnomalyFromDashboard(dashboardJson, regressionModel);
+     
+        // First get building-level Z-score and severity
+        double buildingZScore = result.getZScore() != null ? result.getZScore() : 0.0;
+        String buildingSeverity = result.getSeverity();
+
+        // Calculate building Z-score if we have historical data
+        if (result.getResiduals() != null && result.getResiduals().size() > 0) {
+            List<Double> residuals = result.getResiduals();
+            double mean = residuals.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            double std = Math.sqrt(
+                residuals.stream()
+                    .mapToDouble(r -> Math.pow(r - mean, 2))
+                    .average()
+                    .orElse(0.0)
+            );
+            if (std > 0.1) {
+                buildingZScore = (result.getResidual() - mean) / std;
+            }
+        }
+
+        List<RoomAnomaly> roomAnomalies = detectRoomAnomalies(
+            dashboardJson, 
+            regressionModel, 
+            result.getThreshold(),
+            buildingZScore,
+            buildingSeverity
+        );
+        result.setRoomAnomalies(roomAnomalies);
         
         try{
             //Query recent simulation results ( e.g., last 96 steps =  24 hours)
@@ -325,5 +308,184 @@ public class AnomalyDetectionService {
         }
         return result;
     }
+
+    public List<RoomAnomaly> detectRoomAnomalies(
+        String dashboardJson, 
+        LinearRegressionModel regressionModel,
+        double buildingThreshold,
+        double buildingZScore,
+        String buildingSeverity){
+
+        List<RoomAnomaly> roomAnomalies = new ArrayList<>();
+    
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(dashboardJson);
+            
+            // Get building-level values
+            double totalRealPower = root.path("power").path("real").asDouble();
+            double totalSimulatedPower = root.path("power").path("simulated_raw").asDouble();
+            double totalPredictedPower = root.path("power").path("simulated").asDouble();
+            
+            // Get rooms array
+            JsonNode roomsArray = root.path("rooms");
+            if (!roomsArray.isArray() || roomsArray.size() == 0) {
+                return roomAnomalies; // No rooms to analyze
+            }
+            
+            // Calculate total simulated power from all rooms for proportional allocation
+            double totalRoomSimulatedPower = 0.0;
+            List<Double> roomSimulatedPowers = new ArrayList<>();
+            
+            for (JsonNode room : roomsArray) {
+                double roomSimPower = room.path("power").asDouble();
+                roomSimulatedPowers.add(roomSimPower);
+                totalRoomSimulatedPower += roomSimPower;
+            }
+            
+            // If no room power, return empty list
+            if (totalRoomSimulatedPower == 0) {
+                return roomAnomalies;
+            }
+
+             // Calculate per-room anomalies
+        int roomIndex = 0;
+        for (JsonNode room : roomsArray) {
+            RoomAnomaly roomAnomaly = new RoomAnomaly();
+            
+            String roomName = room.path("name").asText("Unknown");
+            String roomId = room.path("id").asText("");
+            double roomSimulatedPower = roomSimulatedPowers.get(roomIndex);
+            
+            roomAnomaly.setRoomName(roomName);
+            roomAnomaly.setRoomId(roomId);
+            roomAnomaly.setSimulatedPower(Math.round(roomSimulatedPower * 100.0) / 100.0);
+            
+            // Allocate real power proportionally
+            double allocationRatio = roomSimulatedPower / totalRoomSimulatedPower;
+            double allocatedRealPower = totalRealPower * allocationRatio;
+            roomAnomaly.setAllocatedRealPower(Math.round(allocatedRealPower * 100.0) / 100.0);
+            
+            // Calculate predicted power for this room (proportional to building prediction)
+            double roomPredictedPower = totalPredictedPower * allocationRatio;
+            roomAnomaly.setPredictedPower(Math.round(roomPredictedPower * 100.0) / 100.0);
+            
+            // Calculate residual
+            double residual = Math.abs(allocatedRealPower - roomPredictedPower);
+            roomAnomaly.setResidual(Math.round(residual * 100.0) / 100.0);
+            
+            // Use absolute threshold based on room's predicted power, not proportional building threshold
+            double roomThreshold = Math.max(MIN_ABSOLUTE_THRESHOLD, roomPredictedPower * 0.25);
+
+            roomAnomaly.setThreshold(Math.round(roomThreshold * 100.0) / 100.0);
+            
+            // Determine anomaly status - INDEPENDENT of building severity
+            boolean isAnomaly = false;
+            String severity = "NORMAL";
+            String status = "🟢 Normal";
+
+            // Rule 1: If building is NORMAL, all rooms are NORMAL
+            if ("NORMAL".equals(buildingSeverity)) {
+                // No room-level evaluation needed when building is normal
+                isAnomaly = false;
+                severity = "NORMAL";
+                status = "🟢 Normal";
+            }
+
+            // Rule 2: If building is WARNING or CRITICAL, evaluate room-level anomalies
+            else {
+                // Ignore tiny residuals (noise filtering)
+                if (residual < MIN_ABSOLUTE_THRESHOLD * 0.5) {
+                    // Very small residuals are always normal
+                    isAnomaly = false;
+                    severity = "NORMAL";
+                    status = "🟢 Normal";
+                }
+                // Check if room residual exceeds its own threshold
+                else if (residual > roomThreshold) {
+                    isAnomaly = true;
+                    // Classify severity based on how far above threshold
+                    if (residual > roomThreshold * 2.0) {
+                        severity = "CRITICAL";
+                        status = "🔴 Anomaly";
+                    } else {
+                        severity = "WARNING";
+                        status = "🟠 Slight";
+                    }
+                }
+            // Rule 3: Room is normal
+            else {
+                isAnomaly = false;
+                severity = "NORMAL";
+                status = "🟢 Normal";
+            }
+        }
+            roomAnomaly.setAnomalyDetected(isAnomaly);
+            roomAnomaly.setSeverity(severity);
+            roomAnomaly.setStatus(status);
+            
+            roomAnomalies.add(roomAnomaly);
+            roomIndex++;
+        }
+    } catch (Exception e) {
+        System.err.println("Error calculating room anomalies: " + e.getMessage());
+        e.printStackTrace();
+    }
+    
+    return roomAnomalies;
+        
+    }
+
+    
+
+    //Helper method : Get historical residuals from recent simulation results
+     private List<Double> getHistoricalResiduals(
+        LinearRegressionModel regressionModel,
+        int windowSize) {
+        
+        List<Double> residuals = new ArrayList<>();
+        
+        try {
+            List<SimulationResult> recentResults = resultRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "timestamp"))
+                .stream()
+                .limit(windowSize)
+                .sorted(Comparator.comparing(SimulationResult::getTimestamp))
+                .collect(Collectors.toList());
+            
+            for (SimulationResult sr : recentResults) {
+                double predicted = regressionModel.predict(sr.getSimulatedPower());
+                double residual = Math.abs(sr.getRealPower() - predicted);
+                residuals.add(residual);
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching historical residuals: " + e.getMessage());
+        }
+        
+        return residuals;
+    }
+
+    /**
+     * Helper: Calculate mean of a list
+     */
+    private double calculateMean(List<Double> values) {
+        if (values.isEmpty()) return 0.0;
+        return values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+    }
+
+    /**
+     * Helper: Calculate standard deviation
+     */
+    private double calculateStandardDeviation(List<Double> values, double mean) {
+        if (values.size() < 2) return 1.0; // Avoid division by zero
+        
+        double variance = values.stream()
+            .mapToDouble(v -> Math.pow(v - mean, 2))
+            .average()
+            .orElse(0.0);
+        
+        return Math.sqrt(variance);
+    }
+    
 }
 

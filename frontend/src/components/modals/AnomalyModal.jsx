@@ -27,11 +27,29 @@ function AnomalyModal({
   console.log('Has simulatedPowerHistory:', anomalyResult?.simulatedPowerHistory);
   console.log('Has predictedPowerHistory:', anomalyResult?.predictedPowerHistory);
 
-  const getBorderColor = () =>
-    anomalyResult?.anomalyDetected ? '#e74c3c' : '#27ae60';
+  const getBorderColor = () =>{
+    const severity = anomalyResult?.severity;
+      switch (severity) {
+        case 'CRITICAL':
+          return '#e74c3c'; // Red
+        case 'WARNING':
+          return '#f39c12'; // Orange
+        default:
+          return '#27ae60'; // Green (NORMAL)
+    }
+  }
 
-  const getBackgroundColor = () =>
-    anomalyResult?.anomalyDetected ? '#fadbd8' : '#d4efdf';
+  const getBackgroundColor = () => {
+    const severity = anomalyResult?.severity;
+    switch (severity) {
+      case 'CRITICAL':
+        return '#fadbd8'; // Light red
+      case 'WARNING':
+        return '#fef5e7'; // Light orange
+      default:
+        return '#d4efdf'; // Light green (NORMAL)
+    }
+  };
 
   const getSeverityColor = (severity) => {
     switch (severity) {
@@ -405,6 +423,132 @@ function AnomalyModal({
         </div>
       )}
 
+      {/* Room Anomaly Breakdown - Only show if room data exists */}
+      {anomalyResult?.roomAnomalies && anomalyResult.roomAnomalies.length > 0 && (
+        <div style={{ 
+          background: 'white', 
+          padding: '15px', 
+          borderRadius: '8px', 
+          marginBottom: '20px',
+          border: '1px solid #ddd'
+        }}>
+          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#2c3e50' }}>
+            🏢 Room Anomaly Breakdown
+          </h4>
+          <p style={{ 
+            margin: '0 0 15px 0', 
+            fontSize: '12px', 
+            color: '#666',
+            fontStyle: 'italic'
+          }}>
+            Residuals calculated by proportionally allocating building power to rooms
+          </p>
+          
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              fontSize: '14px'
+            }}>
+              <thead>
+                <tr style={{ 
+                  background: '#f5f5f5', 
+                  borderBottom: '2px solid #ddd',
+                  textAlign: 'left'
+                }}>
+                  <th style={{ padding: '10px', fontWeight: 'bold' }}>Room</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'right' }}>Residual (kW)</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'center' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalyResult.roomAnomalies.map((room, index) => {
+                  const getStatusColor = (status) => {
+                    if (status.includes('🔴')) return '#e74c3c';
+                    if (status.includes('🟠')) return '#f39c12';
+                    return '#27ae60';
+                  };
+                  
+                  const getRowStyle = (isAnomaly) => ({
+                    borderBottom: '1px solid #eee',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                    background: isAnomaly ? '#fff5f5' : 'white'
+                  });
+                  
+                  return (
+                    <tr 
+                      key={room.roomId || index}
+                      style={getRowStyle(room.anomalyDetected)}
+                      onMouseEnter={(e) => {
+                        if (room.anomalyDetected) {
+                          e.currentTarget.style.background = '#ffe5e5';
+                        } else {
+                          e.currentTarget.style.background = '#f9f9f9';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = room.anomalyDetected ? '#fff5f5' : 'white';
+                      }}
+                      onClick={() => {
+                        // Optional: Open room detail modal
+                        console.log('Room clicked:', room.roomName);
+                        // You can implement room detail modal here
+                      }}
+                    >
+                      <td style={{ padding: '10px', fontWeight: '500' }}>
+                        {room.roomName}
+                      </td>
+                      <td style={{ 
+                        padding: '10px', 
+                        textAlign: 'right',
+                        fontWeight: room.anomalyDetected ? 'bold' : 'normal',
+                        color: room.anomalyDetected ? '#e74c3c' : '#2c3e50'
+                      }}>
+                        {room.residual?.toFixed(2) || '0.00'} kW
+                      </td>
+                      <td style={{ 
+                        padding: '10px', 
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        color: getStatusColor(room.status)
+                      }}>
+                        {room.status}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Summary Stats */}
+          <div style={{ 
+            marginTop: '15px', 
+            padding: '10px', 
+            background: '#f8f9fa',
+            borderRadius: '4px',
+            display: 'flex',
+            justifyContent: 'space-around',
+            fontSize: '12px'
+          }}>
+            <div>
+              <strong>Total Rooms:</strong> {anomalyResult.roomAnomalies.length}
+            </div>
+            <div>
+              <strong>Anomalies:</strong> {
+                anomalyResult.roomAnomalies.filter(r => r.anomalyDetected).length
+              }
+            </div>
+            <div>
+              <strong>Normal:</strong> {
+                anomalyResult.roomAnomalies.filter(r => !r.anomalyDetected).length
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       {anomalyResult && !anomalyResult.error && (
         <div
@@ -425,7 +569,11 @@ function AnomalyModal({
               gap: '10px'
             }}
           >
-            {anomalyResult.anomalyDetected ? '⚠️ ANOMALY DETECTED!' : '✅ System Normal'}
+            {anomalyResult.severity === 'CRITICAL' 
+              ? '⚠️ ANOMALY DETECTED!' 
+              : anomalyResult.severity === 'WARNING'
+              ? '⚠️ WARNING'
+              : '✅ System Normal'}
             <span
               style={{
                 fontSize: '14px',

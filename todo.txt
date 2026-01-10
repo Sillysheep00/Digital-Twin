@@ -8,11 +8,6 @@ design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your
 Debug
 
 minor fix（之后才fix）:
-today task
-build per room anomlay detection 
-
-
-
 
 
 Note 
