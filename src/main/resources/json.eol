@@ -1,4 +1,4 @@
-// --- 1. CALCULATION LOGIC (Same as query.eol) ---
+// --- 1. CALCULATION LOGIC (Fast Estimation - Consistent with Training) ---
 var realPower = 0.0d;
 if (simulateData.isDefined()) { realPower = simulateData.powerConsumption; }
 
@@ -8,38 +8,57 @@ var allEnergySensors = SmartOffice!EnergyMeter.all;
 
 var totalCapacity = allRooms.collect(r | r.capacity).sum();
 var totalBuildingOccupancy = 0.0;
-
 if (simulateData.isDefined()) { totalBuildingOccupancy = simulateData.occupancy; }
 
-var simulatedHvacPower = 0.0d;
-var simulatedPlugPower = 0.0d;
+// Fast estimation constants (same as RegressionTrainingService)
+var HVAC_POWER_PER_UNIT = 5.0d;
+var HVAC_DUTY_CYCLE = 0.35d;
+var STANDBY_RATIO = 0.1d;
 
-// Calculate Room Data List
+// Calculate Room Data List (for room-level display)
 var roomJsonList = new Sequence();
 
+// Fast estimation: HVAC power (constant based on HVAC count)
+var hvacCount = allHvacs.size();
+var estimatedHvacPower = hvacCount * HVAC_POWER_PER_UNIT * HVAC_DUTY_CYCLE;
+
+// Fast estimation: Plug load (occupancy-based, same as training)
+var totalBaseLoad = allRooms.collect(r | r.baseLoad).sum();
+var estimatedPlugPower = 0.0d;
+if (totalBuildingOccupancy > 0) {
+    estimatedPlugPower = totalBaseLoad;  // Full power when occupied
+} else {
+    estimatedPlugPower = totalBaseLoad * STANDBY_RATIO;  // Standby when empty
+}
+
+// Total simulated power (fast estimation)
+var simulatedTotalPower = estimatedHvacPower + estimatedPlugPower;
+
+// For room-level display, calculate per-room values
 for (r in allRooms) {
-    // HVAC Power
+    // HVAC Power (distributed equally among rooms with HVAC)
     var hvacStatus = "OFF";
     var currentHvacPower = 0.0d;
-    var hasHvac = r.hvac.isDefined(); 
+    var hasHvac = r.hvac.isDefined();
     
-    if (r.hvac.isDefined() and r.hvac.status == true) {
-        currentHvacPower = r.hvac.powerUsage;
-        simulatedHvacPower = simulatedHvacPower + currentHvacPower;
-        hvacStatus = "ON";
+    if (hasHvac) {
+        // Distribute HVAC power equally among all HVAC systems
+        currentHvacPower = (hvacCount > 0) ? (estimatedHvacPower / hvacCount) : 0.0d;
+        hvacStatus = "ON";  // Assume ON for display purposes
     }
-
-    // Plug Load
+    // Plug Load (occupancy-based, same logic as training)
     var plugLoad = 0.0d;
     if (totalCapacity > 0 and r.capacity > 0) {
         var roomShare = r.capacity / totalCapacity;
         var estOccupancy = totalBuildingOccupancy * roomShare;
         if (estOccupancy > r.capacity) { estOccupancy = r.capacity; }
 
-        if (estOccupancy > 0) { plugLoad = r.baseLoad; }
-        else { plugLoad = r.baseLoad * 0.1d; }
+        if (estOccupancy > 0) {
+            plugLoad = r.baseLoad;  // Full power when occupied
+        } else {
+            plugLoad = r.baseLoad * STANDBY_RATIO;  // Standby when empty
+        }
     }
-    simulatedPlugPower = simulatedPlugPower + plugLoad;
 
     // Total Current Power for Room
     var roomCurrentPower = currentHvacPower + plugLoad;
@@ -55,8 +74,6 @@ for (r in allRooms) {
     var roomJson = '{ "id": "' + r.roomID + '", "name": "' + r.roomName + '", "temp": ' + r.currentTemp.format("%.2f") + ', "hvac": "' + hvacStatus + '", "hasHvac": ' + hasHvac + ', "power": ' + roomCurrentPower.format("%.2f") + ', "energy": ' + energyVal.format("%.2f") + ' }';
     roomJsonList.add(roomJson);
 }
-
-var simulatedTotalPower = simulatedHvacPower + simulatedPlugPower;
 
 // Apply ML model (Linear Regression) if available from context (passed from Java)
 // Formula: predictedPower = slope × simulatedPower + intercept
@@ -115,8 +132,8 @@ jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated_raw": ' + simulatedTotalPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated": ' + calibratedSimulatedPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "calibration_factor": ' + mlSlope.format("%.4f") + ',' + "\n";
-jsonOutput = jsonOutput + '  "hvac": ' + simulatedHvacPower.format("%.2f") + ',' + "\n";
-jsonOutput = jsonOutput + '  "plug": ' + simulatedPlugPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "hvac": ' + estimatedHvacPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "plug": ' + estimatedPlugPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "gap": ' + gap.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "gap_percentage": ' + gapPercentage.format("%.1f") + "\n";
 jsonOutput = jsonOutput + "}," + "\n";

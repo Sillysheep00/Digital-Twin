@@ -154,15 +154,6 @@ public class DigitalTwinEngine {
     }
     
     /**
-     * Legacy getter for calibration factor (returns ML slope for backward compatibility)
-     * @deprecated Use getMlSlope() instead
-     */
-    @Deprecated
-    public double getCalibrationFactor() {
-        return mlSlope;
-    }
-    
-    /**
      * Check if ML model has been trained
      */
     public boolean isCalibrated() {

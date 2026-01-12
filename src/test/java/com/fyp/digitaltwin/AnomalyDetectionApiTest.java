@@ -33,8 +33,6 @@ public class AnomalyDetectionApiTest {
     @Autowired
     private MockMvc mockMvc;
     
-  
-
     /**
      * Test 1: API Endpoint - Returns Valid Anomaly Result
      * 

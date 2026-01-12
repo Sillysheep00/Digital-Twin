@@ -1,7 +1,7 @@
 
 Task
 saw there is cost in the what if analysis ask gpt which cost value is reasonable
-write api test to test hvac logic on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
+write api test to test hvac logic(what if analysis) on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
 
 
@@ -250,7 +250,11 @@ it solves always anomalous problem(reduce false positives), adaptive threshold (
 all power levels(handles low power scenario(by the rule 1 in the anomay decision)), better diagonistics (z-score show how unusual
 values are).
 
-11.When they ask why u implement manual override
+11.When lecturer ask why didnt you train the ML model on the full simulation test?
+Because the full simulation includes complex thermal dynamics and state-dependent behaviour, the training data distribution
+ becomes unstable with limited samples. To ensure the ML model learns a clean and consistent relationship,
+ I calibrated it on the fast estimation layer where the input-output relationship is well-defined. 
+This allowed me to clearly demonstrate the effectiveness of ML-based calibration without introducing confounding physical noise.
 
 Clonning isse explanation
 During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into 

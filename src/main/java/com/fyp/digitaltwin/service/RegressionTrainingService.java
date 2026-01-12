@@ -75,11 +75,16 @@ public class RegressionTrainingService {
      * ────────────────
      * 1. Extract building parameters from digital twin model
      * 2. Fetch training data (first 20% of dataset)
-     * 3. For each sample, estimate simulated power (fast method, no thermal simulation)
+     * 3. . For each sample, estimate simulated power using fast estimation
+     *    (same method used at runtime in json.eol for consistency)
      * 4. Collect (simulatedPower, realPower) training pairs
      * 5. Apply Least Squares method to compute optimal slope and intercept
      * 6. Calculate model quality metrics (R², RMSE)
      * 7. Return trained model
+     * 
+     * Fast Estimation Formula:
+     * - HVAC Power: hvacCount × 5.0 kW × 0.35 (duty cycle) = constant
+     * - Plug Load: totalBaseLoad × (occupancy > 0 ? 1.0 : 0.1) = occupancy-based
      * 
      * @param model The EMF model containing building configuration
      * @param totalDataCount Total number of records in database

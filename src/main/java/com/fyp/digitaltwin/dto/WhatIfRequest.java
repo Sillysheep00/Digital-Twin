@@ -1,5 +1,7 @@
 package com.fyp.digitaltwin.dto;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 
 /**
@@ -7,8 +9,14 @@ import java.util.Map;
  * Allows users to test different scenarios by modifying model parameters
  */
 public class WhatIfRequest {
+    @NotNull(message = "Changes map is required")
     private Map<String, Object> changes;  // Parameters to modify (e.g., {"targetTemp": 21.0, "insulation": 0.03})
-    private int hours;            // Prediction horizon in hours
+    
+    @NotNull(message =  "Hour is required")
+    @Min(value = 1, message = "Hours must be at least 1 ")
+    private Integer hours;            // Prediction horizon in hours
+
+    @Min(value = 0 , message = "Investment cost cannot be negative")
     private Double investmentCost;         
 
     // Constructors
@@ -34,11 +42,11 @@ public class WhatIfRequest {
         this.changes = changes;
     }
 
-    public int getHours() {
+    public Integer getHours() {
         return hours;
     }
 
-    public void setHours(int hours) {
+    public void setHours(Integer hours) {
         this.hours = hours;
     }
 
