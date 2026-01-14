@@ -1,4 +1,4 @@
-package com.fyp.digitaltwin.controller;
+package com.fyp.digitaltwin.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

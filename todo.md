@@ -1,6 +1,4 @@
 
-Task
-saw there is cost in the what if analysis ask gpt which cost value is reasonable
 write api test to test hvac logic(what if analysis) on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
 

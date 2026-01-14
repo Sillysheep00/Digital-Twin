@@ -34,7 +34,7 @@ public class WhatIfAnalysisService {
     
     /**
      * Sets the trained ML regression model (called by DigitalTwinEngine).
-     * What-If Analysis delegates all predictions to PredictionService,
+     * What-If Analysis delegates（委托） all predictions to PredictionService,
      * which uses the calibration factor internally.
      * This method is kept for initialization logging purposes.
      */
@@ -125,7 +125,7 @@ public class WhatIfAnalysisService {
 
             
             // Debug: Show what changes were applied
-            System.out.println("📝 CHANGES APPLIED:");
+            System.out.println("CHANGES APPLIED:");
             for (Map.Entry<String, Object> entry : changes.entrySet()) {
                 System.out.println("   • " + entry.getKey() + ": " + entry.getValue());
             }

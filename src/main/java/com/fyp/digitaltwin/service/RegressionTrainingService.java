@@ -13,44 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Service responsible for training a Linear Regression model to predict real power
- * consumption from simulated power values.
- * 
- * MACHINE LEARNING APPROACH (Academic FYP Context):
- * ─────────────────────────────────────────────────
- * This service implements SIMPLE LINEAR REGRESSION, which qualifies as machine learning because:
- * 
- * 1. LEARNS FROM DATA: Uses historical (simulatedPower, realPower) pairs to learn parameters
- * 2. STATISTICAL OPTIMIZATION: Uses Least Squares method to minimize prediction error
- * 3. GENERALIZATION: Trained model can predict for new, unseen data points
- * 4. ADAPTIVE: Model coefficients reflect actual building behavior patterns
- * 
- * Mathematical Foundation:
- * ──────────────────────
- * We learn the linear relationship: realPower = a × simulatedPower + b
- * 
- * Where:
- * - a (slope): Scaling factor (similar to old calibration factor, but optimized)
- * - b (intercept): Base load offset (accounts for unmodeled constant loads)
- * 
- * Least Squares Solution:
- * ──────────────────────
- * Given n training samples (x₁, y₁), (x₂, y₂), ..., (xₙ, yₙ):
- * 
- * slope = (n×Σxy - Σx×Σy) / (n×Σx² - (Σx)²)
- * intercept = (Σy - slope×Σx) / n
- * 
- * Why This Is Better Than Simple Calibration Factor:
- * ──────────────────────────────────────────────────
- * Old: calibratedPower = simulatedPower × constantFactor
- * New: predictedPower = simulatedPower × slope + intercept
- * 
- * The intercept term captures constant base loads that the physics model doesn't simulate
- * (e.g., always-on equipment, phantom loads, network equipment).
- * 
- * Follows Single Responsibility Principle - only handles model training.
- */
 @Service
 public class RegressionTrainingService {
     
@@ -71,21 +33,6 @@ public class RegressionTrainingService {
     /**
      * Trains a Linear Regression model using historical data.
      * 
-     * TRAINING PROCESS:
-     * ────────────────
-     * 1. Extract building parameters from digital twin model
-     * 2. Fetch training data (first 20% of dataset)
-     * 3. . For each sample, estimate simulated power using fast estimation
-     *    (same method used at runtime in json.eol for consistency)
-     * 4. Collect (simulatedPower, realPower) training pairs
-     * 5. Apply Least Squares method to compute optimal slope and intercept
-     * 6. Calculate model quality metrics (R², RMSE)
-     * 7. Return trained model
-     * 
-     * Fast Estimation Formula:
-     * - HVAC Power: hvacCount × 5.0 kW × 0.35 (duty cycle) = constant
-     * - Plug Load: totalBaseLoad × (occupancy > 0 ? 1.0 : 0.1) = occupancy-based
-     * 
      * @param model The EMF model containing building configuration
      * @param totalDataCount Total number of records in database
      * @return Trained LinearRegressionModel with learned coefficients
@@ -96,9 +43,7 @@ public class RegressionTrainingService {
         System.out.println("   Training set: First " + (TRAINING_SAMPLE_RATIO * 100) + "% of dataset");
         
         try {
-            // ═══════════════════════════════════════════════════════════
             // STEP 1: Extract Building Parameters
-            // ═══════════════════════════════════════════════════════════
             BuildingParameters params = extractBuildingParameters(model);
             
             System.out.println("   Building Configuration:");
@@ -106,9 +51,8 @@ public class RegressionTrainingService {
             System.out.println("     - Base Load: " + String.format("%.2f", params.totalBaseLoad) + " kW");
             System.out.println("     - HVAC Systems: " + params.hvacCount);
             
-            // ═══════════════════════════════════════════════════════════
+           
             // STEP 2: Fetch Training Data
-            // ═══════════════════════════════════════════════════════════
             int trainingSampleSize = (int) (totalDataCount * TRAINING_SAMPLE_RATIO);
             List<SensorData> trainingData = repository.findAll(
                 PageRequest.of(0, trainingSampleSize, Sort.by(Sort.Direction.ASC, "date"))
@@ -116,9 +60,7 @@ public class RegressionTrainingService {
             
             System.out.println("   Loaded " + trainingData.size() + " training samples");
             
-            // ═══════════════════════════════════════════════════════════
             // STEP 3: Collect Training Pairs (X, Y)
-            // ═══════════════════════════════════════════════════════════
             List<Double> X = new ArrayList<>(); // simulatedPower (independent variable)
             List<Double> Y = new ArrayList<>(); // realPower (dependent variable)
             
@@ -147,11 +89,7 @@ public class RegressionTrainingService {
                 return new LinearRegressionModel();
             }
             
-            // ═══════════════════════════════════════════════════════════
-            // STEP 4: Compute Least Squares Solution
-            // ═══════════════════════════════════════════════════════════
-            // This is the MACHINE LEARNING step - we learn optimal parameters!
-            
+            // STEP 4: Compute Least Squares Solution (to get optimal parameters)
             double sumX = 0.0;
             double sumY = 0.0;
             double sumXY = 0.0;
@@ -174,10 +112,7 @@ public class RegressionTrainingService {
             System.out.println("     - Slope (a):     " + String.format("%.4f", slope));
             System.out.println("     - Intercept (b): " + String.format("%.4f", intercept) + " kW");
             
-            // ═══════════════════════════════════════════════════════════
             // STEP 5: Calculate Model Quality Metrics
-            // ═══════════════════════════════════════════════════════════
-            
             // R² (Coefficient of Determination): measures how well model explains variance
             double meanY = sumY / n;
             double ssTotal = 0.0;  // Total sum of squares
@@ -200,9 +135,7 @@ public class RegressionTrainingService {
                                " (1.0 = perfect fit)");
             System.out.println("     - RMSE:          " + String.format("%.4f", rmse) + " kW");
             
-            // ═══════════════════════════════════════════════════════════
             // STEP 6: Create and Return Trained Model
-            // ═══════════════════════════════════════════════════════════
             LinearRegressionModel trainedModel = new LinearRegressionModel(
                 slope,
                 intercept,

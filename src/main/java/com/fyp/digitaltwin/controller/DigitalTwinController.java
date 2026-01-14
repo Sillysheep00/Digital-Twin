@@ -30,12 +30,6 @@ public class DigitalTwinController {
         return engine.getLiveStatus();
     }
 
-    // Endpoint: http://localhost:8080/api/hello
-    @GetMapping("/hello")
-    public String sayHello() {
-        return "Digital Twin Server is Online!";
-    }
-
     // Endpoint: http://localhost:8080/api/validate
     @GetMapping(value = "/validation",produces = MediaType.TEXT_PLAIN_VALUE) //MediaType.TEXT_PLAIN_VALUE mean this api return plain
     public String getValidation() {

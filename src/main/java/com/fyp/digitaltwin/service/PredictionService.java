@@ -44,69 +44,60 @@ public class PredictionService {
     private double mlIntercept = 0.0;   // ML intercept (b) - learned regression parameter
 
     
-    /**
-     * Sets the current simulation step index (called by DigitalTwinEngine)
-     */
+     //Sets the current simulation step index (called by DigitalTwinEngine)
     public void setCurrentStepIndex(int stepIndex) {
         this.currentStepIndex = stepIndex;
     }
-    
-    /**
-     * Sets manual overrides (called by DigitalTwinEngine)
-     */
+
+     //Sets manual overrides (called by DigitalTwinEngine)
     public void setManualOverrides(Map<String, String> overrides) {
         this.manualOverrides = overrides;
     }
 
-    /**
-     * Sets the live model for predictions (called by DigitalTwinEngine)
-     */
+    //Sets the live model for predictions (called by DigitalTwinEngine)
     public void setLiveModel(EmfModel model) {
         this.liveModel = model;
     }
     
-    /**
-     * Sets the ML slope for predictions (called by DigitalTwinEngine)
-     */
+    //Sets the ML slope for predictions (called by DigitalTwinEngine)
     public void setMlSlope(double slope) {
         this.mlSlope = slope;
         System.out.println("PredictionService: ML slope set to " + String.format("%.4f", slope));
     }
+
     public EmfModel getLiveModel() {
         return liveModel;
     }
     
-    /**
-     * Sets the ML intercept for predictions (called by DigitalTwinEngine)
-     */
+    //Sets the ML intercept for predictions (called by DigitalTwinEngine)
     public void setMlIntercept(double intercept) {
         this.mlIntercept = intercept;
         System.out.println("PredictionService: ML intercept set to " + String.format("%.4f", intercept));
     }
     
-    /**
-     * Gets the current ML slope (for debugging and logging)
-     */
+    //Gets the current ML slope (for debugging and logging)
     public double getMlSlope() {
         return mlSlope;
     }
     
-    /**
-     * Gets the current ML intercept (for debugging and logging)
-     */
+    //Gets the current ML intercept (for debugging and logging)
     public double getMlIntercept() {
         return mlIntercept;
     }
     
     /**
-     * Predicts future energy consumption for the next N hours
+     * Predicts future energy consumption for the next N hours (simplified API for backward compatibility)
      * Uses the current model state by cloning the live model
+     * 
+     * This is a wrapper method that delegates to {@link #predictFutureEnergyWithSteps(int)} and
+     * converts the result to a simpler format without step-by-step data 
      * 
      * @param hoursToPredict Number of hours to predict
      * @return Map with predictedEnergy and hours, or error
      */
     public synchronized Map<String, Double> predictFutureEnergy(int hoursToPredict) {
         Map<String, Object> detailedResult = predictFutureEnergyWithSteps(hoursToPredict);
+
         // Convert to Map<String, Double> for backward compatibility
         Map<String, Double> result = new HashMap<>();
         result.put("predictedEnergy", (Double) detailedResult.get("predictedEnergy"));
@@ -118,7 +109,7 @@ public class PredictionService {
     }
     
     /**
-     * Predicts future energy consumption with step-by-step data for charting
+     * Predicts future energy consumption with step-by-step data for charting (called by WhatIfAnalysisService.java)
      * Uses the current model state by cloning the live model
      * 
      * @param hoursToPredict Number of hours to predict
@@ -193,13 +184,15 @@ public class PredictionService {
                 
                 // Calculate energy used in this 15-min window
                 String jsonOutput = modelService.runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
+
                 // Validate JSON output before parsing
                 if (jsonOutput == null || jsonOutput.trim().isEmpty() || 
                 (!jsonOutput.trim().startsWith("{") && !jsonOutput.trim().startsWith("["))) {
                 System.err.println("Warning: Invalid JSON output from json.eol, skipping step. Output: " + 
                                 (jsonOutput != null ? jsonOutput.substring(0, Math.min(100, jsonOutput.length())) : "null"));
+
                 // Skip this step and continue with next
-                stepEnergyList.add(0.0);
+                stepEnergyList.add(0.0); //Add 0 instead of crashing 
                 continue;
                 }
              
@@ -245,11 +238,15 @@ public class PredictionService {
     }
     
     /**
-     * Predicts future energy consumption on a specific model (used for What-If scenarios)
+     * Predicts future energy consumption on a specific model (simplified API for backward compability)
+     * 
+     * This is a wrappper method that delegates to {@link #predictOnModelWithSteps(EmfModel, int)} and 
+     * converts the result to a simpler format without step-by-step data.
      * 
      * @param model The modified model to run prediction on
      * @param hours Number of hours to predict
      * @return Map with predictedEnergy and hours, or error
+     *      
      */
     public synchronized Map<String, Double> predictOnModel(EmfModel model, int hours) {
         Map<String, Object> detailedResult = predictOnModelWithSteps(model, hours);
@@ -392,9 +389,9 @@ public class PredictionService {
         return totalEnergy;
     }
     
-    /**
-     * Fetches a data record by index from the repository
-     */
+    
+    //Helper Method
+    //Fetches a data record by index from the repository
     private DataRecord fetchRecordByIndex(int index) {
         try {
             PageRequest pageRequest = PageRequest.of(index, 1, Sort.by(Sort.Direction.ASC, "date"));
