@@ -1,11 +1,15 @@
-// --- Constants ---
+// query.eol - Status Report Generator
+// Purpose: Generates a human-readable status report comparing real vs simulated power
+// Used by: DigitalTwinEngine.getLiveStatus() API endpoint
+// Note: This script reads current model state (does not modify the model)
+
 var TIME_STEP_HOURS = 0.25d; // Time step used in energy calculation
 var targetTemp = 22.0d;
 var comfortZone = 1.0d;
 var HEATER_COP = 3.0d;
 var COOLING_COP = 3.5d;
 
-// --- 1. GATHER DATA ---
+// 1. Get Data from dataset
 // Real Data (from CSV)
 var realPower = 0.0d;
 var totalBuildingOccupancy = 0.0d;
@@ -21,40 +25,37 @@ var allEnergyMeters = SmartOffice!EnergyMeter.all;
 // Model Totals (Needed for Plug Load Calculation)
 var totalCapacity = allRooms.collect(r | r.capacity).sum();
 
-// Instantaneous Power Variables (The new "Speedometers")
+// Instantaneous Power Variables  (current power consumption, not accumulated energy)
 var simulatedHvacPower = 0.0d;
 var simulatedPlugPower = 0.0d;
 
-// --- 2. CALCULATE SIMULATED POWER (Replicating Logic) ---
-
+// 2. Calculate Simulated Power
 for (r in allRooms) {
     // A. Simulated HVAC Power (Read directly from model attribute)
     if (r.hvac.isDefined() and r.hvac.status == true) {
         simulatedHvacPower = simulatedHvacPower + r.hvac.powerUsage;
     }
-
-    // B. Simulated Plug Load (Replicating the logic from hvac.eol)
-    var plugLoad = 0.0d;
-    var estimatedRoomOccupancy = 0.0d;
-
-    if (totalCapacity > 0 and r.capacity > 0) {
-        // 1. Proportional Distribution
-        var roomShare = r.capacity / totalCapacity;
-        estimatedRoomOccupancy = totalBuildingOccupancy * roomShare;
-
-        // 2. Capping
-        if (estimatedRoomOccupancy > r.capacity) {
-            estimatedRoomOccupancy = r.capacity;
+     // B. Simulated Plug Load (Read directly from model attribute)
+    // This ensures consistency with hvac.eol (single source of truth)
+    if (r.plugLoad.isDefined()) {
+        simulatedPlugPower = simulatedPlugPower + r.plugLoad;
+    } else {
+        // Fallback: Calculate if attribute not set (for backward compatibility)
+        var plugLoad = 0.0d;
+        if (totalCapacity > 0 and r.capacity > 0) {
+            var roomShare = r.capacity / totalCapacity;
+            var estimatedRoomOccupancy = totalBuildingOccupancy * roomShare;
+            if (estimatedRoomOccupancy > r.capacity) {
+                estimatedRoomOccupancy = r.capacity;
+            }
+            if (estimatedRoomOccupancy > 0) {
+                plugLoad = r.baseLoad;
+            } else {
+                plugLoad = r.baseLoad * 0.1d;
+            }
         }
-
-        // 3. Plug Load Logic: If people are in the room, full power, else standby (0.1)
-        if (estimatedRoomOccupancy > 0) {
-            plugLoad = r.baseLoad; // Full power usage
-        } else {
-            plugLoad = r.baseLoad * 0.1d; // Standby power
-        }
+        simulatedPlugPower = simulatedPlugPower + plugLoad;
     }
-    simulatedPlugPower = simulatedPlugPower + plugLoad;
 }
 
 // Final Simulated Totals
@@ -63,8 +64,7 @@ var simulatedEnergyTotal = allEnergyMeters.collect(s | s.energyConsumed).sum();
 var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 
 
-// --- 3. PRINT FINAL REPORT ---
-
+// 3. Print Final Report
 "----------------------------------------------------------------".println();
 (" TIMESTEP REPORT: " + simulateData.date).println();
 "----------------------------------------------------------------".println();

@@ -31,7 +31,7 @@ function App() {
   const [whatIfParams, setWhatIfParams] = useState({
     targetTemp: 22,
     insulation: 0.04,
-    baseLoad: 0.5,  
+    baseLoad: 1.0,  
     hours: 24,
     investmentCost: null
   });
@@ -66,6 +66,23 @@ function App() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Reset What-If parameters when modal closes
+  useEffect(() => {
+    if (!showWhatIfModal) {
+      // Reset all parameters to default values when modal is closed
+      setWhatIfParams({
+        targetTemp: 22,
+        insulation: 0.04,
+        baseLoad: 1.0,
+        hours: 24,
+        investmentCost: null
+      });
+      setWhatIfResult(null);
+      setBaseLoadMode('all');
+      setRoomBaseLoads({});
+    }
+  }, [showWhatIfModal]);
 
   
   const selectedRoom = data?.rooms?.find(r => r.id === selectedRoomId) || null;

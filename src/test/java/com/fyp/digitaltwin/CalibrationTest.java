@@ -9,25 +9,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for the Calibration Feature (ML-Based)
- * 
- * This test suite verifies that:
- * 1. ML Regression Model is trained correctly on startup
- * 2. ML model improves prediction accuracy compared to raw simulation
- * 3. ML slope (calibration factor) is valid and reasonable
- * 4. ML model metrics (R², RMSE) are within acceptable ranges
- * 5. Calibration is idempotent (stable across multiple calls)
- * 6. System handles insufficient data gracefully
- * 
- * Test Strategy:
- * - Uses the actual Spring Boot application context
- * - Verifies ML model training during initialization (using first 20% of dataset)
- * - Tests that ML-predicted power is closer to real power than raw simulated power
- * 
- * Purpose (for viva):
- * "To validate effectiveness of the calibration process (both calibration factor and ML model)."
- */
+
 @SpringBootTest
 @TestPropertySource(properties = {
     "spring.mongodb.embedded.version=4.0.21"
@@ -78,7 +60,7 @@ public class CalibrationTest {
         assertEquals(mlSlope, model.getSlope(), 0.001,
                     "ML slope should equal model slope");
         
-        System.out.println("✅ Test 1 PASSED: ML model trained and ML slope is valid\n");
+        System.out.println("Test 1 PASSED: ML model trained and ML slope is valid\n");
     }
     
     /**

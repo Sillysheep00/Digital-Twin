@@ -47,7 +47,7 @@ public class SimulationRunTest {
         assertTrue(dashboardJson.startsWith("{"), "Should be valid JSON object");
 
         System.out.println("Dashboard JSON length: " + dashboardJson.length());
-        System.out.println("✅ Test PASSED: Simulation runs and returns result\n");
+        System.out.println("Test PASSED: Simulation runs and returns result\n");
     }
 
     /**
@@ -70,6 +70,6 @@ public class SimulationRunTest {
         assertTrue(hasPower || hasRooms, 
                   "Dashboard should contain power or rooms data");
 
-        System.out.println("✅ Test PASSED: Dashboard contains required fields\n");
+        System.out.println("Test PASSED: Dashboard contains required fields\n");
     }
 }

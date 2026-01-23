@@ -1,4 +1,4 @@
-// --- 1. CALCULATION LOGIC (Fast Estimation - Consistent with Training) ---
+// Calculation Logic (Fast Estimation - Consistent with Training) ---
 var realPower = 0.0d;
 if (simulateData.isDefined()) { realPower = simulateData.powerConsumption; }
 
@@ -36,7 +36,7 @@ var simulatedTotalPower = estimatedHvacPower + estimatedPlugPower;
 
 // For room-level display, calculate per-room values
 for (r in allRooms) {
-    // HVAC Power (distributed equally among rooms with HVAC)
+    // HVAC Power (distributed equally among all HVAC systems, not per room)
     var hvacStatus = "OFF";
     var currentHvacPower = 0.0d;
     var hasHvac = r.hvac.isDefined();
@@ -46,7 +46,7 @@ for (r in allRooms) {
         currentHvacPower = (hvacCount > 0) ? (estimatedHvacPower / hvacCount) : 0.0d;
         hvacStatus = "ON";  // Assume ON for display purposes
     }
-    // Plug Load (occupancy-based, same logic as training)
+    // Plug Load (occupancy-based, same logic as training but with per-room capacity weighting )
     var plugLoad = 0.0d;
     if (totalCapacity > 0 and r.capacity > 0) {
         var roomShare = r.capacity / totalCapacity;
@@ -87,10 +87,10 @@ if (ML_INTERCEPT.isDefined()) {
     mlIntercept = ML_INTERCEPT;
 }
 
-// ML-predicted power using full Linear Regression model
+// ML-calibrated power: Apply Linear Regression model to adjust simulated power
 var calibratedSimulatedPower = (simulatedTotalPower * mlSlope) + mlIntercept;
 
-// Calculate gap using calibrated value
+// Calculate gap between real power and ML-calibrated simulated power
 var gap = realPower - calibratedSimulatedPower;
 var gapPercentage = 0.0d;
 if (realPower > 0) {
@@ -108,9 +108,8 @@ if (allRooms.size() > 0) {
 }
 
 
-// --- 2. GENERATE JSON STRING ---
-// Build JSON string for internal use (don't print to console)
-
+// Generate JSON String 
+// Build JSON string for internal use  (returned to caller, not printed to console)
 var jsonOutput = "{" + "\n";
 
     if (simulateData.isDefined()) {
@@ -153,5 +152,5 @@ jsonOutput = jsonOutput + "]" + "\n";
 
 jsonOutput = jsonOutput + "}";
 
-// Return the JSON for parsing (no printing)
+// Return the JSON for parsing (captured by ModelService, not printed to console)
 return jsonOutput;

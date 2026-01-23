@@ -189,19 +189,19 @@ public class DigitalTwinEngine {
         if (smartOfficeModel == null || totalDataCount == 0) return;
 
         try {
-            // 1. Handle Data Looping
+            // 1. Handle Data Looping, restart when reaching end 
             if (currentStepIndex >= totalDataCount) {
                 System.out.println("--- End of Dataset. Restarting Simulation... ---");
                 currentStepIndex = 0;
             }
 
-            // 2. Get Data for NOW from MongoDB
+            // 2. Get current sensor from MognoDB
             DataRecord currentData = fetchRecordByIndex(currentStepIndex);
             
             if (currentData != null) {
                 System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
 
-                // 3. Run Physics (hvac.eol)
+                // 3. Run Physics Simulation (hvac.eol)
                 String physicsLog = modelService.runEolScript(
                     smartOfficeModel, 
                     "hvac.eol", 
@@ -230,9 +230,7 @@ public class DigitalTwinEngine {
         }
     }
 
-    /**
-     * Saves current simulation state to MongoDB for dashboard and analysis
-     */
+     // Saves current simulation state to MongoDB for dashboard and analysis
     private void saveSimulationSnapshot(DataRecord currentData) {
         try {
             // 1. Run json.eol to aggregate the data (Power, Avg Temp, etc.)
@@ -281,7 +279,6 @@ public class DigitalTwinEngine {
     
     // API Methods called by Controller
     //Gets live status for dashboard (calls query.eol)
-    
     public String getLiveStatus() {
         try {
             int reportIndex = Math.max(0, currentStepIndex - 1);

@@ -50,7 +50,7 @@ public class PowerTrendApiTest {
         assertNotNull(responseBody);
         assertTrue(responseBody.contains("windowSize") || responseBody.contains("residuals"));
 
-        System.out.println("✅ Test A1 PASSED: 8-hour window returns data\n");
+        System.out.println("Test A1 PASSED: 8-hour window returns data\n");
     }
 
     /**
@@ -68,7 +68,7 @@ public class PowerTrendApiTest {
 
         assertNotNull(result.getResponse().getContentAsString());
 
-        System.out.println("✅ Test A2 PASSED: 16-hour window returns data\n");
+        System.out.println("Test A2 PASSED: 16-hour window returns data\n");
     }
 
     /**
@@ -86,7 +86,7 @@ public class PowerTrendApiTest {
 
         assertNotNull(result.getResponse().getContentAsString());
 
-        System.out.println("✅ Test A3 PASSED: 24-hour window returns data\n");
+        System.out.println("Test A3 PASSED: 24-hour window returns data\n");
     }
 
     /**
@@ -104,7 +104,7 @@ public class PowerTrendApiTest {
                 .andExpect(status().isOk());
         }
 
-        System.out.println("✅ Test A4 PASSED: All window sizes handled without crash\n");
+        System.out.println("Test A4 PASSED: All window sizes handled without crash\n");
     }
 
     /**
@@ -127,7 +127,7 @@ public class PowerTrendApiTest {
         // Should either truncate or return error, but not crash
         assertNotNull(result.getResponse().getContentAsString());
 
-        System.out.println("✅ Test B1 PASSED: Large window handled gracefully\n");
+        System.out.println("Test B1 PASSED: Large window handled gracefully\n");
     }
 
     /**
@@ -147,7 +147,7 @@ public class PowerTrendApiTest {
         String responseBody = result.getResponse().getContentAsString();
         assertNotNull(responseBody);
 
-        System.out.println("✅ Test B2 PASSED: Invalid window size handled\n");
+        System.out.println("Test B2 PASSED: Invalid window size handled\n");
     }
 
     /**
@@ -169,6 +169,6 @@ public class PowerTrendApiTest {
                   responseBody.contains("timeSteps") ||
                   responseBody.contains("windowSize"));
 
-        System.out.println("✅ Test PASSED: Trend array exists in response\n");
+        System.out.println("Test PASSED: Trend array exists in response\n");
     }
 }

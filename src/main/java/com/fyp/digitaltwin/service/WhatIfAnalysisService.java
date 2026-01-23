@@ -85,7 +85,8 @@ public class WhatIfAnalysisService {
                 baselineValues.put("insulation", baselineInsulation);
                 System.out.println("Baseline insulation: " + baselineInsulation);
             }
-            if (changes.containsKey("baseLoad")) {
+            // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
+            if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
                 double baselineBaseLoad = extractBaseLoad(liveModel);
                 baselineValues.put("baseLoad", baselineBaseLoad);
                 System.out.println("Baseline base load: " + baselineBaseLoad + " kW");
@@ -117,7 +118,8 @@ public class WhatIfAnalysisService {
                 scenarioValues.put("insulation", scenarioInsulation);
                 System.out.println("Scenario insulation: " + scenarioInsulation);
             }
-            if (changes.containsKey("baseLoad")) {
+            // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
+            if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
                 double scenarioBaseLoad = extractBaseLoad(scenarioModel);
                 scenarioValues.put("baseLoad", scenarioBaseLoad);
                 System.out.println("Scenario base load: " + scenarioBaseLoad + " kW");
@@ -358,9 +360,8 @@ public class WhatIfAnalysisService {
         }
        
 
-        // ═════════════════════════════════════════════════════════════════
-        // COST ANALYSIS (Delegated to CostAnalysisService - SRP)
-        // ═════════════════════════════════════════════════════════════════
+       
+        // Cost Analysis (Delegated to CostAnalysisService - SRP)
         CostAnalysisResult costAnalysis = CostAnalysisService.analyzeCosts(
             energySaved, 
             hours, 
@@ -385,7 +386,7 @@ public class WhatIfAnalysisService {
             baseline.put("insulation", baselineValues.get("insulation"));
             scenario.put("insulation", scenarioValues.get("insulation"));
         }
-        if (changes.containsKey("baseLoad")) {
+        if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
             baseline.put("baseLoad", baselineValues.get("baseLoad"));
             scenario.put("baseLoad", scenarioValues.get("baseLoad"));
         }
@@ -405,7 +406,7 @@ public class WhatIfAnalysisService {
             double insulationDiff = scenarioValues.get("insulation") - baselineValues.get("insulation");
             result.put("insulationDifference", Math.round(insulationDiff * 1000.0) / 1000.0);
         }
-        if (changes.containsKey("baseLoad")) {
+        if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
             double baseLoadDiff = scenarioValues.get("baseLoad") - baselineValues.get("baseLoad");
             result.put("baseLoadDifference", Math.round(baseLoadDiff * 100.0) / 100.0);
         }

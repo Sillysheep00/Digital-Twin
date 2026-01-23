@@ -42,7 +42,7 @@ public class ManualOverrideTest {
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Command sent")));
 
-        System.out.println("✅ Test PASSED: Heating override applied\n");
+        System.out.println("Test PASSED: Heating override applied\n");
     }
 
     /**
@@ -58,7 +58,7 @@ public class ManualOverrideTest {
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Command sent")));
 
-        System.out.println("✅ Test PASSED: HVAC turned off\n");
+        System.out.println("Test PASSED: HVAC turned off\n");
     }
 
     /**
@@ -74,7 +74,7 @@ public class ManualOverrideTest {
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Command sent")));
 
-        System.out.println("✅ Test PASSED: Auto mode applied\n");
+        System.out.println("Test PASSED: Auto mode applied\n");
     }
 
     /**
@@ -93,7 +93,7 @@ public class ManualOverrideTest {
                                "Status should be OK or 4xx, but was: " + status);
                 });
 
-        System.out.println("✅ Test PASSED: Invalid action handled\n");
+        System.out.println("Test PASSED: Invalid action handled\n");
     }
 
     /**
@@ -108,6 +108,6 @@ public class ManualOverrideTest {
             // Missing 'action' parameter
             .andExpect(status().is4xxClientError());
 
-        System.out.println("✅ Test PASSED: Missing parameters rejected\n");
+        System.out.println("Test PASSED: Missing parameters rejected\n");
     }
 }

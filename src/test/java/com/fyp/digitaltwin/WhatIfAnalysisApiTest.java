@@ -17,15 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Integration Tests for What-If Analysis API Endpoints
- * 
- * Tests API endpoints, input validation, and per-room base load functionality.
- * Uses full Spring Boot context for end-to-end testing.
- * 
- * Purpose (for viva):
- * "To validate economic parameters and input validation."
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {

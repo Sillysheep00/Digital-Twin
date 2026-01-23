@@ -1,11 +1,10 @@
 
-write api test to test hvac logic(what if analysis) on every situation (eg: high occupancy, low occupancy,empty room, daytime eco mode, night time mode)
-design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report 
-
-
-Debug
-
-minor fix（之后才fix）:
+design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report   
+enhance the cost analysis logic so ROI higher than how many percentage then you only recoommedn the user to apply the setting otherwise do not recommend it 
+Fix per room bug: When i adjust the base load in per room control and  it does not display in the result section but all when i change the apply to all room it will display
+The payback period display in this  1 year how many months if less than 1 year display in months
+Power trend graph show two line only 
+Remove 12 hour horizon in whatifanalysis
 
 
 Note 

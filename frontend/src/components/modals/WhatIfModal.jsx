@@ -19,6 +19,29 @@ function WhatIfModal({
   if (!showWhatIfModal) return null;
 
   const costAnalysis = whatIfResult?.costAnalysis;
+  // Helper function to format payback period
+  const formatPaybackPeriod = (months) => {
+    if (!months || months <= 0) return null;
+    
+    if (months < 12) {
+      // Less than 1 year: display in months
+      return `${months.toFixed(1)} month${months !== 1 ? 's' : ''}`;
+    } else {
+      // 1 year or more: display as "X year(s) Y month(s)"
+      const years = Math.floor(months / 12);
+      const remainingMonths = Math.round((months % 12) * 10) / 10; // Round to 1 decimal
+      
+      const yearText = years === 1 ? 'year' : 'years';
+      
+      if (remainingMonths < 0.1) {
+        // If less than 0.1 months remaining, just show years
+        return `${years} ${yearText}`;
+      } else {
+        const monthText = remainingMonths === 1 ? 'month' : 'months';
+        return `${years} ${yearText} ${remainingMonths.toFixed(1)} ${monthText}`;
+      }
+    }
+  };
 
 
   return (
@@ -261,134 +284,7 @@ function WhatIfModal({
           </div>
         </div>
         
-        {/*Cost Savings */}
-        {costAnalysis && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '15px',
-            marginTop: '15px'
-          }}
-        >
-          <MetricCard
-            label="Daily Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.dailyCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Monthly Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.monthlyCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Annual Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.annualCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Period Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.periodCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-        </div>
-      )}
-
-      {costAnalysis?.investmentCost && (
-        <div
-          style={{
-            marginTop: '20px',
-            padding: '20px',
-            background: '#e8f4f8',
-            borderRadius: '8px',
-            border: '2px solid #3498db'
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
-            💰 Return on Investment (ROI) Analysis
-          </h4>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
-            <MetricCard
-              label="Investment Cost"
-              prefix="£"
-              value={costAnalysis?.investmentCost.toFixed(2)}
-              color="#e74c3c"
-            />
-            
-            {/*Payback Period or Negative Savings Message */}
-            {costAnalysis?.annualCostSaved >0  && costAnalysis?.paybackPeriodMonths ?(
-               <MetricCard
-               label="Payback Period"
-               value={costAnalysis?.paybackPeriodMonths?.toFixed(1)}
-               suffix=" months"
-               color="#3498db"
-             />
-            ) : costAnalysis?.annualCostSaved < 0 ? (
-             <div style={{
-               background: 'white',
-               padding: '15px',
-               borderRadius: '8px',
-               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-               textAlign: 'center'
-             }}>
-               <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                 Payback Period
-               </div>
-               <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
-                 No payback — costs exceed savings
-               </div>
-             </div>
-            ) : (
-             <MetricCard
-               label="Payback Period"
-               value="—"
-               color="#95a5a6"
-             />
-            )}
-
-            {/* Annual ROI or Cost Increase or Not Applicable */}
-            {costAnalysis?.annualCostSaved >= 0 && costAnalysis?.roiPercentage ? (
-              <MetricCard
-                label="Annual ROI"
-                value={costAnalysis?.roiPercentage?.toFixed(1)}
-                suffix="%"
-                color="#27ae60"
-              />
-            ) : costAnalysis?.annualCostSaved < 0 ? (
-              <div style={{
-                background: 'white',
-                padding: '15px',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                  Annual Cost Impact
-                </div>
-                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
-                  Annual cost increase: £{Math.abs(costAnalysis?.annualCostSaved || 0).toFixed(2)}
-                </div>
-                <div style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
-                  ROI not applicable
-                </div>
-              </div>
-            ) : (
-              <MetricCard
-                label="Annual ROI"
-                value="—"
-                color="#95a5a6"
-              />
-            )}
-          
-          </div>
-        </div>
-      )}
-
+       
         {/* Run Button */}
         <button
           onClick={handleWhatIfAnalysis}
@@ -505,7 +401,7 @@ function WhatIfModal({
               )}
               
                {/* Base Load - Only show if changed */}
-               {whatIfResult.baseline?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined && (
+               {whatIfResult.baseline?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined &&(
                 <tr style={{ borderBottom: '1px solid #ddd' }}>
                   <td style={{ padding: '10px' }}><strong>Base Load</strong></td>
                   <td style={{ textAlign: 'center', padding: '10px' }}>
@@ -532,7 +428,133 @@ function WhatIfModal({
               )}
             </tbody>
           </table>
+          
+          {/*Cost Savings */}
+          {costAnalysis && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '15px',
+                marginTop: '15px'
+              }}
+            >
+              <MetricCard
+                label="Daily Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.dailyCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Monthly Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.monthlyCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Annual Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.annualCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Period Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.periodCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+            </div>
+          )}
 
+          {costAnalysis?.investmentCost && (
+            <div
+              style={{
+                marginTop: '20px',
+                padding: '20px',
+                background: '#e8f4f8',
+                borderRadius: '8px',
+                border: '2px solid #3498db'
+              }}
+            >
+              <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
+                💰 Return on Investment (ROI) Analysis
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                <MetricCard
+                  label="Investment Cost"
+                  prefix="£"
+                  value={costAnalysis?.investmentCost.toFixed(2)}
+                  color="#e74c3c"
+                />
+                
+                {/*Payback Period or Negative Savings Message */}
+                {costAnalysis?.annualCostSaved >0  && costAnalysis?.paybackPeriodMonths ?(
+                  <MetricCard
+                  label="Payback Period"
+                  value={formatPaybackPeriod(costAnalysis.paybackPeriodMonths)}
+                  color="#3498db"
+                />
+                ) : costAnalysis?.annualCostSaved < 0 ? (
+                <div style={{
+                  background: 'white',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                    Payback Period
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
+                    No payback — costs exceed savings
+                  </div>
+                </div>
+                ) : (
+                <MetricCard
+                  label="Payback Period"
+                  value="—"
+                  color="#95a5a6"
+                />
+                )}
+
+                {/* Annual ROI or Cost Increase or Not Applicable */}
+                {costAnalysis?.annualCostSaved >= 0 && costAnalysis?.roiPercentage ? (
+                  <MetricCard
+                    label="Annual ROI"
+                    value={costAnalysis?.roiPercentage?.toFixed(1)}
+                    suffix="%"
+                    color="#27ae60"
+                  />
+                ) : costAnalysis?.annualCostSaved < 0 ? (
+                  <div style={{
+                    background: 'white',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                      Annual Cost Impact
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
+                      Annual cost increase: £{Math.abs(costAnalysis?.annualCostSaved || 0).toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
+                      ROI not applicable
+                    </div>
+                  </div>
+                ) : (
+                  <MetricCard
+                    label="Annual ROI"
+                    value="—"
+                    color="#95a5a6"
+                  />
+                )}
+              
+              </div>
+            </div>
+          )}
           {/* Savings Summary */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
             <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>

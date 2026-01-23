@@ -41,42 +41,29 @@ public class AnomalyDetectionService {
                                               LinearRegressionModel regressionModel
                                             ) {
         
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 1: ML PREDICTION (Machine Learning Step!)
-        // ═════════════════════════════════════════════════════════════════
-        // Use the TRAINED model to predict expected power consumption.
-        // The model's parameters (slope, intercept) were LEARNED from historical data
-        // using least squares regression - this is SUPERVISED MACHINE LEARNING.
+        //1. ML Prediciton
+        //Use the trained model to predict expected power consumption.
+        //The slope ,intercept were learned from historical data 
         double predictedPower = regressionModel.predict(simulatedPower);
         
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 2: Calculate Residual (Prediction Error)
-        // ═════════════════════════════════════════════════════════════════
-        // The residual is the difference between reality and ML prediction.
-        // This measures how well our learned model generalizes to current data.
+        //2: Calculate Residual (Prediction Error)
+        // Residual = difference between reality and ML prediction.
+        // Measures how well earned model generalizes to current data.
         double residual = Math.abs(realPower - predictedPower);
     
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 3: Get Historical Residuals for Rolling Statistics
-        // ═════════════════════════════════════════════════════════════════
+        //3. Get Historical Residuals for Rolling Statistics
         List<Double> historicalResiduals = getHistoricalResiduals(
             regressionModel, 
             ROLLING_WINDOW_SIZE
         );
     
-
         historicalResiduals.add(residual);
     
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 4: Calculate Rolling Mean and Standard Deviation
-        // ═════════════════════════════════════════════════════════════════
+        //4. Calculate Rolling Mean and Standard Deviation
         double meanResidual = calculateMean(historicalResiduals);
         double stdResidual = calculateStandardDeviation(historicalResiduals, meanResidual);
         
-       
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 5: Calculate Z-Score
-        // ═════════════════════════════════════════════════════════════════
+        //5. Calculate Z-Score
         double zScore = 0.0;
         boolean hasEnoughData = historicalResiduals.size() >= 10 && stdResidual > 0.1;
         
@@ -88,10 +75,7 @@ public class AnomalyDetectionService {
             zScore = (residual > fallbackThreshold) ? 4.0 : 0.0; // Treat as anomaly if exceeds fallback
         }
 
-
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 6: Anomaly Decision (Z-Score + Minimum Absolute Threshold)
-        // ═════════════════════════════════════════════════════════════════
+        //6. Anomaly Decision (Z-Score + Minimum Absolute Threshold)
         boolean anomalyDetected = false;
         
         // Rule 1: Ignore tiny residuals (noise filtering)
@@ -107,9 +91,7 @@ public class AnomalyDetectionService {
             anomalyDetected = true;
         }
         
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 7: Classify Severity
-        // ═════════════════════════════════════════════════════════════════
+        //7. Classify Severity
         String severity;
         String explanation;
         
@@ -144,9 +126,7 @@ public class AnomalyDetectionService {
             );
         }
 
-        // ═════════════════════════════════════════════════════════════════
-        // STEP 8: Build Result
-        // ═════════════════════════════════════════════════════════════════
+        //8. Build Result
         AnomalyResult result = new AnomalyResult();
         result.setAnomalyDetected(anomalyDetected);
         result.setRealPower(Math.round(realPower * 100.0) / 100.0);
@@ -322,18 +302,18 @@ public class AnomalyDetectionService {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(dashboardJson);
             
-            // Get building-level values
+            //1.Get building-level values
             double totalRealPower = root.path("power").path("real").asDouble();
             double totalSimulatedPower = root.path("power").path("simulated_raw").asDouble();
             double totalPredictedPower = root.path("power").path("simulated").asDouble();
             
-            // Get rooms array
+            //2.Get rooms array
             JsonNode roomsArray = root.path("rooms");
             if (!roomsArray.isArray() || roomsArray.size() == 0) {
                 return roomAnomalies; // No rooms to analyze
             }
-            
-            // Calculate total simulated power from all rooms for proportional allocation
+        
+            //3.Calculate total simulated power from all rooms for proportional allocation
             double totalRoomSimulatedPower = 0.0;
             List<Double> roomSimulatedPowers = new ArrayList<>();
             
@@ -349,91 +329,89 @@ public class AnomalyDetectionService {
             }
 
              // Calculate per-room anomalies
-        int roomIndex = 0;
-        for (JsonNode room : roomsArray) {
-            RoomAnomaly roomAnomaly = new RoomAnomaly();
-            
-            String roomName = room.path("name").asText("Unknown");
-            String roomId = room.path("id").asText("");
-            double roomSimulatedPower = roomSimulatedPowers.get(roomIndex);
-            
-            roomAnomaly.setRoomName(roomName);
-            roomAnomaly.setRoomId(roomId);
-            roomAnomaly.setSimulatedPower(Math.round(roomSimulatedPower * 100.0) / 100.0);
-            
-            // Allocate real power proportionally
-            double allocationRatio = roomSimulatedPower / totalRoomSimulatedPower;
-            double allocatedRealPower = totalRealPower * allocationRatio;
-            roomAnomaly.setAllocatedRealPower(Math.round(allocatedRealPower * 100.0) / 100.0);
-            
-            // Calculate predicted power for this room (proportional to building prediction)
-            double roomPredictedPower = totalPredictedPower * allocationRatio;
-            roomAnomaly.setPredictedPower(Math.round(roomPredictedPower * 100.0) / 100.0);
-            
-            // Calculate residual
-            double residual = Math.abs(allocatedRealPower - roomPredictedPower);
-            roomAnomaly.setResidual(Math.round(residual * 100.0) / 100.0);
-            
-            // Use absolute threshold based on room's predicted power, not proportional building threshold
-            double roomThreshold = Math.max(MIN_ABSOLUTE_THRESHOLD, roomPredictedPower * 0.25);
+            int roomIndex = 0;
+            for (JsonNode room : roomsArray) {
+                RoomAnomaly roomAnomaly = new RoomAnomaly();
+                
+                String roomName = room.path("name").asText("Unknown");
+                String roomId = room.path("id").asText("");
+                double roomSimulatedPower = roomSimulatedPowers.get(roomIndex);
+                
+                roomAnomaly.setRoomName(roomName);
+                roomAnomaly.setRoomId(roomId);
+                roomAnomaly.setSimulatedPower(Math.round(roomSimulatedPower * 100.0) / 100.0);
+                
+                // Allocate real power proportionally
+                double allocationRatio = roomSimulatedPower / totalRoomSimulatedPower;
+                double allocatedRealPower = totalRealPower * allocationRatio;
+                roomAnomaly.setAllocatedRealPower(Math.round(allocatedRealPower * 100.0) / 100.0);
+                
+                // Calculate predicted power for this room (proportional to building prediction)
+                double roomPredictedPower = totalPredictedPower * allocationRatio;
+                roomAnomaly.setPredictedPower(Math.round(roomPredictedPower * 100.0) / 100.0);
+                
+                // Calculate residual
+                double residual = Math.abs(allocatedRealPower - roomPredictedPower);
+                roomAnomaly.setResidual(Math.round(residual * 100.0) / 100.0);
+                
+                // Use absolute threshold based on room's predicted power, not proportional building threshold
+                double roomThreshold = Math.max(MIN_ABSOLUTE_THRESHOLD, roomPredictedPower * 0.25);
 
-            roomAnomaly.setThreshold(Math.round(roomThreshold * 100.0) / 100.0);
-            
-            // Determine anomaly status - INDEPENDENT of building severity
-            boolean isAnomaly = false;
-            String severity = "NORMAL";
-            String status = "🟢 Normal";
+                roomAnomaly.setThreshold(Math.round(roomThreshold * 100.0) / 100.0);
+                
+                // Determine anomaly status - INDEPENDENT of building severity
+                boolean isAnomaly = false;
+                String severity = "NORMAL";
+                String status = "🟢 Normal";
 
-            // Rule 1: If building is NORMAL, all rooms are NORMAL
-            if ("NORMAL".equals(buildingSeverity)) {
-                // No room-level evaluation needed when building is normal
-                isAnomaly = false;
-                severity = "NORMAL";
-                status = "🟢 Normal";
-            }
-
-            // Rule 2: If building is WARNING or CRITICAL, evaluate room-level anomalies
-            else {
-                // Ignore tiny residuals (noise filtering)
-                if (residual < MIN_ABSOLUTE_THRESHOLD * 0.5) {
-                    // Very small residuals are always normal
+                // Rule 1: If building is NORMAL, all rooms are NORMAL
+                if ("NORMAL".equals(buildingSeverity)) {
+                    // No room-level evaluation needed when building is normal
                     isAnomaly = false;
                     severity = "NORMAL";
                     status = "🟢 Normal";
                 }
-                // Check if room residual exceeds its own threshold
-                else if (residual > roomThreshold) {
-                    isAnomaly = true;
-                    // Classify severity based on how far above threshold
-                    if (residual > roomThreshold * 2.0) {
-                        severity = "CRITICAL";
-                        status = "🔴 Anomaly";
-                    } else {
-                        severity = "WARNING";
-                        status = "🟠 Slight";
+
+                // Rule 2: If building is WARNING or CRITICAL, evaluate room-level anomalies
+                else {
+                    // Ignore tiny residuals (noise filtering)
+                    if (residual < MIN_ABSOLUTE_THRESHOLD * 0.5) {
+                        // Very small residuals are always normal
+                        isAnomaly = false;
+                        severity = "NORMAL";
+                        status = "🟢 Normal";
                     }
+                    // Check if room residual exceeds its own threshold
+                    else if (residual > roomThreshold) {
+                        isAnomaly = true;
+                        // Classify severity based on how far above threshold
+                        if (residual > roomThreshold * 2.0) {
+                            severity = "CRITICAL";
+                            status = "🔴 Anomaly";
+                        } else {
+                            severity = "WARNING";
+                            status = "🟠 Slight";
+                        }
+                    }
+                // Rule 3: Room is normal
+                else {
+                    isAnomaly = false;
+                    severity = "NORMAL";
+                    status = "🟢 Normal";
                 }
-            // Rule 3: Room is normal
-            else {
-                isAnomaly = false;
-                severity = "NORMAL";
-                status = "🟢 Normal";
             }
+                roomAnomaly.setAnomalyDetected(isAnomaly);
+                roomAnomaly.setSeverity(severity);
+                roomAnomaly.setStatus(status);
+                
+                roomAnomalies.add(roomAnomaly);
+                roomIndex++;
         }
-            roomAnomaly.setAnomalyDetected(isAnomaly);
-            roomAnomaly.setSeverity(severity);
-            roomAnomaly.setStatus(status);
-            
-            roomAnomalies.add(roomAnomaly);
-            roomIndex++;
-        }
-    } catch (Exception e) {
-        System.err.println("Error calculating room anomalies: " + e.getMessage());
-        e.printStackTrace();
-    }
-    
-    return roomAnomalies;
-        
+        } catch (Exception e) {
+            System.err.println("Error calculating room anomalies: " + e.getMessage());
+            e.printStackTrace();
+        }      
+        return roomAnomalies;
     }
 
     

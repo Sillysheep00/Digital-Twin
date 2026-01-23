@@ -11,14 +11,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Test 6: Deep Clone Isolation - Proves true isolation with no contamination
- * 
- * This test verifies three critical properties:
- * A. Object identity is different (true deep clone)
- * B. Data is copied correctly
- * C. Mutation does NOT leak (most important - proves no contamination)
- */
+
 @SpringBootTest
 @TestPropertySource(properties = {
     "spring.mongodb.embedded.version=4.0.21"
@@ -187,9 +180,7 @@ public class DeepCloneTest {
         System.out.println("Cloned Room ID: " + clonedRoomId + ", Temp: " + clonedRoomTemp);
         System.out.println("Cloned HVAC ID: " + clonedHvacId + ", Target: " + clonedHvacTarget);
         
-        // ═════════════════════════════════════════════════════════════════
         // TEST A: Object Identity is Different (True Deep Clone)
-        // ═════════════════════════════════════════════════════════════════
         System.out.println("\n[TEST A] Verifying object identity is different...");
         assertNotNull(originalEnergyMeter, "Original EnergyMeter should exist");
         assertNotNull(clonedEnergyMeter, "Cloned EnergyMeter should exist");
@@ -201,9 +192,7 @@ public class DeepCloneTest {
                     "HVAC objects should have different identity (not same object)");
         System.out.println("✓ TEST A PASSED: Objects have different identity (true deep clone)");
         
-        // ═════════════════════════════════════════════════════════════════
         // TEST B: Data is Copied Correctly
-        // ═════════════════════════════════════════════════════════════════
         System.out.println("\n[TEST B] Verifying data is copied correctly...");
         assertEquals(originalEnergyValue, clonedEnergyValue, 0.01, 
                     "EnergyMeter energyConsumed should be copied correctly");
@@ -213,9 +202,7 @@ public class DeepCloneTest {
                     "HVAC targetTemperature should be copied correctly");
         System.out.println("✓ TEST B PASSED: Data is copied correctly");
         
-        // ═════════════════════════════════════════════════════════════════
         // TEST C: Mutation Does NOT Leak (Most Important - Proves No Contamination)
-        // ═════════════════════════════════════════════════════════════════
         System.out.println("\n[TEST C] Verifying mutation does NOT leak (no contamination)...");
         
         // Mutate cloned model
@@ -275,7 +262,7 @@ public class DeepCloneTest {
         originalModel.dispose();
         clonedModel.dispose();
         
-        System.out.println("\n✅ ALL TESTS PASSED: Deep clone provides true isolation with no contamination!");
+        System.out.println("\nALL TESTS PASSED: Deep clone provides true isolation with no contamination!");
         System.out.println("Test 6 PASSED: Deep clone isolation verified\n");
     }
 

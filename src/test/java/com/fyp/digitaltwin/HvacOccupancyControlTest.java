@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Daytime Normal Mode:
  *   * Occupied room: targetTemp = 22°C, comfortZone = 2.0°C
  * 
- * Purpose (for viva):
+ * Purpose :
  * "To validate intelligent HVAC control adapts to occupancy and time."
  */
 @SpringBootTest
@@ -176,10 +176,7 @@ public class HvacOccupancyControlTest {
         }
     }
 
-    // ============================================================================
     // NIGHT MODE TESTS (7 PM - 7 AM)
-    // ============================================================================
-
     /**
      * Test 1: Night Mode - High Occupancy (>= 5 people)
      * Time: 20:00 (8 PM) - Night time
@@ -205,7 +202,7 @@ public class HvacOccupancyControlTest {
         assertEquals(2.0, settings.comfortZone, 0.1,
             "High occupancy should have normal comfort zone (2.0°C)");
 
-        System.out.println("✅ Test PASSED: Night mode high occupancy");
+        System.out.println("Test PASSED: Night mode high occupancy");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Current Temp: " + settings.currentTemp + "°C\n");
@@ -236,7 +233,7 @@ public class HvacOccupancyControlTest {
         assertEquals(1.5, settings.comfortZone, 0.1,
             "Low occupancy should have tighter comfort zone (1.5°C)");
 
-        System.out.println("✅ Test PASSED: Night mode low occupancy");
+        System.out.println("Test PASSED: Night mode low occupancy");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Current Temp: " + settings.currentTemp + "°C\n");
@@ -267,16 +264,13 @@ public class HvacOccupancyControlTest {
         assertEquals(0.5, settings.comfortZone, 0.1,
             "Empty room should have tight control (0.5°C)");
 
-        System.out.println("✅ Test PASSED: Night mode empty room");
+        System.out.println(" Test PASSED: Night mode empty room");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Current Temp: " + settings.currentTemp + "°C\n");
     }
 
-    // ============================================================================
     // DAYTIME MODE TESTS (7 AM - 7 PM)
-    // ============================================================================
-
     /**
      * Test 4: Daytime Eco Mode - Empty Room
      * Time: 12:00 (Noon) - Daytime
@@ -302,7 +296,7 @@ public class HvacOccupancyControlTest {
         assertEquals(3.0, settings.comfortZone, 0.1,
             "Daytime eco mode should have expanded comfort zone (3.0°C) for energy savings");
 
-        System.out.println("✅ Test PASSED: Daytime eco mode empty room");
+        System.out.println("Test PASSED: Daytime eco mode empty room");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C (eco mode)");
         System.out.println("   Current Temp: " + settings.currentTemp + "°C\n");
@@ -333,16 +327,13 @@ public class HvacOccupancyControlTest {
         assertEquals(2.0, settings.comfortZone, 0.1,
             "Daytime normal mode should have standard comfort zone (2.0°C)");
 
-        System.out.println("✅ Test PASSED: Daytime normal mode occupied room");
+        System.out.println("Test PASSED: Daytime normal mode occupied room");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Current Temp: " + settings.currentTemp + "°C\n");
     }
 
-    // ============================================================================
     // BOUNDARY TESTS
-    // ============================================================================
-
     /**
      * Test 6: Boundary Test - Night to Day Transition
      * Time: 07:00 (7 AM) - Boundary (should be day time)
@@ -369,7 +360,7 @@ public class HvacOccupancyControlTest {
         assertEquals(2.0, settings.comfortZone, 0.1,
             "At 7 AM (day time boundary), should use daytime comfort zone (2.0°C)");
 
-        System.out.println("✅ Test PASSED: Night to day transition");
+        System.out.println("Test PASSED: Night to day transition");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Time: 7 AM (day time boundary)\n");
@@ -401,7 +392,7 @@ public class HvacOccupancyControlTest {
         assertEquals(0.5, settings.comfortZone, 0.1,
             "At 7 PM (night time boundary), empty room should use tight control (0.5°C)");
 
-        System.out.println("✅ Test PASSED: Day to night transition");
+        System.out.println("Test PASSED: Day to night transition");
         System.out.println("   Target Temp: " + settings.targetTemp + "°C");
         System.out.println("   Comfort Zone: ±" + settings.comfortZone + "°C");
         System.out.println("   Time: 7 PM (night time boundary)\n");
@@ -436,7 +427,7 @@ public class HvacOccupancyControlTest {
         assertEquals(16.0, emptyRoom.targetTemp, 0.1,
             "Empty room should have 16°C target");
 
-        System.out.println("✅ Test PASSED: Multiple rooms with different occupancy");
+        System.out.println("Test PASSED: Multiple rooms with different occupancy");
         System.out.println("   Meeting Room (high): " + highOccRoom.targetTemp + "°C");
         System.out.println("   Staff Lounge (low): " + lowOccRoom.targetTemp + "°C");
         System.out.println("   Boss Office (empty): " + emptyRoom.targetTemp + "°C\n");

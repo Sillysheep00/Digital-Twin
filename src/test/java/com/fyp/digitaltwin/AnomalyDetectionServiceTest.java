@@ -27,22 +27,7 @@ import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import com.fyp.digitaltwin.service.AnomalyDetectionService;
 
-/**
- * Unit Tests for Anomaly Detection Service
- * 
- * Tests anomaly detection with:
- * - Mocked repository (controlled historical data)
- * - Fake regression models (known parameters)
- * - Injected values (forced anomalies)
- * - 100% reproducible results
- * 
- * Test Coverage:
- * 1. CRITICAL anomaly (Z-score > 3.0)
- * 2. WARNING anomaly (Z-score 2.0-3.0)
- * 3. NORMAL operation (Z-score < 2.0)
- * 4. Insufficient data fallback
- * 5. detectAnomalyFromDashboard JSON parsing
- */
+
 @ExtendWith(MockitoExtension.class)
 public class AnomalyDetectionServiceTest {
 
@@ -182,14 +167,14 @@ public class AnomalyDetectionServiceTest {
         assertTrue(result.getResidual() > result.getThreshold(),
             "Residual should exceed threshold");
         
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ Simulated Power: " + result.getSimulatedPower() + " kW");
-        System.out.println("✓ ML Predicted: " + result.getCalibratedSimulatedPower() + " kW");
-        System.out.println("✓ Residual: " + result.getResidual() + " kW");
-        System.out.println("✓ Threshold: " + result.getThreshold() + " kW");
-        System.out.println("✓ Z-Score: " + result.getZScore());
-        System.out.println("✓ Severity: " + result.getSeverity());
-        System.out.println("✓ Explanation: " + result.getExplanation());
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" Simulated Power: " + result.getSimulatedPower() + " kW");
+        System.out.println(" ML Predicted: " + result.getCalibratedSimulatedPower() + " kW");
+        System.out.println(" Residual: " + result.getResidual() + " kW");
+        System.out.println(" Threshold: " + result.getThreshold() + " kW");
+        System.out.println(" Z-Score: " + result.getZScore());
+        System.out.println(" Severity: " + result.getSeverity());
+        System.out.println(" Explanation: " + result.getExplanation());
         System.out.println("Test 1 PASSED: CRITICAL anomaly correctly detected\n");
     }
 
@@ -251,12 +236,12 @@ public class AnomalyDetectionServiceTest {
         assertFalse(result.isAnomalyDetected(),
             "WARNING is informational severity, not an anomaly (only CRITICAL is anomaly)");
 
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ ML Predicted: " + result.getCalibratedSimulatedPower() + " kW");
-        System.out.println("✓ Residual: " + result.getResidual() + " kW");
-        System.out.println("✓ Z-Score: " + result.getZScore() + " (target: " + targetZ + ")");
-        System.out.println("✓ Severity: " + result.getSeverity());
-        System.out.println("✓ Anomaly Detected: " + result.isAnomalyDetected() + 
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" ML Predicted: " + result.getCalibratedSimulatedPower() + " kW");
+        System.out.println(" Residual: " + result.getResidual() + " kW");
+        System.out.println(" Z-Score: " + result.getZScore() + " (target: " + targetZ + ")");
+        System.out.println(" Severity: " + result.getSeverity());
+        System.out.println(" Anomaly Detected: " + result.isAnomalyDetected() + 
             " (WARNING is informational, only CRITICAL is anomaly)");
         System.out.println("Test 2 PASSED: WARNING severity correctly identified\n");
         
@@ -299,10 +284,10 @@ public class AnomalyDetectionServiceTest {
         assertTrue(result.getResidual() < result.getThreshold(),
             "Residual should be below threshold");
         
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ Residual: " + result.getResidual() + " kW");
-        System.out.println("✓ Z-Score: " + result.getZScore());
-        System.out.println("✓ Severity: " + result.getSeverity());
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" Residual: " + result.getResidual() + " kW");
+        System.out.println(" Z-Score: " + result.getZScore());
+        System.out.println(" Severity: " + result.getSeverity());
         System.out.println("Test 3 PASSED: NORMAL operation correctly identified\n");
     }
 
@@ -341,12 +326,12 @@ public class AnomalyDetectionServiceTest {
             "Residual should exceed fallback threshold");
         // Note: With insufficient data, severity might be NORMAL but anomaly detected
         
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ Predicted: " + result.getCalibratedSimulatedPower() + " kW");
-        System.out.println("✓ Residual: " + result.getResidual() + " kW");
-        System.out.println("✓ Fallback Threshold: " + fallbackThreshold + " kW");
-        System.out.println("✓ Anomaly Detected: " + result.isAnomalyDetected());
-        System.out.println("✓ Severity: " + result.getSeverity());
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" Predicted: " + result.getCalibratedSimulatedPower() + " kW");
+        System.out.println(" Residual: " + result.getResidual() + " kW");
+        System.out.println(" Fallback Threshold: " + fallbackThreshold + " kW");
+        System.out.println(" Anomaly Detected: " + result.isAnomalyDetected());
+        System.out.println(" Severity: " + result.getSeverity());
         System.out.println("Test 4 PASSED: Fallback threshold correctly applied\n");
     }
 
@@ -382,10 +367,10 @@ public class AnomalyDetectionServiceTest {
         assertTrue(result.getResidual() < 5.0,
             "Residual should be below minimum threshold");
         
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ Residual: " + result.getResidual() + " kW");
-        System.out.println("✓ Minimum Threshold: 5.0 kW");
-        System.out.println("✓ Anomaly Detected: " + result.isAnomalyDetected());
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" Residual: " + result.getResidual() + " kW");
+        System.out.println(" Minimum Threshold: 5.0 kW");
+        System.out.println(" Anomaly Detected: " + result.isAnomalyDetected());
         System.out.println("Test 5 PASSED: Tiny residuals correctly ignored\n");
     }
 
@@ -422,10 +407,10 @@ public class AnomalyDetectionServiceTest {
         assertTrue(result.isAnomalyDetected(),
             "Anomaly should be detected for high deviation");
         
-        System.out.println("✓ JSON parsed successfully");
-        System.out.println("✓ Real Power: " + result.getRealPower() + " kW");
-        System.out.println("✓ Simulated Power: " + result.getSimulatedPower() + " kW");
-        System.out.println("✓ Anomaly Detected: " + result.isAnomalyDetected());
+        System.out.println(" JSON parsed successfully");
+        System.out.println(" Real Power: " + result.getRealPower() + " kW");
+        System.out.println(" Simulated Power: " + result.getSimulatedPower() + " kW");
+        System.out.println(" Anomaly Detected: " + result.isAnomalyDetected());
         System.out.println("Test 6 PASSED: Dashboard JSON correctly processed\n");
     }
 
@@ -453,9 +438,9 @@ public class AnomalyDetectionServiceTest {
         assertTrue(result.getExplanation().contains("Failed to parse"),
             "Explanation should mention parsing failure");
         
-        System.out.println("✓ Error handled gracefully");
-        System.out.println("✓ Severity: " + result.getSeverity());
-        System.out.println("✓ Explanation: " + result.getExplanation());
+        System.out.println(" Error handled gracefully");
+        System.out.println(" Severity: " + result.getSeverity());
+        System.out.println(" Explanation: " + result.getExplanation());
         System.out.println("Test 7 PASSED: Invalid JSON correctly handled\n");
     }
 
@@ -506,8 +491,8 @@ public class AnomalyDetectionServiceTest {
         assertNotNull(result, "Result should not be null");
         assertNotNull(result.getSeverity(), "Severity should be set");
         
-        System.out.println("✓ Zero std deviation handled gracefully");
-        System.out.println("✓ Severity: " + result.getSeverity());
+        System.out.println(" Zero std deviation handled gracefully");
+        System.out.println(" Severity: " + result.getSeverity());
         System.out.println("Test 8 PASSED: Edge case handled correctly\n");
     }
 
@@ -545,9 +530,9 @@ public class AnomalyDetectionServiceTest {
         assertEquals(result1.getResidual(), result2.getResidual(), 0.01,
             "Residual should be reproducible");
         
-        System.out.println("✓ First run - Z-score: " + result1.getZScore());
-        System.out.println("✓ Second run - Z-score: " + result2.getZScore());
-        System.out.println("✓ Results are identical (reproducible)");
+        System.out.println(" First run - Z-score: " + result1.getZScore());
+        System.out.println(" Second run - Z-score: " + result2.getZScore());
+        System.out.println("Results are identical (reproducible)");
         System.out.println("Test 9 PASSED: Tests are deterministic\n");
     }
 
@@ -603,7 +588,7 @@ public class AnomalyDetectionServiceTest {
                 "Room " + room.getRoomName() + " should not have anomaly detected");
         }
         
-        System.out.println("✓ All " + roomAnomalies.size() + " rooms are NORMAL when building is NORMAL");
+        System.out.println("All " + roomAnomalies.size() + " rooms are NORMAL when building is NORMAL");
         System.out.println("Test 10 PASSED: Hierarchical logic verified\n");
     }
 
@@ -655,11 +640,50 @@ public class AnomalyDetectionServiceTest {
         boolean hasAnomalousRoom = roomAnomalies.stream()
             .anyMatch(r -> !"NORMAL".equals(r.getSeverity()));
         
-        System.out.println("✓ Building severity: " + buildingResult.getSeverity());
-        System.out.println("✓ Room anomalies evaluated: " + roomAnomalies.size() + " rooms");
+        System.out.println("Building severity: " + buildingResult.getSeverity());
+        System.out.println("Room anomalies evaluated: " + roomAnomalies.size() + " rooms");
         for (RoomAnomaly room : roomAnomalies) {
             System.out.println("  - " + room.getRoomName() + ": " + room.getStatus());
         }
         System.out.println("Test 11 PASSED: Room evaluation works when building is anomalous\n");
+    }
+
+    /**
+     * Test 12: High Variance History - Z-score Calculation with Variable Baseline
+     * 
+     * Scenario:
+     * - Historical data has high variance (std deviation is large)
+     * - Same residual produces lower Z-score than with stable history
+     * - Tests robustness of Z-score calculation with noisy baseline
+     * 
+     * Expected: System handles high variance gracefully, Z-scores are lower
+     */
+    @Test
+    public void testHighVarianceHistory_LowerZScores() {
+        System.out.println("\n=== Test 12: High Variance History (Lower Z-scores) ===");
+        
+        // Use high variance history (larger std deviation)
+        List<SimulationResult> history = createHighVarianceHistory(mockModel);
+        mockRepositoryWithHistory(history);
+        
+        // Same deviation as Test 1, but with high variance history
+        double realPower = 100.0;
+        double simulatedPower = 10.0;
+        
+        AnomalyResult result = anomalyDetectionService.detectAnomalyWithML(
+            realPower, simulatedPower, mockModel
+        );
+        
+        // With high variance, Z-score should be lower (but still > 3.0 for CRITICAL)
+        assertTrue(result.isAnomalyDetected(),
+            "Anomaly should still be detected with high variance history");
+        assertTrue(result.getZScore() >= 3.0,
+            "Z-score should still be >= 3.0 for CRITICAL, even with high variance");
+        
+        System.out.println("Real Power: " + result.getRealPower() + " kW");
+        System.out.println("Residual: " + result.getResidual() + " kW");
+        System.out.println("Z-Score (high variance): " + result.getZScore());
+        System.out.println("Severity: " + result.getSeverity());
+        System.out.println("Test 12 PASSED: High variance history handled correctly\n");
     }
 }

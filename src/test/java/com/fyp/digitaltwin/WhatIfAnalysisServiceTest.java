@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Tests single-variable sensitivity, temporal scalability, multi-variable combinations,
  * and investment cost handling to validate system robustness.
  * 
- * Purpose (for viva):
+ * Purpose :
  * "To validate parameter sensitivity, temporal scalability, and economic analysis robustness."
  */
 @SpringBootTest
@@ -40,10 +39,7 @@ public class WhatIfAnalysisServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ============================================================================
     // A. SINGLE-VARIABLE SENSITIVITY TESTS
-    // ============================================================================
-
     /**
      * A1 – Target Temperature Sensitivity
      * Changing target temperature only
@@ -88,7 +84,7 @@ public class WhatIfAnalysisServiceTest {
          assertNotEquals(0.0, targetTempDiff, 0.01, 
             "targetTempDifference should reflect the change made");
 
-        System.out.println("✅ Test A1 PASSED: Target temperature sensitivity verified");
+        System.out.println("Test A1 PASSED: Target temperature sensitivity verified");
         System.out.println("   Baseline: " + baselineEnergy + " kWh");
         System.out.println("   Scenario: " + scenarioEnergy + " kWh");
         System.out.println("   Energy Saved: " + energySaved + " kWh");
@@ -136,7 +132,7 @@ public class WhatIfAnalysisServiceTest {
         assertNotEquals(0.0, insulationDiff, 0.001, 
             "insulationDifference should reflect the change made");
 
-        System.out.println("✅ Test A2 PASSED: Insulation sensitivity verified");
+        System.out.println("Test A2 PASSED: Insulation sensitivity verified");
         System.out.println("   Baseline: " + baselineEnergy + " kWh");
         System.out.println("   Scenario: " + scenarioEnergy + " kWh");
         System.out.println("   Energy Saved: " + energySaved + " kWh");
@@ -184,7 +180,7 @@ public class WhatIfAnalysisServiceTest {
         double baseLoadDiff = jsonResponse.get("baseLoadDifference").asDouble();
         assertNotNull(baseLoadDiff, "baseLoadDifference should not be null");
 
-        System.out.println("✅ Test A3 PASSED: Base load sensitivity (global) verified");
+        System.out.println("Test A3 PASSED: Base load sensitivity (global) verified");
         System.out.println("   Baseline: " + baselineEnergy + " kWh");
         System.out.println("   Scenario: " + scenarioEnergy + " kWh");
         System.out.println("   Energy Saved: " + energySaved + " kWh");
@@ -225,14 +221,11 @@ public class WhatIfAnalysisServiceTest {
         assertTrue(jsonResponse.has("baseline") || jsonResponse.has("scenario"),
             "Response should contain baseline or scenario data");
 
-        System.out.println("✅ Test A4 PASSED: Per-room base load configuration accepted");
+        System.out.println("Test A4 PASSED: Per-room base load configuration accepted");
         System.out.println("   Response received without errors\n");
     }
 
-    // ============================================================================
     // B. PREDICTION HORIZON / TEMPORAL SCALABILITY TESTS
-    // ============================================================================
-
     /**
      * B1 – 24 Hour Horizon
      * Input: 24 hours
@@ -267,7 +260,7 @@ public class WhatIfAnalysisServiceTest {
             assertEquals(24, chartData.size(), "chartData should have 24 entries");
         }
 
-        System.out.println("✅ Test B1 PASSED: 24-hour horizon verified");
+        System.out.println("Test B1 PASSED: 24-hour horizon verified");
         System.out.println("   Hours: " + jsonResponse.get("hours").asInt());
         if (jsonResponse.has("chartData")) {
             System.out.println("   Chart Data Points: " + jsonResponse.get("chartData").size() + "\n");
@@ -308,7 +301,7 @@ public class WhatIfAnalysisServiceTest {
             assertEquals(48, chartData.size(), "chartData should have 48 entries");
         }
 
-        System.out.println("✅ Test B2 PASSED: 48-hour horizon verified");
+        System.out.println("Test B2 PASSED: 48-hour horizon verified");
         System.out.println("   Hours: " + jsonResponse.get("hours").asInt());
         if (jsonResponse.has("chartData")) {
             System.out.println("   Chart Data Points: " + jsonResponse.get("chartData").size() + "\n");
@@ -349,17 +342,14 @@ public class WhatIfAnalysisServiceTest {
             assertEquals(72, chartData.size(), "chartData should have 72 entries");
         }
 
-        System.out.println("✅ Test B3 PASSED: 72-hour horizon verified");
+        System.out.println("Test B3 PASSED: 72-hour horizon verified");
         System.out.println("   Hours: " + jsonResponse.get("hours").asInt());
         if (jsonResponse.has("chartData")) {
             System.out.println("   Chart Data Points: " + jsonResponse.get("chartData").size() + "\n");
         }
     }
 
-    // ============================================================================
     // C. MULTI-VARIABLE COMBINATION TESTS
-    // ============================================================================
-
     /**
      * C1 – Target Temp + Base Load
      * Expects: Both differences tracked, energySaved calculated
@@ -394,7 +384,7 @@ public class WhatIfAnalysisServiceTest {
         double energySaved = jsonResponse.get("energySaved").asDouble();
         assertNotNull(energySaved, "energySaved should be calculated");
 
-        System.out.println("✅ Test C1 PASSED: Target temp + base load combination verified");
+        System.out.println("Test C1 PASSED: Target temp + base load combination verified");
         System.out.println("   Target Temp Difference: " + jsonResponse.get("targetTempDifference").asDouble());
         System.out.println("   Base Load Difference: " + jsonResponse.get("baseLoadDifference").asDouble());
         System.out.println("   Energy Saved: " + energySaved + " kWh\n");
@@ -431,7 +421,7 @@ public class WhatIfAnalysisServiceTest {
         assertTrue(jsonResponse.has("targetTempDifference"),
             "targetTempDifference should be present");
 
-        System.out.println("✅ Test C2 PASSED: Insulation + target temp combination verified");
+        System.out.println("Test C2 PASSED: Insulation + target temp combination verified");
         System.out.println("   Insulation Difference: " + jsonResponse.get("insulationDifference").asDouble());
         System.out.println("   Target Temp Difference: " + jsonResponse.get("targetTempDifference").asDouble() + "\n");
     }
@@ -473,17 +463,14 @@ public class WhatIfAnalysisServiceTest {
         double energySaved = jsonResponse.get("energySaved").asDouble();
         assertTrue(energySaved >= 0, "energySaved should be >= 0");
 
-        System.out.println("✅ Test C3 PASSED: All three parameters combination verified");
+        System.out.println("Test C3 PASSED: All three parameters combination verified");
         System.out.println("   Target Temp Difference: " + jsonResponse.get("targetTempDifference").asDouble());
         System.out.println("   Insulation Difference: " + jsonResponse.get("insulationDifference").asDouble());
         System.out.println("   Base Load Difference: " + jsonResponse.get("baseLoadDifference").asDouble());
         System.out.println("   Energy Saved: " + energySaved + " kWh\n");
     }
 
-    // ============================================================================
     // D. INVESTMENT COST HANDLING TESTS
-    // ============================================================================
-
     /**
      * D1 – Valid Investment Cost
      * Input: 1000.0
@@ -516,7 +503,7 @@ public class WhatIfAnalysisServiceTest {
         JsonNode costAnalysis = jsonResponse.get("costAnalysis");
         assertNotNull(costAnalysis, "costAnalysis should not be null");
 
-        System.out.println("✅ Test D1 PASSED: Valid investment cost handled");
+        System.out.println("Test D1 PASSED: Valid investment cost handled");
         System.out.println("   Cost Analysis present: " + costAnalysis.has("investmentCost") + "\n");
     }
 
@@ -549,7 +536,7 @@ public class WhatIfAnalysisServiceTest {
                    responseBody.toLowerCase().contains("exception"),
             "Zero investment cost should be handled without error");
 
-        System.out.println("✅ Test D2 PASSED: Zero investment cost handled without error\n");
+        System.out.println("Test D2 PASSED: Zero investment cost handled without error\n");
     }
 
     /**
@@ -585,7 +572,7 @@ public class WhatIfAnalysisServiceTest {
         assertTrue(jsonResponse.has("baseline") && jsonResponse.has("scenario"),
             "Response should contain baseline and scenario even without investment cost");
 
-        System.out.println("✅ Test D3 PASSED: Null investment cost handled without error");
+        System.out.println("Test D3 PASSED: Null investment cost handled without error");
         System.out.println("   Investment cost is optional (robust API design)\n");
     }
 }

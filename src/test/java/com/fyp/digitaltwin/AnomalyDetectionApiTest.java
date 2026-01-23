@@ -13,19 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Integration Tests for Machine Learning-Based Anomaly Detection API
- * 
- * Tests the ML-based anomaly detection system that uses a trained Linear Regression model
- * to predict expected power consumption and identify unusual patterns.
- * 
- * Test Coverage:
- * 1. Normal operation (no anomaly) with ML model
- * 2. Anomaly detection (high residual) with ML model
- * 3. API endpoint integration test
- * 4. Critical anomaly detection
- * 5. Low power edge cases
- */
+
 @SpringBootTest
 @AutoConfigureMockMvc
 public class AnomalyDetectionApiTest {

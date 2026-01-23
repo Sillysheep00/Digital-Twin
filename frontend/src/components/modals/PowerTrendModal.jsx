@@ -93,6 +93,7 @@ function PowerTrendModal({
         step: index + 1,
         timestamp: formatTimeForAxis(timestamp),
         fullTimestamp: timestamps[actualIndex] || null,
+        real: trendData.realPowerHistory ? trendData.realPowerHistory[actualIndex] : null,
         simulated: trendData.simulatedPowerHistory[actualIndex],
         predicted: trendData.predictedPowerHistory[actualIndex]
       };
@@ -213,6 +214,15 @@ function PowerTrendModal({
                 }}
               />
               <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="real" 
+                stroke="#3498db" 
+                strokeWidth={2}
+                name="Real Power (Ground Truth)"
+                dot={{ r: 3 }}
+                connectNulls={false}
+              />
               <Line 
                 type="monotone" 
                 dataKey="simulated" 

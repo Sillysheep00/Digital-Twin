@@ -170,7 +170,12 @@ public class PredictionService {
             System.out.println("   Found " + futureDataList.size() + " future records for prediction.");
 
             // 5. Run fast-forward simulation and collect step data
-            for (SensorData mongoData : futureDataList) {
+            // Track cumulative energy to calculate step-by-step energy (energy.total is cumulative)
+            double previousCumulativeEnergy = 0.0;
+            
+            for (int stepIndex = 0; stepIndex < futureDataList.size(); stepIndex++) {
+                SensorData mongoData = futureDataList.get(stepIndex);
+                
                 // Convert to DTO
                 DataRecord stepData = new DataRecord(
                     mongoData.getDate(),
@@ -179,10 +184,10 @@ public class PredictionService {
                     mongoData.getOccupancy()
                 );
 
-                // Run physics simulation
+                // Run physics simulation (this updates energy sensors based on actual HVAC usage)
                 modelService.runEolScript(predictionModel, "hvac.eol", "Prediction", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept, null);
                 
-                // Calculate energy used in this 15-min window
+                // Get energy aggregation (includes actual accumulated energy from sensors)
                 String jsonOutput = modelService.runEolScript(predictionModel, "json.eol", "PredictionAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
 
                 // Validate JSON output before parsing
@@ -191,7 +196,7 @@ public class PredictionService {
                 System.err.println("Warning: Invalid JSON output from json.eol, skipping step. Output: " + 
                                 (jsonOutput != null ? jsonOutput.substring(0, Math.min(100, jsonOutput.length())) : "null"));
 
-                // Skip this step and continue with next
+                // Skip this step and continue with next (keep previous cumulative energy unchanged)
                 stepEnergyList.add(0.0); //Add 0 instead of crashing 
                 continue;
                 }
@@ -203,14 +208,26 @@ public class PredictionService {
                     System.err.println("Warning: Failed to parse JSON from json.eol: " + e.getMessage());
                     System.err.println("JSON output (first 200 chars): " + 
                                     (jsonOutput.length() > 200 ? jsonOutput.substring(0, 200) : jsonOutput));
-                    // Skip this step and continue with next
+                    // Skip this step and continue with next (keep previous cumulative energy unchanged)
                     stepEnergyList.add(0.0);
                     continue;
                 }
-                double stepPower = root.path("power").path("simulated").asDouble();
                 
-                // Energy (kWh) = Power (kW) * Time (0.25h)
-                double stepEnergy = stepPower * TIME_STEP_HOURS;
+                // Use ACTUAL accumulated energy from sensors (reflects insulation/targetTemp changes)
+                // Instead of fast estimation power calculation
+                double currentCumulativeEnergy = root.path("energy").path("total").asDouble();
+                
+                // Energy for this step = current cumulative - previous cumulative
+                double stepEnergy = currentCumulativeEnergy - previousCumulativeEnergy;
+                
+                // Handle first step (should be 0 or very small after reset, but use directly if negative)
+                if (stepIndex == 0 && stepEnergy < 0) {
+                    stepEnergy = currentCumulativeEnergy;  // Use total directly for first step
+                }
+                
+                // Update for next step
+                previousCumulativeEnergy = currentCumulativeEnergy;
+                
                 totalPredictedEnergy += stepEnergy;
                 stepEnergyList.add(Math.round(stepEnergy * 100.0) / 100.0);
             }
@@ -321,10 +338,26 @@ public class PredictionService {
             }
             
             // Run simulation steps on the modified model and collect step data
+            // Track cumulative energy to calculate step-by-step energy (energy.total is cumulative)
             double totalEnergy = 0.0;
+            double previousCumulativeEnergy = 0.0;
+            
             for (int i = 0; i < stepsNeeded; i++) {
                 SensorData data = futureData.get(i);
-                double stepEnergy = runSimulationStepOnModel(model, data, currentStepIndex + i + 1);
+                // Method returns current cumulative energy, we calculate step energy
+                double currentCumulativeEnergy = runSimulationStepOnModel(model, data, currentStepIndex + i + 1);
+                
+                // Energy for this step = current cumulative - previous cumulative
+                double stepEnergy = currentCumulativeEnergy - previousCumulativeEnergy;
+                
+                // Handle first step (should be 0 or very small after reset, but use directly if negative)
+                if (i == 0 && stepEnergy < 0) {
+                    stepEnergy = currentCumulativeEnergy;  // Use total directly for first step
+                }
+                
+                // Update cumulative energy for next step
+                previousCumulativeEnergy = currentCumulativeEnergy;
+                
                 totalEnergy += stepEnergy;
                 stepEnergyList.add(Math.round(stepEnergy * 100.0) / 100.0);
             }
@@ -348,7 +381,7 @@ public class PredictionService {
      * @param model The model to simulate on
      * @param data Sensor data for this step
      * @param stepIndex Current step index
-     * @return Energy consumed in this step (kWh)
+     * @return Current cumulative energy from sensors (kWh) - caller calculates step energy
      * @throws Exception if simulation fails
      */
     private double runSimulationStepOnModel(EmfModel model, SensorData data, int stepIndex) throws Exception {
@@ -360,33 +393,34 @@ public class PredictionService {
             data.getOccupancy()
         );
         
-        // Run physics simulation
+        // Run physics simulation (this updates energy sensors based on actual HVAC usage)
         modelService.runEolScript(model, "hvac.eol", "Scenario", stepData, TIME_STEP_HOURS, manualOverrides, mlSlope, mlIntercept, null);
         
-        // Get energy consumption
+        // Get energy aggregation (includes actual accumulated energy from sensors)
         String jsonOutput = modelService.runEolScript(model, "json.eol", "ScenarioAgg", stepData, TIME_STEP_HOURS, null, mlSlope, mlIntercept, null);
         
-        // Parse energy from result
-        double totalEnergy = 0.0;
+        // Parse and return current cumulative energy from sensors
+        double currentCumulativeEnergy = 0.0;
         try {
             JsonNode jsonNode = objectMapper.readTree(jsonOutput);
+            
+            // Use actual accumulated energy from sensors (reflects insulation/targetTemp changes)
+            currentCumulativeEnergy = jsonNode.path("energy").path("total").asDouble();
+            
+            // Debug log to show actual energy changes
             if (jsonNode.has("power") && jsonNode.get("power").has("simulated")) {
                 double rawSimulated = jsonNode.get("power").get("simulated_raw").asDouble();
                 double mlPredicted = jsonNode.get("power").get("simulated").asDouble();
-                double stepPower = mlPredicted;
-                totalEnergy = stepPower * TIME_STEP_HOURS;
-                
-                // Debug log to show dynamic power changes
                 System.out.println(String.format(
-                    "  📊 Step %d | Raw HVAC: %.2f kW → ML Predicted: %.2f kW (%.2fx + %.2f) → Energy: %.3f kWh",
-                    stepIndex, rawSimulated, mlPredicted, mlSlope, mlIntercept, totalEnergy
+                    "  📊 Step %d | Raw HVAC: %.2f kW → ML Predicted: %.2f kW | Cumulative Energy: %.3f kWh (from sensors)",
+                    stepIndex, rawSimulated, mlPredicted, currentCumulativeEnergy
                 ));
             }
         } catch (Exception e) {
             System.err.println("Failed to parse energy from JSON: " + e.getMessage());
         }
         
-        return totalEnergy;
+        return currentCumulativeEnergy;
     }
     
     

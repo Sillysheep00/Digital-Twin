@@ -63,7 +63,7 @@ public class CalibrationApiTest {
         System.out.println("Power Data:");
         System.out.println(powerSection);
         
-        System.out.println("✅ API Test PASSED: Dashboard returns calibrated data\n");
+        System.out.println(" API Test PASSED: Dashboard returns calibrated data\n");
     }
     
     /**
