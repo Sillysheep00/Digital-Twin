@@ -1,418 +1,423 @@
-// Check if we're in silent mode (predictions/what-if analysis)
-var SILENT = false;
-if (SILENT_MODE.isDefined()) {
-    SILENT = SILENT_MODE;
-}
+    // Check if we're in silent mode (predictions/what-if analysis)
+    var SILENT = false;
+    if (SILENT_MODE.isDefined()) {
+        SILENT = SILENT_MODE;
+    }
 
-if (not SILENT) {
-'Starting realistic HVAC simulation...'.println();
-}
-var updatedSystems = 0;
-
-// Simulation Parameters
-var outdoorTemp = simulateData.outdoorTemperature;
-var totalBuildingOccupancy = simulateData.occupancy;
-
-// --- TIME SCHEDULING ---
-var currentHour = simulateData.date.substring(11, 13).asInteger();
-// Office Hours: 7 AM to 7 PM
-var isNightTime = (currentHour < 7 or currentHour >= 19);
-
-// TEMPERATURE CONTROL SETTINGS
-// Target: Maintain room at 22°C
-// Comfort zone: ±2°C buffer before HVAC activates
-// - If temp > 24°C (22+2) -> TOO HOT -> Turn on COOLING
-// - If temp < 20°C (22-2) -> TOO COLD -> Turn on HEATING
-// - If 20°C ≤ temp ≤ 24°C -> Comfortable -> HVAC OFF
-var defaultTargetTemp = 22.0d; 
-var defaultComfortZone = 2.0d;
-var uninitializedTemp = 0.0d; 
-
-var HEAT_GAIN_PER_PERSON = 0.01d;
-
-var AC_POWER_COEFFICIENT = 0.3d; // How fast AC cools
-
-// DYNAMIC HEATER LOGIC
-// We vary power based on time of day for realism and performance
-// 1. Morning Warm-Up (7 AM - 9 AM): Turbo Mode (0.6) to heat up fast
-// 2. Day Time (9 AM - 7 PM): Strong Mode (0.6) to fully reach 22°C in cold weather
-// 3. Night Time: Gentle Mode (0.3) to maintain 16°C setback
-var currentHeaterPower = 0.3d; 
-
-if (currentHour >= 7 and currentHour < 9) {
-    currentHeaterPower = 0.6d; // Turbo
-} else if (isNightTime) {
-    currentHeaterPower = 0.4d; // Gentle
-} else {
-    currentHeaterPower = 0.6d; // Strong (matched to turbo - needed for cold weather)
-}
-
-var HEATER_POWER_COEFFICIENT = currentHeaterPower;
-
-var AC_POWER_USAGE = 5.0d; // Power in KiloWatts for cooling
-var HEATER_POWER_USAGE = 8.0d; // Power in KiloWatts for heating
-
-//Coefficient of performance
-var COOLING_COP = 3.5;
-var HEATER_COP = 3.0;
-
-
-// Internal Wall Heat Transfer Coefficient
-// Higher value = faster heat exchange between rooms
-// Set to 0.08 so washrooms can absorb heat from heated neighbors
-var INTERNAL_WALL_CONDUCTIVITY = 0.08d;
-
-//---- Reset Energy Meter on the start of the dataset usinhg specific date -----------------------------------------
-if (simulateData.date == "2018-05-22 00:00:00") {
     if (not SILENT) {
-    "Resetting Energy Meter...".println();
+    'Starting realistic HVAC simulation...'.println();
     }
-    for (s in SmartOffice!EnergyMeter.all) {
-        s.energyConsumed = 0.0d;
+    var updatedSystems = 0;
+
+    // Simulation Parameters
+    var outdoorTemp = simulateData.outdoorTemperature;
+    var totalBuildingOccupancy = simulateData.occupancy;
+
+    // Time Scheduling 
+    var currentHour = simulateData.date.substring(11, 13).asInteger();
+    // Office Hours: 7 AM to 7 PM
+    var isNightTime = (currentHour < 7 or currentHour >= 19);
+
+    // TEMPERATURE CONTROL SETTINGS
+    // Target: Maintain room at 22°C
+    // Comfort zone: ±2°C buffer before HVAC activates
+    // - If temp > 24°C (22+2) -> TOO HOT -> Turn on COOLING
+    // - If temp < 20°C (22-2) -> TOO COLD -> Turn on HEATING
+    // - If 20°C ≤ temp ≤ 24°C -> Comfortable -> HVAC OFF
+    var defaultTargetTemp = 22.0d; 
+    var defaultComfortZone = 2.0d;
+    var uninitializedTemp = 0.0d; 
+
+    var HEAT_GAIN_PER_PERSON = 0.01d;
+
+    var AC_POWER_COEFFICIENT = 0.3d; // How fast AC cools
+
+    // DYNAMIC HEATER LOGIC
+    // We vary power based on time of day for realism and performance
+    // 1. Morning Warm-Up (7 AM - 9 AM): Turbo Mode (0.6) to heat up fast
+    // 2. Day Time (9 AM - 7 PM): Strong Mode (0.6) to fully reach 22°C in cold weather
+    // 3. Night Time: Gentle Mode (0.3) to maintain 16°C setback
+    var currentHeaterPower = 0.3d; 
+
+    if (currentHour >= 7 and currentHour < 9) {
+        currentHeaterPower = 0.6d; // Turbo
+    } else if (isNightTime) {
+        currentHeaterPower = 0.4d; // Gentle
+    } else {
+        currentHeaterPower = 0.6d; // Strong (matched to turbo - needed for cold weather)
     }
-}
-// --- UPDATE DATA MANAGER (Write real-world data to the twin) ---
-var dataManager = SmartOffice!DataManager.all.first();
-if (dataManager.isDefined()) {
-    // Storing the current Real Power (from CSV) in the Data Manager
-    //dataManager.currentPowerUsage = simulateData.powerConsumption;
+
+    var HEATER_POWER_COEFFICIENT = currentHeaterPower;
+
+    var AC_POWER_USAGE = 5.0d; // Power in KiloWatts for cooling
+    var HEATER_POWER_USAGE = 8.0d; // Power in KiloWatts for heating
+
+    //Coefficient of performance
+    var COOLING_COP = 3.5;
+    var HEATER_COP = 3.0;
+
+
+    // Internal Wall Heat Transfer Coefficient
+    // Higher value = faster heat exchange between rooms
+    // Set to 0.08 so washrooms can absorb heat from heated neighbors
+    var INTERNAL_WALL_CONDUCTIVITY = 0.08d;
+
+    // Reset Energy Meter on the start of the dataset usinhg specific date
+    if (simulateData.date == "2018-05-22 00:00:00") {
+        if (not SILENT) {
+        "Resetting Energy Meter...".println();
+        }
+        for (s in SmartOffice!EnergyMeter.all) {
+            s.energyConsumed = 0.0d;
+        }
     }
 
-// --- UPDATE DIGITAL TWIN (Set overall status) ---
-var digitalTwin = SmartOffice!DigitalTwin.all.first();
-if (digitalTwin.isDefined()) {
-    // Set status to OPERATIONAL since the engine is running
-    digitalTwin.status = SmartOffice!SystemStatus#OPERATIONAL;
+    // Calculate Total Building Capacity 
+    var totalCapacity = SmartOffice!Room.all.collect(r | r.capacity).sum();
 
-    // Placeholder for Predictive Model output (Optional, for integration testing)
-    var predictiveModel = digitalTwin.predictiveModel.first();
-    if (predictiveModel.isDefined()) {
-        // Simple prediction: Next outdoor temperature will be 0.5 degrees lower
-        predictiveModel.outputVar = (simulateData.outdoorTemperature - 0.5).format("%.2f") + " °C";
-    }
-}
-//----------------------------------------------------------------------------------------------------
+    for (room in SmartOffice!Room.all) {
+        var previousTemp = room.currentTemp;
 
+        // Initialize temperature only on:
+        // 1. First run ever (uninitializedTemp = 0.0)
+        // 2. Dataset loop restart (simulation cycles back to first timestamp)
+        var isDatasetRestart = (simulateData.date == "2018-05-22 00:00:00");
+        
+        if (previousTemp == uninitializedTemp or isDatasetRestart) {
+            if (room.hvac.isDefined()) {
+                previousTemp = 16.0d;  // Start at night setback
+            } else {
+                previousTemp = 14.0d;  // Washrooms start cooler
+            }
+        }
+        // Step 1 : Calculate Occupancy 
+        // Use pseudo-random distribution based on time and room characteristics to create realistic variation in occupancy patterns
+        var estimatedRoomOccupancy = 0.0;
+        
+        if (totalBuildingOccupancy > 0 and totalCapacity > 0 and room.capacity > 0) {
+            // Generate pseudo-random seed from time and room name
+            var dateHash = simulateData.date.hashCode().abs().mod(100);
+            var timeSeed = currentHour * 100 + dateHash;
+            var roomSeed = room.roomName.hashCode().abs();
+            var combinedSeed = (timeSeed + roomSeed).abs().mod(1000);
+            
+            // Create random weight (0.3 to 1.0 range for variety)
+            var randomFactor = 0.3d + combinedSeed.mod(70) / 100.0d;
+            
+            // Weight by capacity (larger rooms more likely to have people)
+            var capacityWeight = (room.capacity * 1.0d) / totalCapacity;
+            
+            // Combine random and capacity factors (70% capacity-based, 30% random)
+            var finalWeight = (capacityWeight * 0.7d) + (randomFactor * capacityWeight * 0.3d);
+            
+            // Calculate expected occupancy
+            estimatedRoomOccupancy = totalBuildingOccupancy * finalWeight;
+            
+            // Add some random variation
+            var variation = (combinedSeed.mod(40) - 20) / 100.0d; // -0.2 to +0.2
+            estimatedRoomOccupancy = estimatedRoomOccupancy * (1.0d + variation);
+            
+            // Round to whole people
+            estimatedRoomOccupancy = estimatedRoomOccupancy.round();
+            
+            // Ensure minimum 0 and respect capacity
+            if (estimatedRoomOccupancy < 0) {
+                estimatedRoomOccupancy = 0.0d;
+            }
+            if (estimatedRoomOccupancy > room.capacity) {
+                estimatedRoomOccupancy = room.capacity * 1.0d;
+            }
+            
+            // Special case: Washrooms rarely occupied (reduce by 80%)
+            if (room.roomName.toLowerCase().contains("washroom")) {
+                estimatedRoomOccupancy = (estimatedRoomOccupancy * 0.2d).round();
+            }
+        }
 
-// --- Calculate Total Building Capacity ---
-var totalCapacity = SmartOffice!Room.all.collect(r | r.capacity).sum();
+        // Debug: Occupancy calculation
+        if (not SILENT) {
+            ("DEBUG OCCUPANCY | " + room.roomName + " | Total: " + totalBuildingOccupancy + 
+            " | Room: " + estimatedRoomOccupancy + " people | Capacity: " + room.capacity).println();
+        }
 
-for (room in SmartOffice!Room.all) {
-    var previousTemp = room.currentTemp;
+        // Step 2 : Target Temperature & Comfort Zone
+        // Use per-room target temperature if configured in the model to allow different to have different comfort preferences
+        var targetTemp = defaultTargetTemp;
+        if (room.hvac.isDefined() and room.hvac.targetTemperature.isDefined() and room.hvac.targetTemperature > 0) {
+            targetTemp = room.hvac.targetTemperature;
+        }
+        
+        var comfortZone = defaultComfortZone;
 
-    // Initialize temperature only on:
-    // 1. First run ever (uninitializedTemp = 0.0)
-    // 2. Dataset loop restart (simulation cycles back to first timestamp)
-    // This ensures smooth transitions during natural midnight (11:45 PM -> 12:00 AM)
-    var isDatasetRestart = (simulateData.date == "2018-05-22 00:00:00");
-    
-    if (previousTemp == uninitializedTemp or isDatasetRestart) {
+        // 1. Night Mode (Occupancy-Based Adaptive Control):
+        //    Smart control adjusts comfort level based on actual occupancy
+        var nightModeType = "DAY";
+        if (isNightTime) {
+            if (estimatedRoomOccupancy >= 5.0) {
+                // High Occupancy: Late shift / cleaning crew / event
+                targetTemp = 22.0d;           // Full comfort
+                comfortZone = 2.0d;           // Normal comfort zone
+                nightModeType = "NIGHT-HIGH-OCC";
+                // currentHeaterPower remains at night value (0.4d)
+            }
+            else if (estimatedRoomOccupancy >= 1.0) {
+                // Low Occupancy: 1-4 people working late
+                targetTemp = 20.0d;           // Moderate comfort (save energy but maintain comfort)
+                comfortZone = 1.5d;           // Slightly tighter than day
+                nightModeType = "NIGHT-LOW-OCC";
+            }
+            else {
+                // Zero Occupancy: Empty room - Energy-saving setback
+                targetTemp = 16.0d;
+                comfortZone = 0.5d;           // Keep tight control around 16°C
+                nightModeType = "NIGHT-EMPTY";
+            }
+        }
+        // 2. ECO MODE (Daytime): Empty room. 
+        else if (estimatedRoomOccupancy < 0.1) {
+            comfortZone = 3.0d;
+            nightModeType = "DAY-ECO";
+        }
+        
+        // Debug: Night mode decision (suppressed in silent mode)
+        if (not SILENT) {
+            ("DEBUG NIGHT MODE | " + room.roomName + " | Mode: " + nightModeType + 
+            " | Target: " + targetTemp.format("%.1f") + "°C | Comfort: ±" + comfortZone.format("%.1f") + "°C").println();
+        }
+
+        //Step 3: Heat Transfer Calculation
+        //External Heat Transfer - heat loss from the room to the outside
+        var roomInsulation = room.insulation; // higher insulation values(u-value)  = worse insulation = more heat loss
+        var delta_from_outside = (outdoorTemp - previousTemp) * roomInsulation;
+
+        //Internal Heat Transfer (neighbour rooms) ---
+        // Heat flows from Hot neighbours -> Cold Room. To prevent washrooms from freezing even without HVAC
+        var neighbourHeatTransfer = 0.0d;
+        
+        if (room.neighbour.isDefined() and room.neighbour.notEmpty()) {
+            var sumNeighbourTemp = 0.0d;
+            var count = 0;
+            for (n in room.neighbour) {
+                sumNeighbourTemp = sumNeighbourTemp + n.currentTemp;
+                count = count + 1;
+            }
+            if (count > 0) {
+                var avgNeighbourTemp = sumNeighbourTemp / count;
+                neighbourHeatTransfer = (avgNeighbourTemp - previousTemp) * INTERNAL_WALL_CONDUCTIVITY;
+            }
+        }
+
+       //Step 4 : HVAC Control Logic
+        var delta_from_ac = 0.0d;
+
+        // Check Manual Override
+        var override = null;
+        if (manualOverrides.isDefined()) {
+            override = manualOverrides.get(room.roomID);
+        }
+
         if (room.hvac.isDefined()) {
-            previousTemp = 16.0d;  // Start at night setback
-        } else {
-            previousTemp = 14.0d;  // Washrooms start cooler
-        }
-    }
-    // --- STEP 1: CALCULATE OCCUPANCY (Random Distribution) ---
-    // Use pseudo-random distribution based on time and room characteristics
-    // This creates realistic variation in occupancy patterns
-    var estimatedRoomOccupancy = 0.0;
-    
-    if (totalBuildingOccupancy > 0 and totalCapacity > 0 and room.capacity > 0) {
-        // Generate pseudo-random seed from time and room name
-        var dateHash = simulateData.date.hashCode().abs().mod(100);
-        var timeSeed = currentHour * 100 + dateHash;
-        var roomSeed = room.roomName.hashCode().abs();
-        var combinedSeed = (timeSeed + roomSeed).abs().mod(1000);
-        
-        // Create random weight (0.3 to 1.0 range for variety)
-        var randomFactor = 0.3d + combinedSeed.mod(70) / 100.0d;
-        
-        // Weight by capacity (larger rooms more likely to have people)
-        var capacityWeight = (room.capacity * 1.0d) / totalCapacity;
-        
-        // Combine random and capacity factors (70% capacity-based, 30% random)
-        var finalWeight = (capacityWeight * 0.7d) + (randomFactor * capacityWeight * 0.3d);
-        
-        // Calculate expected occupancy
-        estimatedRoomOccupancy = totalBuildingOccupancy * finalWeight;
-        
-        // Add some random variation (±20%)
-        var variation = (combinedSeed.mod(40) - 20) / 100.0d; // -0.2 to +0.2
-        estimatedRoomOccupancy = estimatedRoomOccupancy * (1.0d + variation);
-        
-        // Round to whole people (rooms have whole people, not fractions!)
-        estimatedRoomOccupancy = estimatedRoomOccupancy.round();
-        
-        // Ensure minimum 0 and respect capacity
-        if (estimatedRoomOccupancy < 0) {
-            estimatedRoomOccupancy = 0.0d;
-        }
-        if (estimatedRoomOccupancy > room.capacity) {
-            estimatedRoomOccupancy = room.capacity * 1.0d;
-        }
-        
-        // Special case: Washrooms rarely occupied (reduce by 80%)
-        if (room.roomName.toLowerCase().contains("washroom")) {
-            estimatedRoomOccupancy = (estimatedRoomOccupancy * 0.2d).round();
-        }
-    }
 
-    // DEBUG: Occupancy calculation (suppressed in silent mode)
-    if (not SILENT) {
-        ("DEBUG OCCUPANCY | " + room.roomName + " | Total: " + totalBuildingOccupancy + 
-         " | Room: " + estimatedRoomOccupancy + " people | Capacity: " + room.capacity).println();
-    }
-
-    // --- STEP 2: DETERMINE TARGET & COMFORT (Eco Mode) ---
-    // Use per-room target temperature if configured in the model
-    // This allows different rooms to have different comfort preferences
-    var targetTemp = defaultTargetTemp;
-    if (room.hvac.isDefined() and room.hvac.targetTemperature.isDefined() and room.hvac.targetTemperature > 0) {
-        targetTemp = room.hvac.targetTemperature;
-    }
-    
-    var comfortZone = defaultComfortZone;
-
-    // COMFORT ZONE & TARGET ADJUSTMENTS
-    // 1. NIGHT MODE (Occupancy-Based Adaptive Control):
-    //    Smart control adjusts comfort level based on actual occupancy
-    var nightModeType = "DAY";
-    if (isNightTime) {
-        if (estimatedRoomOccupancy >= 5.0) {
-            // HIGH OCCUPANCY: Late shift / cleaning crew / event
-            targetTemp = 22.0d;           // Full comfort
-            comfortZone = 2.0d;           // Normal comfort zone
-            nightModeType = "NIGHT-HIGH-OCC";
-            // currentHeaterPower remains at night value (0.4d)
-        }
-        else if (estimatedRoomOccupancy >= 1.0) {
-            // LOW OCCUPANCY: 1-4 people working late
-            targetTemp = 20.0d;           // Moderate comfort (save energy but maintain comfort)
-            comfortZone = 1.5d;           // Slightly tighter than day
-            nightModeType = "NIGHT-LOW-OCC";
-        }
-        else {
-            // ZERO OCCUPANCY: Empty room - Energy-saving setback
-            targetTemp = 16.0d;
-            comfortZone = 0.5d;           // Keep tight control around 16°C
-            nightModeType = "NIGHT-EMPTY";
-        }
-    }
-    // 2. ECO MODE (Daytime): Empty room. Allow moderate drift (±3°C) -> [19°C - 25°C]
-    else if (estimatedRoomOccupancy < 0.1) {
-        comfortZone = 3.0d;
-        nightModeType = "DAY-ECO";
-    }
-    
-    // DEBUG: Night mode decision (suppressed in silent mode)
-    if (not SILENT) {
-        ("DEBUG NIGHT MODE | " + room.roomName + " | Mode: " + nightModeType + 
-         " | Target: " + targetTemp.format("%.1f") + "°C | Comfort: ±" + comfortZone.format("%.1f") + "°C").println();
-    }
-
-    //NATURAL HEAT TRANSFER (EXTERNAL) - heat loss from the room to the outside
-    var roomInsulation = room.insulation; // higher insulation values(u-value)  = worse insulation = more heat loss
-    var delta_from_outside = (outdoorTemp - previousTemp) * roomInsulation;
-
-    //INTERNAL HEAT TRANSFER (neighbour rooms) ---
-    // Heat flows from Hot neighbours -> Cold Room
-    // This prevents washrooms from freezing even without HVAC
-    var neighbourHeatTransfer = 0.0d;
-    
-    if (room.neighbour.isDefined() and room.neighbour.notEmpty()) {
-        var sumNeighbourTemp = 0.0d;
-        var count = 0;
-        for (n in room.neighbour) {
-            sumNeighbourTemp = sumNeighbourTemp + n.currentTemp;
-            count = count + 1;
-        }
-        if (count > 0) {
-            var avgNeighbourTemp = sumNeighbourTemp / count;
-            // Physics: (AvgNeighbour - Current) * Conductivity
-            neighbourHeatTransfer = (avgNeighbourTemp - previousTemp) * INTERNAL_WALL_CONDUCTIVITY;
-        }
-    }
-
-    // --- STEP 4: HVAC LOGIC ---
-    var delta_from_ac = 0.0d;
-
-    // Check Manual Override
-    var override = null;
-    if (manualOverrides.isDefined()) {
-        override = manualOverrides.get(room.roomID);
-    }
-
-    if (room.hvac.isDefined()) {
-
-        // PRIORITY 1: MANUAL OVERRIDE
-        if (override == "OFF") {
-            room.hvac.status = false;
-            room.hvac.powerUsage = 0.0d;
-            delta_from_ac = 0.0d;
-        }
-        else if (override == "HEAT") {
-            // FORCE HEATER ON (Temperature keeps going up)
-            room.hvac.status = true;
-            room.hvac.powerUsage = HEATER_POWER_USAGE; // Max power
-            delta_from_ac = 10.0 * HEATER_POWER_COEFFICIENT; // Strong heating effect
-        }
-        else if (override == "COOL") {
-            // FORCE AC ON (Temperature keeps going down)
-            room.hvac.status = true;
-            room.hvac.powerUsage = AC_POWER_USAGE; // Max power
-            delta_from_ac = -10.0 * AC_POWER_COEFFICIENT; // Strong cooling effect (negative)
-        }
-        // PRIORITY 2: NIGHT SCHEDULE
-        // (Strict shutdown disabled to prevent freezing. System will use Auto Mode)
-        // PRIORITY 3: AUTOMATED THERMOSTAT (AUTO MODE)
-        // This maintains temperature at 22°C with ±2°C comfort zone
-        else {
-            // HYSTERESIS CHECK: Keep running if we haven't reached target yet
-            var isCooling = (room.hvac.status == true and previousTemp > targetTemp);
-            var isHeating = (room.hvac.status == true and previousTemp < targetTemp);
-
-            // --- COOLING LOGIC ---
-            // Trigger: Temp > Upper Limit OR (Already Cooling AND Temp > Target - 0.5°C Undershoot)
-            // Undershoot prevents oscillation: cooler runs to 21.5°C, then stops
-            if(previousTemp > targetTemp + comfortZone or (isCooling and previousTemp > targetTemp - 0.5)){
-                room.hvac.status = true; // Turn on COOLING
-                updatedSystems = updatedSystems + 1;
-
-                // Calculate load factor based on gap
-                var gap = (previousTemp - targetTemp).abs();
-                // Aggressive cooling: Gap of 0.8°C = 100% Power
-                var loadFactor = gap / 0.8d;
-                
-                // MINIMUM POWER RULES:
-                // 1. Hysteresis Mode: If cooling is already ON, force 100% until target reached
-                // 2. Otherwise: Run at minimum 50% to prevent stalling.
-                if (isCooling and loadFactor < 1.0d) { 
-                    loadFactor = 1.0d; 
-                } else if (loadFactor < 0.5d) { 
-                    loadFactor = 0.5d; 
-                }
-                if (loadFactor > 1.0d) { loadFactor = 1.0d; }
-
-                room.hvac.powerUsage = (AC_POWER_USAGE / COOLING_COP) * loadFactor;
-
-                //Calculate cooling effect
-                //Negative delta indicating lowering the temperature
-                //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
-                delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor;
-
-                // REALISM CAP: Limit max temperature change to 2.0°C per step (15 mins)
-                if (delta_from_ac < -1.5d) { delta_from_ac = -1.5d; }
-            }
-            // --- HEATING LOGIC ---
-            // Trigger: Temp < Lower Limit OR (Already Heating AND Temp < Target + 0.5°C Overshoot)
-            // Overshoot prevents oscillation: heater runs to 23, then stops
-            else if(previousTemp < targetTemp - comfortZone or (isHeating and previousTemp < targetTemp + 1.0)){
-                room.hvac.status = true;  // Turn on HEATING
-                updatedSystems = updatedSystems + 1;
-
-                //Calculate how far are we from the targetTemp
-                var gap = (targetTemp - previousTemp).abs();
-
-                // CONTROL LOGIC:
-                // Aggressive divisor (0.8) ensures high power near the target.
-                // Gap of 0.8°C = 100% Power. Gap of 0.4°C = 50% Power.
-                var loadFactor = gap / 0.8d;
-                
-                // MINIMUM POWER RULES:
-                // 1. Hysteresis Mode: If heater is already ON, force 100% power until target reached
-                // 2. Otherwise: Run at minimum 50% to prevent stalling.
-                if (isHeating and loadFactor < 1.0d) { 
-                    loadFactor = 1.0d; 
-                } else if (loadFactor < 0.5d) { 
-                    loadFactor = 0.5d; 
-                }
-                if (loadFactor > 1.0d) { loadFactor = 1.0d; }
-
-                //in real building , we dont use full 8kw of power to get 8kw of heat , we only use part of it
-                room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
-
-                 //eg:(target - previous) * 0.1d,  this is to simulate 10% increase of the temperature
-                 delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor;
-                 
-                 // REALISM CAP: Limit max temperature change to 2.0°C per step (15 mins)
-                 // Allows reaching 22°C within 1-2 hours even with cold outdoor temps
-                 if (delta_from_ac > 1.5d) { delta_from_ac = 1.5d; }
-            }
-            // --- COMFORT ZONE (OFF) ---
-            // If temp is exactly at target (or within hysteresis completion), Turn OFF
-            else{
-                room.hvac.status = false; // Turn OFF
+            // Priority 1: Manual Override 
+            // User turn off HVAC
+            if (override == "OFF") {
+                room.hvac.status = false;
                 room.hvac.powerUsage = 0.0d;
                 delta_from_ac = 0.0d;
             }
+            //User turn on HVAC in heating mode
+            else if (override == "HEAT") {
+                room.hvac.status = true;
+                room.hvac.powerUsage = HEATER_POWER_USAGE / HEATER_COP; // full power
+
+                // More aggressive heating: Use higher multiplier than AUTO
+                // AUTO uses: gap * coefficient * loadFactor * 0.6
+                // Manual uses: constant higher value to ensure noticeable impact
+                // Target: 1.2-1.5°C per 15 mins (vs AUTO's max 1.0°C)
+                delta_from_ac = HEATER_POWER_COEFFICIENT * 2.0d; 
+
+                if (delta_from_ac > 1.5d) {
+                    delta_from_ac = 1.5d;
+                }
+
+                // Ensure minimum heating effect (even if coefficient is low)
+                if (delta_from_ac < 0.8d) {
+                    delta_from_ac = 0.8d; // Minimum 0.8°C per 15 mins
+                }
+                
+            }
+            // User turn on HVAC in cooling mode
+            else if (override == "COOL") {
+                room.hvac.status = true;
+                room.hvac.powerUsage = AC_POWER_USAGE / COOLING_COP; // full power
+                
+                // More aggressive cooling: Use higher multiplier than AUTO
+                // AUTO uses: gap * coefficient * loadFactor * 0.6
+                // Manual uses: constant higher value to ensure noticeable impact
+                // Target: -1.2 to -1.5°C per 15 mins (vs AUTO's max -1.0°C)
+                delta_from_ac = -AC_POWER_COEFFICIENT * 2.0d; 
+                
+                // Cap at -1.5°C per 15 mins (more aggressive than AUTO's -1.0°C)
+                if (delta_from_ac < -1.5d) {
+                    delta_from_ac = -1.5d;
+                }
+                // Ensure minimum cooling effect
+                if (delta_from_ac > -0.8d) {
+                    delta_from_ac = -0.8d; // Minimum -0.8°C per 15 mins
+                }
+            }
+            
+            //Priority 2 : Auto Mode
+            else {
+                // Hysteresis check: Keep running if we haven't reached target yet
+                var isCooling = (room.hvac.status == true and previousTemp > targetTemp);
+                var isHeating = (room.hvac.status == true and previousTemp < targetTemp);
+
+                // Cooling Logic
+                // Trigger: Temp > Upper Limit OR (Already Cooling AND Temp > Target - 1.0°C Undershoot)
+                // Undershoot prevents oscillation: cooler runs to 21.5°C, then stops
+                if(previousTemp > targetTemp + comfortZone or (isCooling and previousTemp > targetTemp - 1.0)){
+                    room.hvac.status = true; // Turn on COOLING
+                    updatedSystems = updatedSystems + 1;
+
+                    // Calculate load factor based on gap
+                    var gap = (previousTemp - targetTemp).abs();
+
+                    // Aggressive cooling: Gap of 2.0 C = 100% Power
+                    var loadFactor = gap / 2.0d;
+                    
+                    // Minimum Power Rules
+                    // 1. Hysteresis Mode: If cooling is already ON, force 100% until target reached
+                    // 2. Otherwise: Run at minimum 50% to prevent stalling.
+                    if (isCooling and loadFactor < 1.0d) { 
+                        loadFactor = 1.0d; 
+                    } else if (loadFactor < 0.25d) { 
+                        loadFactor = 0.5d; 
+                    }
+                    if (loadFactor > 1.0d) { loadFactor = 1.0d; }
+
+                    room.hvac.powerUsage = (AC_POWER_USAGE / COOLING_COP) * loadFactor;
+
+                    //Calculate cooling effect
+                    //Negative delta indicating lowering the temperature
+                    //loadFactor here means if the AC is running at 25% power, the cooling effect will also be 25%
+                    delta_from_ac = (targetTemp - previousTemp) * AC_POWER_COEFFICIENT * loadFactor * 0.6d;
+
+                    // Realism Cap: Limit max temperature change to 2.0°C per step (15 mins)
+                    if (delta_from_ac < -1.0d) { delta_from_ac = -1.0d; }
+                }
+                
+                // Heating Logic
+                // Trigger: Temp < Lower Limit OR (Already Heating AND Temp < Target + 1.0°C Overshoot)
+                // Overshoot prevents oscillation: heater runs to 23, then stops
+                else if(previousTemp < targetTemp - comfortZone or (isHeating and previousTemp < targetTemp + 1.0)){
+                    room.hvac.status = true;  // Turn on HEATING
+                    updatedSystems = updatedSystems + 1;
+
+                    //Calculate how far are we from the targetTemp
+                    var gap = (targetTemp - previousTemp).abs();
+
+                    var loadFactor = gap / 2.0d;
+                    
+                    // Minimum Power Rules:
+                    // 1. Hysteresis Mode: If heater is already ON, force 100% power until target reached
+                    // 2. Otherwise: Run at minimum 50% to prevent stalling.
+                    if (isHeating and loadFactor < 1.0d) { 
+                        loadFactor = 1.0d; 
+                    } else if (loadFactor < 0.25d) { 
+                        loadFactor = 0.5d; 
+                    }
+                    if (loadFactor > 1.0d) { loadFactor = 1.0d; }
+
+                    // in real building , we dont use full 8kw of power to get 8kw of heat , we only use part of it
+                    // COP (Coefficient of Performance) accounts for heat pump efficiency
+                    room.hvac.powerUsage = (HEATER_POWER_USAGE / HEATER_COP) * loadFactor;
+
+                   // This calculates temperature change based on gap, HVAC power coefficient, and load factor
+                    delta_from_ac = (targetTemp - previousTemp) * HEATER_POWER_COEFFICIENT * loadFactor * 0.6d;
+                    
+                    // Realism Cap: Limit max temperature change to 2.0°C per step (15 mins)
+                    // Allows reaching 22°C within 1-2 hours even with cold outdoor temps
+                    if (delta_from_ac > 1.0d) { delta_from_ac = 1.0d; }
+                }
+                // Comfort Zone (Off)
+                // If temp is exactly at target (or within hysteresis completion), Turn OFF
+                else{
+                    room.hvac.status = false; // Turn OFF
+                    room.hvac.powerUsage = 0.0d;
+                    delta_from_ac = 0.0d;
+                }
+            }
+        }
+
+        // Step 5 : Occupant Heat Gain 
+        var heat_from_occupants = estimatedRoomOccupancy * HEAT_GAIN_PER_PERSON;
+
+       // Step 6 : Apply New Temperature
+        var newTemp = previousTemp + delta_from_outside + delta_from_ac + heat_from_occupants + neighbourHeatTransfer;
+
+        //Update model with new temp
+        room.currentTemp = newTemp;
+
+        // Temperature Safety Check
+        // Warn if temperature goes to extreme values (suppressed in silent mode)
+        if (not SILENT) {
+            if (newTemp > 26.0d) {
+                ('WARNING: ' + room.roomName + ' is TOO HOT: ' + newTemp.format("%.1f") + '°C').println();
+            }
+            if (newTemp < 16.0d) {
+                ('WARNING: ' + room.roomName + ' is TOO COLD: ' + newTemp.format("%.1f") + '°C').println();
+            }
+        }
+
+        // Step 7 : Power & Energy Calculations
+
+        // 1. HVAC Power
+        var hvacPower = 0.0d;
+        if (room.hvac.isDefined() and room.hvac.status == true) {
+        hvacPower = room.hvac.powerUsage; // room.hvac.powerUsage is the calculated HVAC power (e.g., 2.6 kW)
+        }
+
+        // 2. Base Load in kw (Plug Load)
+        //Base load means the minimum amount of energy a building uses all the time, even when it is empty
+        var plugPower = 0.0d;
+
+        //If people are in the room , full base load
+        if (estimatedRoomOccupancy > 0) {
+            plugPower = room.baseLoad;
+        } else {
+            //If empty, 10 % based load (standby/security lights)
+            plugPower = room.baseLoad * 0.1;
+        }
+         // Store plug load in model for consistency with query.eol
+         room.plugLoad = plugPower;
+
+        // 3. Total Room Power
+        var totalRoomPower = hvacPower + plugPower;
+
+        // 4. Update Temperature Sensor
+        var tempSensor = room.sensors.selectOne(s | s.isTypeOf(SmartOffice!TemperatureSensor));
+        if (tempSensor.isDefined()) {
+            tempSensor.temperature = newTemp;
+        }
+
+        // 5. Update Energy Sensor
+        var energySensor = room.sensors.selectOne(s | s.isTypeOf(SmartOffice!EnergyMeter));
+        if (energySensor.isDefined()) {
+            // Get power usage
+            var energyThisStep = totalRoomPower * TIME_STEP_HOURS;
+            energySensor.energyConsumed = energySensor.energyConsumed + energyThisStep;
+        }
+
+        for (s in room.sensors) {
+            s.timeStamp = simulateData.date.asDate("yyyy-MM-dd HH:mm:ss"); 
         }
     }
 
-    // --- STEP 5: OCCUPANT HEAT ---
-    var heat_from_occupants = estimatedRoomOccupancy * HEAT_GAIN_PER_PERSON;
-
-    // --- STEP 6: APPLY NEW TEMP ---
-    // Added neighbourHeatTransfer here!
-    var newTemp = previousTemp + delta_from_outside + delta_from_ac + heat_from_occupants + neighbourHeatTransfer;
-
-    //Update model with new temp
-    room.currentTemp = newTemp;
-
-    // --- TEMPERATURE SAFETY CHECK ---
-    // Warn if temperature goes to extreme values (suppressed in silent mode)
     if (not SILENT) {
-        if (newTemp > 26.0d) {
-            ('WARNING: ' + room.roomName + ' is TOO HOT: ' + newTemp.format("%.1f") + '°C').println();
-        }
-        if (newTemp < 16.0d) {
-            ('WARNING: ' + room.roomName + ' is TOO COLD: ' + newTemp.format("%.1f") + '°C').println();
-        }
+    ('Simulation complete. ' + updatedSystems + ' HVAC systems running.').println();
     }
 
-    // --- STEP 7: POWER & SENSORS ---
-    var hvacPower = 0.0d;
-    if (room.hvac.isDefined() and room.hvac.status == true) {
-       hvacPower = room.hvac.powerUsage; // room.hvac.powerUsage is the calculated HVAC power (e.g., 2.6 kW)
+    if (not SILENT) {
+    'Model saved.'.println();
     }
-
-    // Calculate Base Load in kw (Lights + Computers)
-    //Base load means the minimum amount of energy a building uses all the time, even when it is empty
-    var plugPower = 0.0d;
-
-    //If people are in the room, lights/PCs are ON.
-    if (estimatedRoomOccupancy > 0) {
-        plugPower = room.baseLoad;
-    } else {
-        //If empty, use only 10% power (standby/security lights)
-        plugPower = room.baseLoad * 0.1;
-    }
-
-    //Total Room Power
-    var totalRoomPower = hvacPower + plugPower;
-
-    // Update Temperature Sensor
-    var tempSensor = room.sensors.selectOne(s | s.isTypeOf(SmartOffice!TemperatureSensor));
-    if (tempSensor.isDefined()) {
-        tempSensor.temperature = newTemp;
-    }
-
-    var energySensor = room.sensors.selectOne(s | s.isTypeOf(SmartOffice!EnergyMeter));
-    if (energySensor.isDefined()) {
-        // Get power usage
-        var energyThisStep = totalRoomPower * TIME_STEP_HOURS;
-        energySensor.energyConsumed = energySensor.energyConsumed + energyThisStep;
-    }
-
-    for (s in room.sensors) {
-        s.timeStamp = simulateData.date.asDate("yyyy-MM-dd HH:mm:ss"); 
-    }
-}
-
-if (not SILENT) {
-('Simulation complete. ' + updatedSystems + ' HVAC systems running.').println();
-}
-
-if (not SILENT) {
-'Model saved.'.println();
-}

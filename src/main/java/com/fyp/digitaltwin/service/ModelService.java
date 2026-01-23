@@ -9,6 +9,9 @@ import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.EolModule;
 import org.eclipse.epsilon.eol.IEolModule;
 import org.eclipse.epsilon.evl.EvlModule;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.resource.ResourceSet;
+import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.epsilon.evl.execute.UnsatisfiedConstraint;
 import org.springframework.stereotype.Service;
 
@@ -20,13 +23,9 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.lang.reflect.Field;
 
-/**
- * Service responsible for EMF model operations and EOL script execution.
- * Handles model loading, EOL script execution, and validation.
- * 
- * Part of the refactored Service Layer Architecture.
- */
+
 @Service
 public class ModelService {
     
@@ -64,86 +63,117 @@ public class ModelService {
             runSimpleEolScript(model, resetScript);
             System.out.println("   Reset energy meters to ensure clean base model state");
         } catch (Exception e) {
-            System.err.println("Warning: Failed to reset energy meters in base model: " + e.getMessage());
+            throw new IllegalStateException("Failed to reset energy meters in base model", e);
         }
         
         return model;
     }
-    
-    /**
-     * Clones a model by copying its current state
-     * Used for predictions to preserve live simulation state
+
+     /**
+     * Deep clones an EMF model by creating a completely isolated Resource and EObject graph.
+     * This ensures no contamination between live simulation and What-If scenarios.
      * 
      * @param sourceModel The model to clone from
-     * @return A new model with the same state as the source
+     * @return A deep-cloned model with isolated Resource and EObject graph
      * @throws Exception if cloning fails
      */
-    public EmfModel cloneModel(EmfModel sourceModel) throws Exception {
-        // Create a new model instance pointing to the same resources
-        EmfModel clonedModel = loadBaseModel();
-        // clonedModel.setName("SmartOffice");
-        // clonedModel.setModelFileUri(toEmfUri(resolveResource(MODEL_RESOURCE)));
-        // clonedModel.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
-        // clonedModel.setReadOnLoad(true);
-        // clonedModel.setStoredOnDisposal(false);
-        
-        // // Load the model from disk
-        // clonedModel.load();
-        
-        // Copy the current state from source model using EOL
-        EolModule copyModule = new EolModule();
-        String copyScript = 
-            "var sourceHvacs = Source!HVACSystem.all;\n" +
-            "var targetHvacs = Target!HVACSystem.all;\n" +
-            "\n" +
-            "for (i in Sequence{0..(sourceHvacs.size()-1)}) {\n" +
-            "    var src = sourceHvacs.at(i);\n" +
-            "    var tgt = targetHvacs.at(i);\n" +
-            "    tgt.powerUsage = src.powerUsage;\n" +
-            "    tgt.status = src.status;\n" +
-            "    tgt.targetTemperature = src.targetTemperature;\n" +
-            "}\n" +
-            "\n" +
-            "var sourceRooms = Source!Room.all;\n" +
-            "var targetRooms = Target!Room.all;\n" +
-            "\n" +
-            "for (i in Sequence{0..(sourceRooms.size()-1)}) {\n" +
-            "    var src = sourceRooms.at(i);\n" +
-            "    var tgt = targetRooms.at(i);\n" +
-            "    tgt.currentTemp = src.currentTemp;\n" +
-            "    tgt.energyUsage = src.energyUsage;\n" +
-            "}\n" +
-            "\n" +
-            "var sourceMeters = Source!EnergyMeter.all;\n" +
-            "var targetMeters = Target!EnergyMeter.all;\n" +
-            "\n" +
-            "for (i in Sequence{0..(sourceMeters.size()-1)}) {\n" +
-            "    var src = sourceMeters.at(i);\n" +
-            "    var tgt = targetMeters.at(i);\n" +
-            "    tgt.energyConsumed = src.energyConsumed;\n" +
-            "}\n";
-        
-        copyModule.parse(copyScript);
-        if (!copyModule.getParseProblems().isEmpty()) {
-            throw new IllegalStateException("Failed to parse model copy script");
+    public Resource deepCloneModel(EmfModel sourceModel) throws Exception {
+        if (sourceModel == null) {
+            throw new IllegalArgumentException("Source model cannot be null");
         }
         
-        sourceModel.setName("Source");
-        clonedModel.setName("Target");
+        System.out.println("Deep cloning model (creating isolated Resource and EObject graph)...");
         
-        copyModule.getContext().getModelRepository().addModel(sourceModel);
-        copyModule.getContext().getModelRepository().addModel(clonedModel);
-        copyModule.execute();
-        copyModule.getContext().getModelRepository().removeModel(sourceModel);
-        copyModule.getContext().getModelRepository().removeModel(clonedModel);
+        // 1. Get original resource
+        Resource originalResource = sourceModel.getResource();
+        if (originalResource == null || originalResource.getContents().isEmpty()) {
+            throw new IllegalStateException("Source model has no resource or contents");
+        }
         
-        sourceModel.setName("SmartOffice");
-        clonedModel.setName("SmartOffice");
+        // 2. Create new ResourceSet & Resource (completely isolated)
+        ResourceSetImpl resourceSet = new ResourceSetImpl();
+        Resource clonedResource = resourceSet.createResource(
+            URI.createURI("memory:/cloned_" + System.nanoTime() + ".xmi")
+        );
+        resourceSet.getResourceFactoryRegistry()
+        .getExtensionToFactoryMap()
+        .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
         
-        EcoreUtil.resolveAll(clonedModel.getResource());
+        // 3. Deep copy all root objects (this creates new EObject instances)
+        for (EObject root : originalResource.getContents()) {
+            EObject copy = EcoreUtil.copy(root);
+            clonedResource.getContents().add(copy);
+        }
         
-        return clonedModel;
+        // 4. Resolve all references in the cloned resource
+        EcoreUtil.resolveAll(clonedResource);
+        
+        if (originalResource.getContents().size() > 0 && clonedResource.getContents().size() > 0) {
+            EObject originalRoot = originalResource.getContents().get(0);
+            EObject clonedRoot = clonedResource.getContents().get(0);
+            System.out.println("   VERIFICATION - Original root hash: " + System.identityHashCode(originalRoot));
+            System.out.println("   VERIFICATION - Cloned root hash: " + System.identityHashCode(clonedRoot));
+            if (System.identityHashCode(originalRoot) == System.identityHashCode(clonedRoot)) {
+                System.err.println("    WARNING: Hash codes match! Cloning may have failed!");
+            } else {
+                System.out.println("    VERIFIED: Models are isolated (different hash codes)");
+            }
+        }
+        return clonedResource;
     }
+
+     /**
+     * Wraps a Resource in an EmfModel for EOL script execution.
+     * This allows us to use pure EMF Resources while still being able to run EOL scripts.
+     * 
+     * @param resource The EMF Resource to wrap
+     * @return EmfModel wrapper around the Resource
+     * @throws Exception if wrapping fails
+     */
+    public EmfModel createEmfModelFromResource(Resource resource) throws Exception {
+        if (resource == null) {
+            throw new IllegalArgumentException("Resource cannot be null");
+        }
+        
+        // Create EmfModel wrapper
+        EmfModel model = new EmfModel();
+        model.setName("SmartOffice");
+        model.setMetamodelFileUri(toEmfUri(resolveResource(METAMODEL_RESOURCE)));
+        model.setModelFileUri(resource.getURI());
+        model.setReadOnLoad(false);
+        model.setStoredOnDisposal(false);
+        
+        // Use reflection to inject the resource directly into EmfModel
+        // This avoids load() which would create a new empty resource
+        try {
+           Field resourceField = model.getClass().getDeclaredField("resource");
+            resourceField.setAccessible(true);
+            resourceField.set(model, resource);
+            
+            // Also ensure the ResourceSet contains our resource
+            ResourceSet resourceSet = resource.getResourceSet();
+            if (resourceSet != null && !resourceSet.getResources().contains(resource)) {
+                resourceSet.getResources().add(resource);
+            }
+            
+            System.out.println("   Wrapped Resource in EmfModel for EOL execution");
+        } catch (Exception e) {
+            // Fallback: Save to temp file and load
+            File tempFile = File.createTempFile("eol_model_", ".smartoffice");
+            tempFile.deleteOnExit();
+            resource.setURI(URI.createFileURI(tempFile.getAbsolutePath()));
+            resource.save(null);
+            
+            model.setModelFileUri(URI.createFileURI(tempFile.getAbsolutePath()));
+            model.setReadOnLoad(true);
+            model.load();
+            
+            System.out.println("   Wrapped Resource in EmfModel via temp file: " + tempFile.getAbsolutePath());
+        }
+        
+        return model;
+    }
+
     
     /**
      * Runs an EOL script on the given model with optional context variables
@@ -159,8 +189,8 @@ public class ModelService {
      * @throws Exception if script execution fails
      */
     public synchronized String runEolScript(EmfModel model, String scriptName, String logPrefix, 
-                               Object data, Double timeStep, Map<String, String> overrides, 
-                               double mlSlope, double mlIntercept,String simulationStartTime) throws Exception {
+                            Object data, Double timeStep, Map<String, String> overrides, 
+                            double mlSlope, double mlIntercept,String simulationStartTime) throws Exception {
         EolModule module = new EolModule();
         parseModule(module, scriptName);
         
@@ -188,8 +218,8 @@ public class ModelService {
         // Enable silent mode for predictions to reduce console output
         boolean silentMode = logPrefix != null && 
                             (logPrefix.contains("Prediction") || 
-                             logPrefix.contains("Scenario") ||
-                             logPrefix.contains("Calibration"));
+                            logPrefix.contains("Scenario") ||
+                            logPrefix.contains("Calibration"));
         module.getContext().getFrameStack().put("SILENT_MODE", silentMode);
         
         // Capture console output - synchronized to prevent race conditions
@@ -259,6 +289,16 @@ public class ModelService {
         
         for (String line : lines) {
             String trimmed = line.trim();
+
+            // Skip lines that are clearly not JSON (simulation messages, debug output, etc.)
+            if (trimmed.startsWith(">>") || 
+                trimmed.startsWith("DEBUG") || 
+                trimmed.startsWith("Warning") ||
+                trimmed.startsWith("Error") ||
+                trimmed.isEmpty()) {
+                continue;
+            }
+            
             
             // Start of JSON object or array
             if (!inJson && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
@@ -281,12 +321,18 @@ public class ModelService {
         }
         
         String filtered = jsonBuilder.toString().trim();
-        return filtered.isEmpty() ? output : filtered;
+
+        // Validate that we actually have JSON (starts with { or [)
+        if (filtered.isEmpty() || (!filtered.startsWith("{") && !filtered.startsWith("["))) {
+            // If no valid JSON found, return empty string instead of original output
+            // This will cause the caller to handle the error gracefully
+            return "";
+        }
+        
+        return filtered;
     }
     
-    /**
-     * Counts occurrences of a character in a string
-     */
+    //Counts occurrences of a character in a string
     private int countChar(String str, char ch) {
         int count = 0;
         for (int i = 0; i < str.length(); i++) {
@@ -330,10 +376,7 @@ public class ModelService {
     }
     
     // Private Helper Methods
-    
-    /**
-     * Registers the SmartOffice resource factory for EMF
-     */
+    //Registers the SmartOffice resource factory for EMF
     private void registerSmartOfficeResourceFactory() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .putIfAbsent(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
@@ -341,9 +384,7 @@ public class ModelService {
                 .put("smartoffice", new XMIResourceFactoryImpl());
     }
     
-    /**
-     * Parses an EOL/EVL module and checks for parse errors
-     */
+    //Parses an EOL/EVL module and checks for parse errors
     private void parseModule(IEolModule module, String resourceName) throws Exception {
         File script = resolveResource(resourceName).toFile();
         module.parse(script);
@@ -352,9 +393,7 @@ public class ModelService {
         }
     }
     
-    /**
-     * Formats parse errors into a readable string
-     */
+    //Formats parse errors into a readable string
     private String formatParseErrors(String resourceName, List<ParseProblem> problems) {
         StringBuilder builder = new StringBuilder("Failed to parse ")
                 .append(resourceName)
@@ -365,9 +404,7 @@ public class ModelService {
         return builder.toString();
     }
     
-    /**
-     * Resolves a resource name to a filesystem path
-     */
+    //Resolves a resource name to a filesystem path
     private Path resolveResource(String resourceName) {
         URL url = ModelService.class.getClassLoader().getResource(resourceName);
         if (url == null) {
@@ -380,9 +417,7 @@ public class ModelService {
         }
     }
     
-    /**
-     * Converts a filesystem path to an EMF URI
-     */
+     //Converts a filesystem path to an EMF URI
     private URI toEmfUri(Path path) {
         return URI.createFileURI(path.toAbsolutePath().toString());
     }

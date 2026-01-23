@@ -7,7 +7,9 @@ import com.fyp.digitaltwin.model.SensorData;
 import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
+import com.fyp.digitaltwin.dto.LinearRegressionModel;
 import org.eclipse.epsilon.emc.emf.EmfModel;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,22 +23,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Main Digital Twin Engine - Orchestrator
- * 
- * This is the main service that coordinates the digital twin simulation.
- * After refactoring, this class now delegates specific responsibilities to:
- * - ModelService: Model loading and EOL execution
- * - PredictionService: Energy prediction logic
- * - WhatIfAnalysisService: What-If scenario analysis
- * 
- * This follows the Service Layer Pattern for better maintainability and testability.
- */
+
 @Service
 public class DigitalTwinEngine {
     
-    // ========== Dependencies ==========
-
     @Autowired
     private SensorDataRepository repository;
 
@@ -67,12 +57,27 @@ public class DigitalTwinEngine {
     private static final double TIME_STEP_HOURS = 0.25;
     
     // Machine Learning Model fields
-    private com.fyp.digitaltwin.dto.LinearRegressionModel regressionModel;
+    private LinearRegressionModel regressionModel;
     private double mlSlope = 1.0;      // ML slope (a) - learned regression parameter
     private double mlIntercept = 0.0;  // ML intercept (b) - learned regression parameter
     private boolean isCalibrated = false;
 
     private String simulationStartTime = null;
+
+     //Getter for trained regression model (used by anomaly detection)
+     public LinearRegressionModel getRegressionModel() {
+        return regressionModel;
+    }
+    
+    //Getter for ML slope (used by other services and for API)
+    public double getMlSlope() {
+        return mlSlope;
+    }
+    
+    //Check if ML model has been trained
+    public boolean isCalibrated() {
+        return isCalibrated;
+    }
 
     //Initialization
     @PostConstruct
@@ -80,20 +85,20 @@ public class DigitalTwinEngine {
         try {
             System.out.println("Initializing Digital Twin Engine...");
 
-            // --- TEMPORARY LINE: WIPE DB TO FIX GRAPH VALUES ---
+            //1.Wipe DB to fix graph values
             resultRepository.deleteAll(); 
-            System.out.println("!!! DATABASE CLEARED !!!");
-            // ---------------------------------------------------
+            System.out.println("DATABASE CLEARED");
 
-             // ARCHITECTURAL FIX: Load base model and clone for runtime
-            // Base model is read-only, runtime model is the working copy
+            //2. Load and Clone model
             EmfModel baseModel = modelService.loadBaseModel();
-            this.smartOfficeModel = modelService.cloneModel(baseModel);
-            baseModel.dispose(); // Clean up base model, we only need the runtime clone
-            
-            System.out.println("Runtime twin model created from base model (read-only)");
+            Resource clonedResource = modelService.deepCloneModel(baseModel);
+            this.smartOfficeModel = modelService.createEmfModelFromResource(clonedResource);
 
-            // Check if MongoDB has data
+            //3. Clean up base model, only need the runtime clone
+            baseModel.dispose(); 
+            System.out.println("Runtime twin model created from base model (deep cloned, isolated)");
+
+            //4.Check if MongoDB has data
             totalDataCount = repository.count();
             if (totalDataCount == 0) {
                 System.out.println("MongoDB is empty. Importing data from CSV...");
@@ -104,26 +109,26 @@ public class DigitalTwinEngine {
             System.out.println("Digital Twin Engine initialized successfully!");
             System.out.println("Engine Ready. Using MongoDB with " + totalDataCount + " records.");
             
-            // Set live model reference in prediction service BEFORE training
+            //5.Set live model reference in prediction service BEFORE training
             predictionService.setLiveModel(smartOfficeModel);
             
-            // Train Linear Regression model using Machine Learning
+            //6.Train Linear Regression model 
             regressionModel = regressionTrainingService.trainModel(smartOfficeModel, totalDataCount);
             isCalibrated = regressionModel.isValid();
             
-            // Extract ML model parameters
-            mlSlope = regressionModel.getSlope();        // slope (a)
-            mlIntercept = regressionModel.getIntercept();  // intercept (b)
+            //7.Extract ML model parameters
+            mlSlope = regressionModel.getSlope();      
+            mlIntercept = regressionModel.getIntercept(); 
             
-            // Pass ML model parameters to services
-            predictionService.setMlSlope(mlSlope);        // slope (a)
-            predictionService.setMlIntercept(mlIntercept);  // intercept (b)
+            //8.Pass ML model parameters to services
+            predictionService.setMlSlope(mlSlope);      
+            predictionService.setMlIntercept(mlIntercept); 
             whatIfAnalysisService.setRegressionModel(regressionModel);  // Full ML model for What-If
             
-            // Fast-forward initialization for demo readiness
+            //9.Fast-forward initialization for demo readiness
             fastForwardInitialization(20); // Run 20 steps = 5 hours of simulation
             
-            //Capture the start time
+            //10.Capture the start time
             if(totalDataCount > 0){
                 DataRecord firstDate = fetchRecordByIndex(0);
                 if(firstDate != null){
@@ -135,36 +140,6 @@ public class DigitalTwinEngine {
             e.printStackTrace();
             System.err.println("Fatal Error: Could not start engine.");
         }
-    }
-    
-    /**
-     * Getter for trained regression model (used by anomaly detection)
-     */
-    public com.fyp.digitaltwin.dto.LinearRegressionModel getRegressionModel() {
-        return regressionModel;
-    }
-    
-    /**
-     * Getter for ML slope (used by other services and for API)
-     */
-    public double getMlSlope() {
-        return mlSlope;
-    }
-    
-    /**
-     * Legacy getter for calibration factor (returns ML slope for backward compatibility)
-     * @deprecated Use getMlSlope() instead
-     */
-    @Deprecated
-    public double getCalibrationFactor() {
-        return mlSlope;
-    }
-    
-    /**
-     * Check if ML model has been trained
-     */
-    public boolean isCalibrated() {
-        return isCalibrated;
     }
     
     /**
@@ -214,19 +189,19 @@ public class DigitalTwinEngine {
         if (smartOfficeModel == null || totalDataCount == 0) return;
 
         try {
-            // 1. Handle Data Looping
+            // 1. Handle Data Looping, restart when reaching end 
             if (currentStepIndex >= totalDataCount) {
                 System.out.println("--- End of Dataset. Restarting Simulation... ---");
                 currentStepIndex = 0;
             }
 
-            // 2. Get Data for NOW from MongoDB
+            // 2. Get current sensor from MognoDB
             DataRecord currentData = fetchRecordByIndex(currentStepIndex);
             
             if (currentData != null) {
                 System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
 
-                // 3. Run Physics (hvac.eol)
+                // 3. Run Physics Simulation (hvac.eol)
                 String physicsLog = modelService.runEolScript(
                     smartOfficeModel, 
                     "hvac.eol", 
@@ -255,9 +230,7 @@ public class DigitalTwinEngine {
         }
     }
 
-    /**
-     * Saves current simulation state to MongoDB for dashboard and analysis
-     */
+     // Saves current simulation state to MongoDB for dashboard and analysis
     private void saveSimulationSnapshot(DataRecord currentData) {
         try {
             // 1. Run json.eol to aggregate the data (Power, Avg Temp, etc.)
@@ -304,10 +277,8 @@ public class DigitalTwinEngine {
         }
     }
     
-    // API Methods called by Controllers
-    /**
-     * Gets live status for dashboard (calls query.eol)
-     */
+    // API Methods called by Controller
+    //Gets live status for dashboard (calls query.eol)
     public String getLiveStatus() {
         try {
             int reportIndex = Math.max(0, currentStepIndex - 1);
@@ -329,9 +300,7 @@ public class DigitalTwinEngine {
         }
     }
 
-    /**
-     * Gets dashboard data as JSON (calls json.eol)
-     */
+    //Gets dashboard data as JSON (calls json.eol)
     public String getDashboardData() {
         try {
             int dataIndex = Math.max(0, currentStepIndex - 1);
@@ -354,9 +323,7 @@ public class DigitalTwinEngine {
         }
     }
 
-    /**
-     * Gets validation report (calls validation.evl)
-     */
+    //Gets validation report (calls validation.evl)
     public String getValidationReport() {
         try {
             return modelService.runValidation(smartOfficeModel);
@@ -365,9 +332,7 @@ public class DigitalTwinEngine {
         }
     }
 
-    /**
-     * Sets manual override for a room's HVAC (e.g., "COOL", "HEAT", "OFF", "AUTO")
-     */
+     //Sets manual override for a room's HVAC (e.g., "COOL", "HEAT", "OFF", "AUTO")
     public void setOverride(String roomId, String action) {
         if (action.equals("AUTO")) {
             manualOverrides.remove(roomId);
@@ -388,7 +353,7 @@ public class DigitalTwinEngine {
     public Map<String, Double> predictFutureEnergy(int hours) {
         // Update prediction service with current state
         predictionService.setCurrentStepIndex(currentStepIndex);
-        predictionService.setManualOverrides(manualOverrides);
+        predictionService.setManualOverrides(new HashMap<>(manualOverrides));
         
         // Delegate to prediction service
         return predictionService.predictFutureEnergy(hours);
@@ -404,7 +369,7 @@ public class DigitalTwinEngine {
     public Map<String, Object> predictWithWhatIf(Map<String, Object> changes, int hours,Double investmentCost) {
         // Update prediction service with current state
         predictionService.setCurrentStepIndex(currentStepIndex);
-        predictionService.setManualOverrides(manualOverrides);
+        predictionService.setManualOverrides(new HashMap<>(manualOverrides));
         predictionService.setLiveModel(smartOfficeModel);
         
         // Delegate to what-if service
@@ -421,9 +386,7 @@ public class DigitalTwinEngine {
     
    
     //Helper Methods
-    /**
-     * Fetches a data record by index from MongoDB
-     */
+    //Fetches a data record by index from MongoDB
     private DataRecord fetchRecordByIndex(int index) {
         try {
             PageRequest pageRequest = PageRequest.of(index, 1, Sort.by(Sort.Direction.ASC, "date"));
@@ -446,9 +409,7 @@ public class DigitalTwinEngine {
         }
     }
     
-    /**
-     * Loads CSV data into MongoDB (runs once on first startup)
-     */
+     //Loads CSV data into MongoDB (runs once on first startup)
     private void loadCsvToMongo(String csvPath) {
         try (BufferedReader reader = new BufferedReader(new FileReader(csvPath))) {
             String line;

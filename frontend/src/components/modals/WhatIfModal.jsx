@@ -9,11 +9,39 @@ function WhatIfModal({
   handleWhatIfAnalysis,
   isRunningWhatIf,
   whatIfResult,
-  setShowChartModal
+  setShowChartModal,
+  data,  
+  baseLoadMode,  
+  setBaseLoadMode,  
+  roomBaseLoads,
+  setRoomBaseLoads 
 }) {
   if (!showWhatIfModal) return null;
 
   const costAnalysis = whatIfResult?.costAnalysis;
+  // Helper function to format payback period
+  const formatPaybackPeriod = (months) => {
+    if (!months || months <= 0) return null;
+    
+    if (months < 12) {
+      // Less than 1 year: display in months
+      return `${months.toFixed(1)} month${months !== 1 ? 's' : ''}`;
+    } else {
+      // 1 year or more: display as "X year(s) Y month(s)"
+      const years = Math.floor(months / 12);
+      const remainingMonths = Math.round((months % 12) * 10) / 10; // Round to 1 decimal
+      
+      const yearText = years === 1 ? 'year' : 'years';
+      
+      if (remainingMonths < 0.1) {
+        // If less than 0.1 months remaining, just show years
+        return `${years} ${yearText}`;
+      } else {
+        const monthText = remainingMonths === 1 ? 'month' : 'months';
+        return `${years} ${yearText} ${remainingMonths.toFixed(1)} ${monthText}`;
+      }
+    }
+  };
 
 
   return (
@@ -69,6 +97,154 @@ function WhatIfModal({
           </div>
         </div>
 
+        {/* Base Load - Toggle Mode */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+            Base Load (Equipment Power)
+          </label>
+          
+          {/* Mode Toggle */}
+          <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setBaseLoadMode('all')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                background: baseLoadMode === 'all' ? '#00b894' : '#ddd',
+                color: baseLoadMode === 'all' ? 'white' : '#333',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                transition: 'all 0.2s'
+              }}
+            >
+              Apply to All Rooms
+            </button>
+            <button
+              onClick={() => setBaseLoadMode('perRoom')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                background: baseLoadMode === 'perRoom' ? '#00b894' : '#ddd',
+                color: baseLoadMode === 'perRoom' ? 'white' : '#333',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                transition: 'all 0.2s'
+              }}
+            >
+              Per-Room Control
+            </button>
+          </div>
+
+          {/* All Rooms Mode */}
+          {baseLoadMode === 'all' && (
+            <>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={whatIfParams.baseLoad ?? 1.0}
+                onChange={(e) => setWhatIfParams({ ...whatIfParams, baseLoad: parseFloat(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                <span>0 kW (Minimal)</span>
+                <span><b>{whatIfParams.baseLoad ?? 1.0} kW</b></span>
+                <span>2 kW (High)</span>
+              </div>
+            </>
+          )}
+
+          {/* Per-Room Mode - Expandable */}
+          {baseLoadMode === 'perRoom' && (
+            <div>
+              {/* Global Slider (for quick set all) */}
+              <div style={{ marginBottom: '10px', padding: '10px', background: '#f0f0f0', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '500' }}>Quick Set All Rooms:</span>
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    {whatIfParams.baseLoad ?? 1.0} kW
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={whatIfParams.baseLoad ?? 1.0}
+                  onChange={(e) => {
+                    const newValue = parseFloat(e.target.value);
+                    setWhatIfParams({ ...whatIfParams, baseLoad: newValue });
+                    // Optionally update all room values when dragging
+                    if (data?.rooms) {
+                      const updates = {};
+                      data.rooms.forEach(room => {
+                        updates[room.name] = newValue;
+                      });
+                      setRoomBaseLoads(prev => ({ ...prev, ...updates }));
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '5px', fontStyle: 'italic' }}>
+                  Drag to set all rooms, then adjust individual rooms below
+                </div>
+              </div>
+
+               {/* Expandable Room List */}
+              <div style={{ 
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                background: 'white',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {data?.rooms && data.rooms.length > 0 ? (
+                  data.rooms.map(room => (
+                    <div 
+                      key={room.id} 
+                      style={{ 
+                        padding: '12px',
+                        borderBottom: '1px solid #eee',
+                        ':last-child': { borderBottom: 'none' }
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <label style={{ fontWeight: '500', fontSize: '13px' }}>{room.name}</label>
+                        <span style={{ color: '#666', fontSize: '13px', fontWeight: 'bold' }}>
+                          {roomBaseLoads[room.name] ?? whatIfParams.baseLoad ?? 1.0} kW
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={roomBaseLoads[room.name] ?? whatIfParams.baseLoad ?? 1.0}
+                        onChange={(e) => {
+                          setRoomBaseLoads(prev => ({
+                            ...prev,
+                            [room.name]: parseFloat(e.target.value)
+                          }));
+                        }}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  ))  
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px' }}>
+                    No room data available. Please wait for simulation to load.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>  
+
         {/* Prediction Horizon */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
@@ -108,134 +284,7 @@ function WhatIfModal({
           </div>
         </div>
         
-        {/*Cost Savings */}
-        {costAnalysis && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '15px',
-            marginTop: '15px'
-          }}
-        >
-          <MetricCard
-            label="Daily Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.dailyCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Monthly Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.monthlyCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Annual Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.annualCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-          <MetricCard
-            label="Period Savings"
-            prefix="£"
-            value={whatIfResult.costAnalysis?.periodCostSaved?.toFixed(2)}
-            color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
-          />
-        </div>
-      )}
-
-      {costAnalysis?.investmentCost && (
-        <div
-          style={{
-            marginTop: '20px',
-            padding: '20px',
-            background: '#e8f4f8',
-            borderRadius: '8px',
-            border: '2px solid #3498db'
-          }}
-        >
-          <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
-            💰 Return on Investment (ROI) Analysis
-          </h4>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
-            <MetricCard
-              label="Investment Cost"
-              prefix="£"
-              value={costAnalysis?.investmentCost.toFixed(2)}
-              color="#e74c3c"
-            />
-            
-            {/*Payback Period or Negative Savings Message */}
-            {costAnalysis?.annualCostSaved >0  && costAnalysis?.paybackPeriodMonths ?(
-               <MetricCard
-               label="Payback Period"
-               value={costAnalysis?.paybackPeriodMonths?.toFixed(1)}
-               suffix=" months"
-               color="#3498db"
-             />
-            ) : costAnalysis?.annualCostSaved < 0 ? (
-             <div style={{
-               background: 'white',
-               padding: '15px',
-               borderRadius: '8px',
-               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-               textAlign: 'center'
-             }}>
-               <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                 Payback Period
-               </div>
-               <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
-                 No payback — costs exceed savings
-               </div>
-             </div>
-            ) : (
-             <MetricCard
-               label="Payback Period"
-               value="—"
-               color="#95a5a6"
-             />
-            )}
-
-            {/* Annual ROI or Cost Increase or Not Applicable */}
-            {costAnalysis?.annualCostSaved >= 0 && costAnalysis?.roiPercentage ? (
-              <MetricCard
-                label="Annual ROI"
-                value={costAnalysis?.roiPercentage?.toFixed(1)}
-                suffix="%"
-                color="#27ae60"
-              />
-            ) : costAnalysis?.annualCostSaved < 0 ? (
-              <div style={{
-                background: 'white',
-                padding: '15px',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
-                  Annual Cost Impact
-                </div>
-                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
-                  Annual cost increase: £{Math.abs(costAnalysis?.annualCostSaved || 0).toFixed(2)}
-                </div>
-                <div style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
-                  ROI not applicable
-                </div>
-              </div>
-            ) : (
-              <MetricCard
-                label="Annual ROI"
-                value="—"
-                color="#95a5a6"
-              />
-            )}
-          
-          </div>
-        </div>
-      )}
-
+       
         {/* Run Button */}
         <button
           onClick={handleWhatIfAnalysis}
@@ -272,6 +321,7 @@ function WhatIfModal({
               </tr>
             </thead>
             <tbody>
+              {/* Energy Usage - Always shown */}
               <tr style={{ borderBottom: '1px solid #ddd' }}>
                 <td style={{ padding: '10px' }}><strong>Energy Usage</strong></td>
                 <td style={{ textAlign: 'center', padding: '10px' }}>
@@ -295,9 +345,216 @@ function WhatIfModal({
                   </span>
                 </td>
               </tr>
+
+                {/* Target Temperature - Only show if changed */}
+                {whatIfResult.baseline?.targetTemp !== undefined && whatIfResult.scenario?.targetTemp !== undefined && (
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Target Temperature</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.targetTemp?.toFixed(1)}°C
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.targetTemp?.toFixed(1)}°C
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.targetTempDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.targetTempDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.targetTempDifference || 0).toFixed(1)}°C
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.targetTempDifference < 0 ? 'Reduced' : 'Increased'} target temperature
+                    </span>
+                  </td>
+                </tr>
+              )}
+
+              {/* Insulation - Only show if changed */}
+              {whatIfResult.baseline?.insulation !== undefined && whatIfResult.scenario?.insulation !== undefined && (
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Insulation</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.insulation?.toFixed(3)}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.insulation?.toFixed(3)}
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.insulationDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.insulationDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.insulationDifference || 0).toFixed(3)}
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.insulationDifference < 0 ? 'Improved' : 'Worsened'} insulation
+                    </span>
+                  </td>
+                </tr>
+              )}
+              
+               {/* Base Load - Only show if changed */}
+               {whatIfResult.baseline?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined && whatIfResult.scenario?.baseLoad !== undefined &&(
+                <tr style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px' }}><strong>Base Load</strong></td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.baseline.baseLoad?.toFixed(2)} kW
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '10px' }}>
+                    {whatIfResult.scenario.baseLoad?.toFixed(2)} kW
+                  </td>
+                  <td
+                    style={{
+                      textAlign: 'center',
+                      padding: '10px',
+                      fontWeight: 'bold',
+                      color: whatIfResult.baseLoadDifference < 0 ? '#00b894' : '#d63031'
+                    }}
+                  >
+                    {whatIfResult.baseLoadDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.baseLoadDifference || 0).toFixed(2)} kW
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {whatIfResult.baseLoadDifference < 0 ? 'Reduced' : 'Increased'} equipment load
+                    </span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+          
+          {/*Cost Savings */}
+          {costAnalysis && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '15px',
+                marginTop: '15px'
+              }}
+            >
+              <MetricCard
+                label="Daily Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.dailyCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Monthly Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.monthlyCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Annual Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.annualCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+              <MetricCard
+                label="Period Savings"
+                prefix="£"
+                value={whatIfResult.costAnalysis?.periodCostSaved?.toFixed(2)}
+                color={whatIfResult.costAnalysis?.dailyCostSaved >= 0 ? 'green' : 'red'}
+              />
+            </div>
+          )}
 
+          {costAnalysis?.investmentCost && (
+            <div
+              style={{
+                marginTop: '20px',
+                padding: '20px',
+                background: '#e8f4f8',
+                borderRadius: '8px',
+                border: '2px solid #3498db'
+              }}
+            >
+              <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
+                💰 Return on Investment (ROI) Analysis
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                <MetricCard
+                  label="Investment Cost"
+                  prefix="£"
+                  value={costAnalysis?.investmentCost.toFixed(2)}
+                  color="#e74c3c"
+                />
+                
+                {/*Payback Period or Negative Savings Message */}
+                {costAnalysis?.annualCostSaved >0  && costAnalysis?.paybackPeriodMonths ?(
+                  <MetricCard
+                  label="Payback Period"
+                  value={formatPaybackPeriod(costAnalysis.paybackPeriodMonths)}
+                  color="#3498db"
+                />
+                ) : costAnalysis?.annualCostSaved < 0 ? (
+                <div style={{
+                  background: 'white',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                    Payback Period
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
+                    No payback — costs exceed savings
+                  </div>
+                </div>
+                ) : (
+                <MetricCard
+                  label="Payback Period"
+                  value="—"
+                  color="#95a5a6"
+                />
+                )}
+
+                {/* Annual ROI or Cost Increase or Not Applicable */}
+                {costAnalysis?.annualCostSaved >= 0 && costAnalysis?.roiPercentage ? (
+                  <MetricCard
+                    label="Annual ROI"
+                    value={costAnalysis?.roiPercentage?.toFixed(1)}
+                    suffix="%"
+                    color="#27ae60"
+                  />
+                ) : costAnalysis?.annualCostSaved < 0 ? (
+                  <div style={{
+                    background: 'white',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                      Annual Cost Impact
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
+                      Annual cost increase: £{Math.abs(costAnalysis?.annualCostSaved || 0).toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#e74c3c', marginTop: '5px' }}>
+                      ROI not applicable
+                    </div>
+                  </div>
+                ) : (
+                  <MetricCard
+                    label="Annual ROI"
+                    value="—"
+                    color="#95a5a6"
+                  />
+                )}
+              
+              </div>
+            </div>
+          )}
           {/* Savings Summary */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
             <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>

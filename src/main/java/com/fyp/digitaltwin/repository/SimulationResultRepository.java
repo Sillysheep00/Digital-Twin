@@ -6,6 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SimulationResultRepository extends MongoRepository<SimulationResult, String> {
-    // We can add custom queries here later, e.g., findByTimestampBetween(...)
 }
 

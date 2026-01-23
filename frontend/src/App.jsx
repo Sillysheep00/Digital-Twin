@@ -9,29 +9,41 @@ import AnomalyModal from './components/modals/AnomalyModal';
 import ChartModal from './components/modals/ChartModal';
 import SelectedRoomPanel from './components/layout/SelectedRoomPanel';
 import StatusBar from './components/layout/StatusBar';
+import PowerTrendModal from './components/modals/PowerTrendModal';
 
 function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
 
+  // Track active manual control mode per room
+  const [roomControlModes, setRoomControlModes] = useState({});
+
   // Modal states
   const [showTempModal, setShowTempModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showWhatIfModal, setShowWhatIfModal] = useState(false);
   const [showAnomalyModal, setShowAnomalyModal] = useState(false);
+  const [showPowerTrendModal, setShowPowerTrendModal] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
 
   // What-If Analysis states
   const [whatIfParams, setWhatIfParams] = useState({
     targetTemp: 22,
     insulation: 0.04,
+    baseLoad: 1.0,  
     hours: 24,
     investmentCost: null
   });
   const [whatIfResult, setWhatIfResult] = useState(null);
   const [isRunningWhatIf, setIsRunningWhatIf] = useState(false);
 
+  const [baseLoadMode, setBaseLoadMode] = useState('all'); // 'all' or 'perRoom'
+  const [roomBaseLoads, setRoomBaseLoads] = useState({}); // { roomName: value }
+
+  //Power Trend
+  const [powerTrendData, setPowerTrendData] = useState(null);
+  const [isLoadingPowerTrend, setIsLoadingPowerTrend] = useState(false);
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
@@ -51,10 +63,28 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
+  // Reset What-If parameters when modal closes
+  useEffect(() => {
+    if (!showWhatIfModal) {
+      // Reset all parameters to default values when modal is closed
+      setWhatIfParams({
+        targetTemp: 22,
+        insulation: 0.04,
+        baseLoad: 1.0,
+        hours: 24,
+        investmentCost: null
+      });
+      setWhatIfResult(null);
+      setBaseLoadMode('all');
+      setRoomBaseLoads({});
+    }
+  }, [showWhatIfModal]);
+
+  
   const selectedRoom = data?.rooms?.find(r => r.id === selectedRoomId) || null;
 
   const handleControl = async (action) => {
@@ -62,6 +92,11 @@ function App() {
     try {
       await axios.post(`http://localhost:8080/api/control?roomId=${selectedRoomId}&action=${action}`);
       console.log(`Sent command: ${action} to ${selectedRoomId}`);
+        // Update local state to track active mode
+        setRoomControlModes(prev => ({
+          ...prev,
+          [selectedRoomId]: action
+        }));
     } catch (err) {
       console.error(err);
       alert("Failed to send command");
@@ -75,6 +110,35 @@ function App() {
       const changes = {};
       if (whatIfParams.targetTemp !== 22) changes.targetTemp = parseFloat(whatIfParams.targetTemp);
       if (whatIfParams.insulation !== 0.04) changes.insulation = parseFloat(whatIfParams.insulation);
+      
+      // Base Load Logic - Handle both modes
+      if (baseLoadMode === 'all') {
+        // Use global baseLoad if different from default
+        if (whatIfParams.baseLoad !== 1.0) {
+          changes.baseLoad = parseFloat(whatIfParams.baseLoad);
+        }
+      } else {
+        // Per-room mode: check if any room has a different value
+        const roomBaseLoadChanges = {};
+        const defaultBaseLoad = whatIfParams.baseLoad ?? 1.0;
+        let hasChanges = false;
+        
+        data?.rooms?.forEach(room => {
+          const roomValue = roomBaseLoads[room.name];
+          // Only include if explicitly set and different from default
+          if (roomValue !== undefined && roomValue !== defaultBaseLoad) {
+            roomBaseLoadChanges[room.name] = roomValue;
+            hasChanges = true;
+          }
+        });
+        
+        if (hasChanges) {
+          changes.roomBaseLoad = roomBaseLoadChanges;
+        } else if (whatIfParams.baseLoad !== 1.0) {
+          // If no per-room changes but global is different, use global
+          changes.baseLoad = parseFloat(whatIfParams.baseLoad);
+        }
+      }
 
       const response = await axios.post('http://localhost:8080/api/what-if', {
         changes,
@@ -108,6 +172,21 @@ function App() {
     }
   };
 
+  const handlePowerTrendFetch = async () => {
+    setIsLoadingPowerTrend(true);
+    setPowerTrendData(null);
+    try {
+      const response = await axios.get(`http://localhost:8080/api/anomaly?windowSize=${anomalyWindowSize || 32}`);
+      setPowerTrendData(response.data);
+    } catch (err) {
+      console.error("Power trend fetch failed:", err);
+      setPowerTrendData({ error: true, message: "Failed to load power trend data" });
+    } finally {
+      setIsLoadingPowerTrend(false);
+    }
+  };
+
+
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial' }}>
       
@@ -136,12 +215,16 @@ function App() {
           <button onClick={() => setShowTempModal(true)} style={buttonStyle('#fff')}>🌡️ View All Temps</button>
           <button onClick={() => setShowEnergyModal(true)} style={buttonStyle('#fff')}>⚡ View Energy</button>
           <button onClick={() => setShowWhatIfModal(true)} style={buttonStyle('#00b894', 'white')}>🔬 What-If Analysis</button>
+          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={buttonStyle('#3498db', 'white')}>📈 Power Trends</button>
           <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={buttonStyle('#e74c3c', 'white')}>🚨 Anomaly Detection</button>
         </div>
       </div>
 
       {/* TOP RIGHT - SELECTED ROOM PANEL */}
-      <SelectedRoomPanel selectedRoom={selectedRoom} handleControl={handleControl} />
+      <SelectedRoomPanel selectedRoom={selectedRoom} 
+      handleControl={handleControl} 
+      activeMode={selectedRoomId ? roomControlModes[selectedRoomId] : null}
+      />
 
       {/* MODALS */}
       <TemperatureModal show={showTempModal} data={data} onClose={() => setShowTempModal(false)} />
@@ -155,7 +238,22 @@ function App() {
         isRunningWhatIf={isRunningWhatIf}
         whatIfResult={whatIfResult}
         setShowChartModal={setShowChartModal}
+        data={data}  
+        baseLoadMode={baseLoadMode} 
+        setBaseLoadMode={setBaseLoadMode}  
+        roomBaseLoads={roomBaseLoads}  
+        setRoomBaseLoads={setRoomBaseLoads}  
       />
+      <PowerTrendModal
+        showPowerTrend={showPowerTrendModal}
+        setShowPowerTrend={setShowPowerTrendModal}
+        windowSize={anomalyWindowSize}
+        setWindowSize={setAnomalyWindowSize}
+        trendData={powerTrendData}
+        handleFetchTrends={handlePowerTrendFetch}
+        isLoading={isLoadingPowerTrend}
+      />
+
       <AnomalyModal
         showAnomaly={showAnomalyModal}
         setShowAnomaly={setShowAnomalyModal}

@@ -6,9 +6,6 @@ import org.springframework.stereotype.Service;
 /**
  * Service responsible for economic cost analysis of What-If scenarios.
  * 
- * Follows Single Responsibility Principle - only handles cost and ROI calculations.
- * Part of the Economic Layer in the Layered Architecture.
- * 
  * Converts energy savings (kWh) into monetary savings using UK electricity pricing
  * and calculates ROI metrics for building upgrade investments.
  */
@@ -16,7 +13,6 @@ import org.springframework.stereotype.Service;
 public class CostAnalysisService {
     
     // UK Electricity Tariff (default: £0.30/kWh - UK average 2024)
-    // This can be made configurable via application.properties in the future
     private static final double DEFAULT_UK_ELECTRICITY_TARIFF = 0.30; // £/kWh
     
     /**
@@ -44,11 +40,9 @@ public class CostAnalysisService {
                                            Double investmentCost, double electricityTariff) {
         
         CostAnalysisResult result = new CostAnalysisResult(energySaved, analysisPeriodHours, electricityTariff);
-        
-        // ═════════════════════════════════════════════════════════════════
-        // MONETARY SAVINGS CALCULATIONS
-        // ═════════════════════════════════════════════════════════════════
-        
+       
+        //Monetary Saving Calculations
+
         // Period cost savings (for the analysis duration)
         double periodCostSaved = energySaved * electricityTariff;
         result.setPeriodCostSaved(Math.round(periodCostSaved * 100.0) / 100.0);
@@ -69,10 +63,7 @@ public class CostAnalysisService {
         double annualCostSaved = dailyCostSaved * 365.0;
         result.setAnnualCostSaved(Math.round(annualCostSaved * 100.0) / 100.0);
         
-        // ═════════════════════════════════════════════════════════════════
-        // ROI & PAYBACK PERIOD CALCULATIONS (if investment provided)
-        // ═════════════════════════════════════════════════════════════════
-        
+       //ROI & Payback Period Calculation
         if (investmentCost != null && investmentCost > 0) {
             result.setInvestmentCost(investmentCost);
             
@@ -90,9 +81,7 @@ public class CostAnalysisService {
                 double roi = (annualCostSaved / investmentCost) * 100.0;
                 result.setRoiPercentage(Math.round(roi * 100.0) / 100.0);
             }
-            
         }
-        
         return result;
     }
     

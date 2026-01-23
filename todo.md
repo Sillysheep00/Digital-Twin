@@ -1,24 +1,10 @@
-think of any implementation for the simulation result repository file
-模拟夏天的温度， 然后看energy usage 是多少
-maybe 改一下直接模拟晚上和早上的 因为一直慢慢run到晚上等之后demo 的时候应该很麻烦
 
-
-Task
-saw the whatifanalysis allow setting of per room baseload and baseload but the frontend does not show this selection (can implement or remove this baseload changing function)
-saw there is cost in the what if analysis ask gpt which cost value is reasonable
-
-for what if analysis add extreme testing for the temperature 10 celsius and 30 celsius
-Debug
-
-minor fix（之后才fix）:
-先改frontend的design 
-白天厕所的温度跟房间温度差 4度
-
-当manual 按cooling 和 heating temperature 变化太大（ 不确定是否还需要留这个功能）
-washroom 1 and 2 dont have hvac , so when select do not show the turn on, off and auto button for them
-go whatifimplementation.md and analysisguide.md to check for future enhancement
-current power should display the power that is calculated using the regression model
-
+design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report   
+enhance the cost analysis logic so ROI higher than how many percentage then you only recoommedn the user to apply the setting otherwise do not recommend it 
+Fix per room bug: When i adjust the base load in per room control and  it does not display in the result section but all when i change the apply to all room it will display
+The payback period display in this  1 year how many months if less than 1 year display in months
+Power trend graph show two line only 
+Remove 12 hour horizon in whatifanalysis
 
 
 Note 
@@ -30,6 +16,12 @@ Add,commit and push( git push origin branch name) to that branch ( if will go in
 Merge it to main   ( git merge branch name)
 Delete branch (Git commits are the checkpoint not the branch)
 
+
+Note:
+Power(kW) = instantaneous rate(current consumption ) 
+Energy(kWh) = cumulative consumption over time 
+
+manual override will affect graph (checked)
 
 Answer for Question
 1. dataManager and predictiveModel and digital twin in the metamodel 的用处是什么 because seems like we are not using them
@@ -229,6 +221,68 @@ The energy consumption report reflects the Digital Twin’s internal state based
 Machine learning is used only for calibration, comparison, and anomaly detection, not as a source of truth for operational 
 energy reporting
 
+10. Explanation on the threshold implementation.
+Previous implmentation : I uses fixed percentage(25%)of real power as the threshold, threshold will change every time steps as i take 25% of the
+real power of the current step as the threshold so the threshold will look different every timestep. I use simple comparison residual > comparison and no statistical
+analysis(no rolling mean / std).This causes the simulated power always exceed the threshold in the graph and showing office is in abnormal condition.
 
-“During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin instance, and predictive twin clones, ensuring timeline isolation and correctness of energy analytics.”
+Reason of replacing it to new implementation:
+Always anomalous: when predicted power was small, even tiny absolute errors looked large in percentage terms
+No statistical context: didn't account for normal variation
+Biased model: systematic under/over-prediction caused constant false positives
 
+I change the implmentation to :
+Rolling mean and standard deviation over last 32 steps (8 hours)
+Z-score calculation: zScore = (residual - meanResidual) / stdResidual
+Threshold: meanResidual + 3.0 * stdResidual (3-sigma rule)
+Fallback: Still uses predictedPower * 0.25 when insufficient data (line 84, 103)
+
+The anomaly decision will have 3 rule:
+1. Ignore tiny residuals for noise filterring
+2. In Z-score threshold
+3. fallback for insufficient data
+
+This implementation is better is because the threshold is adjust based on recent behavior,with this implementation
+it solves always anomalous problem(reduce false positives), adaptive threshold (adjust to system behaviour), works at 
+all power levels(handles low power scenario(by the rule 1 in the anomay decision)), better diagonistics (z-score show how unusual
+values are).
+
+11.When lecturer ask why didnt you train the ML model on the full simulation test?
+Because the full simulation includes complex thermal dynamics and state-dependent behaviour, the training data distribution
+ becomes unstable with limited samples. To ensure the ML model learns a clean and consistent relationship,
+ I calibrated it on the fast estimation layer where the input-output relationship is well-defined. 
+This allowed me to clearly demonstrate the effectiveness of ML-based calibration without introducing confounding physical noise.
+
+Clonning isse explanation
+During development, an architectural issue was identified where runtime HVAC simulation logic persisted energy consumption values into 
+the base EMF model via EOL store operations. This resulted in contamination of the design-time model and incorrect behaviour in prediction
+and what-if simulations. The architecture was refactored to enforce strict separation between the immutable base model, runtime digital twin 
+instance, and predictive twin clones, ensuring timeline isolation and correctness of energy analytics(guarantees that all prediction and what-if analysis
+start from a clean semantic state).
+
+Timeline	Model Source	Energy State
+Live DT	in-memory model	accumulated
+Prediction	cloneModel()	reset → accumulate
+What-If	loadBaseModel()	reset → accumulate
+Energy Report	live model	accumulated
+
+Model Isolation and Timeline Separation
+To ensure correctness and prevent state contamination between live simulation, prediction, and what-if analysis, a strict model isolation strategy was implemented. 
+The base EMF model is loaded once as a read-only template and is never mutated. At system initialisation, a deep clone of the base model is created to serve as the 
+live runtime digital twin. This cloning process constructs a completely independent ResourceSet and EObject graph, ensuring that all model elements are isolated at memory level.
+
+For prediction and what-if analysis, the current live model is deep-cloned again to create separate scenario models. These scenario models are used exclusively for
+ fast-forward simulation and hypothetical modifications, and are disposed of after use. This guarantees that neither predictions nor what-if experiments can affect the live simulation
+  state. In addition, energy meters are explicitly reset at the start of each prediction or scenario run, ensuring that energy accumulation is strictly scoped to the relevant timeline.
+
+This design enforces a clear separation between historical simulation data, future prediction timelines, and hypothetical what-if scenarios. By avoiding shared references and using 
+deep cloning rather than shallow wrappers, the system eliminates hidden coupling and prevents cross-timeline contamination. As a result, all simulation outputs remain deterministic, 
+reproducible, and architecturally sound.
+
+🎤 Viva Version (Short, Natural Answer)
+
+If the examiner asks “How do you prevent predictions from affecting the live simulation?”, you can say:
+
+“I use deep cloning at the EMF Resource level. The live digital twin is already a clone of the base model, and every prediction or 
+what-if analysis is run on a further deep-cloned copy. That means each timeline – live, prediction, and scenario – has its own isolated EObject graph.
+ There is no shared state, so contamination is structurally impossible.”

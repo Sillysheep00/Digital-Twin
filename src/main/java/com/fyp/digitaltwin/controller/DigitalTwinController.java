@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import java.util.Map;
 
 @RestController
@@ -27,12 +28,6 @@ public class DigitalTwinController {
     @GetMapping("/status")
     public String getStatus() {
         return engine.getLiveStatus();
-    }
-
-    // Endpoint: http://localhost:8080/api/hello
-    @GetMapping("/hello")
-    public String sayHello() {
-        return "Digital Twin Server is Online!";
     }
 
     // Endpoint: http://localhost:8080/api/validate
@@ -66,7 +61,7 @@ public class DigitalTwinController {
     // URL: POST http://localhost:8080/api/what-if
     // Body: {"changes": {"targetTemp": 21.0, "insulation": 0.03}, "hours": 24}
     @PostMapping("/what-if")
-    public ResponseEntity<Map<String, Object>> runWhatIfAnalysis(@RequestBody WhatIfRequest request) {
+    public ResponseEntity<Map<String, Object>> runWhatIfAnalysis(@Valid @RequestBody WhatIfRequest request) {
         System.out.println("What-If Analysis Request: " + request);
         Map<String, Object> result = engine.predictWithWhatIf(request.getChanges(), request.getHours(),request.getInvestmentCost());
         if (result == null) {

@@ -5,6 +5,7 @@ import com.fyp.digitaltwin.dto.CostAnalysisResult;
 
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.EolModule;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,7 +34,7 @@ public class WhatIfAnalysisService {
     
     /**
      * Sets the trained ML regression model (called by DigitalTwinEngine).
-     * What-If Analysis delegates all predictions to PredictionService,
+     * What-If Analysis delegates（委托） all predictions to PredictionService,
      * which uses the calibration factor internally.
      * This method is kept for initialization logging purposes.
      */
@@ -67,16 +68,66 @@ public class WhatIfAnalysisService {
             
             System.out.println("Baseline energy: " + baselineDetailed.get("predictedEnergy") + " kWh");
             
+            // STEP 1.5: Extract baseline base load BEFORE cloning
+            EmfModel liveModel = predictionService.getLiveModel();
+            if (liveModel == null) {
+                throw new IllegalStateException("Live model not available. Please wait for simulation to initialize.");
+            }
+            // Extract baseline values only for parameters that will be changed
+            Map<String, Double> baselineValues = new HashMap<>();
+            if (changes.containsKey("targetTemp")) {
+                double baselineTargetTemp = extractAverageTargetTemp(liveModel);
+                baselineValues.put("targetTemp", baselineTargetTemp);
+                System.out.println("Baseline target temperature: " + baselineTargetTemp + "°C");
+            }
+            if (changes.containsKey("insulation")) {
+                double baselineInsulation = extractAverageInsulation(liveModel);
+                baselineValues.put("insulation", baselineInsulation);
+                System.out.println("Baseline insulation: " + baselineInsulation);
+            }
+            // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
+            if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
+                double baselineBaseLoad = extractBaseLoad(liveModel);
+                baselineValues.put("baseLoad", baselineBaseLoad);
+                System.out.println("Baseline base load: " + baselineBaseLoad + " kW");
+            }
+
+
             // STEP 2: Clone live model for scenario testing
             System.out.println("\n[2/5] Cloning live model for scenario...");
-            EmfModel scenarioModel = modelService.loadBaseModel();
-            
+            // Pure EMF deep clone - returns Resource, not EmfModel
+            Resource clonedResource = modelService.deepCloneModel(liveModel);
+
+            // Wrap Resource in EmfModel for EOL execution
+            EmfModel scenarioModel = modelService.createEmfModelFromResource(clonedResource);
+
             // STEP 3: Apply changes using EOL model transformation
             System.out.println("\n[3/5] Applying what-if changes to model...");
             applyChangesToModel(scenarioModel, changes);
+
+
+             // STEP 3.5: Extract scenario values AFTER applying changes (only for changed parameters)
+            Map<String, Double> scenarioValues = new HashMap<>();
+            if (changes.containsKey("targetTemp")) {
+                double scenarioTargetTemp = extractAverageTargetTemp(scenarioModel);
+                scenarioValues.put("targetTemp", scenarioTargetTemp);
+                System.out.println("Scenario target temperature: " + scenarioTargetTemp + "°C");
+            }
+            if (changes.containsKey("insulation")) {
+                double scenarioInsulation = extractAverageInsulation(scenarioModel);
+                scenarioValues.put("insulation", scenarioInsulation);
+                System.out.println("Scenario insulation: " + scenarioInsulation);
+            }
+            // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
+            if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
+                double scenarioBaseLoad = extractBaseLoad(scenarioModel);
+                scenarioValues.put("baseLoad", scenarioBaseLoad);
+                System.out.println("Scenario base load: " + scenarioBaseLoad + " kW");
+            }
+
             
             // Debug: Show what changes were applied
-            System.out.println("📝 CHANGES APPLIED:");
+            System.out.println("CHANGES APPLIED:");
             for (Map.Entry<String, Object> entry : changes.entrySet()) {
                 System.out.println("   • " + entry.getKey() + ": " + entry.getValue());
             }
@@ -97,7 +148,7 @@ public class WhatIfAnalysisService {
             
             // STEP 5: Calculate savings and prepare results with chart data
             System.out.println("\n[5/5] Calculating savings and building chart data...");
-            Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours,investmentCost);
+            Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours,investmentCost,baselineValues,scenarioValues);
             
             // Clean up
             scenarioModel.dispose();
@@ -109,6 +160,72 @@ public class WhatIfAnalysisService {
             System.err.println("ERROR in What-If Analysis: " + e.getMessage());
             e.printStackTrace();
             return createErrorResponse("Analysis failed: " + e.getMessage(), null);
+        }
+    }
+
+    /**
+     * Extracts average target temperature from all HVAC systems
+     */
+    private double extractAverageTargetTemp(EmfModel model) throws Exception {
+        String script = 
+            "var totalTemp = 0.0d;\n" +
+            "var count = 0;\n" +
+            "for (hvac in SmartOffice!HVACSystem.all) {\n" +
+            "    totalTemp = totalTemp + hvac.targetTemperature;\n" +
+            "    count = count + 1;\n" +
+            "}\n" +
+            "return (count > 0) ? (totalTemp / count) : 22.0d;\n";
+        
+        String result = modelService.runSimpleEolScript(model, script);
+        try {
+            return Double.parseDouble(result.trim());
+        } catch (NumberFormatException e) {
+            System.err.println("Warning: Could not parse target temperature: " + result);
+            return 22.0;
+        }
+    }
+
+    /**
+     * Extracts average insulation from all rooms
+     */
+    private double extractAverageInsulation(EmfModel model) throws Exception {
+        String script = 
+            "var totalInsulation = 0.0d;\n" +
+            "var count = 0;\n" +
+            "for (room in SmartOffice!Room.all) {\n" +
+            "    totalInsulation = totalInsulation + room.insulation;\n" +
+            "    count = count + 1;\n" +
+            "}\n" +
+            "return (count > 0) ? (totalInsulation / count) : 0.04d;\n";
+        
+        String result = modelService.runSimpleEolScript(model, script);
+        try {
+            return Double.parseDouble(result.trim());
+        } catch (NumberFormatException e) {
+            System.err.println("Warning: Could not parse insulation: " + result);
+            return 0.04;
+        }
+    }
+
+    /**
+     * Extracts total base load from all rooms in the model
+     * @param model The model to query
+     * @return Total base load in kW
+     */
+    private double extractBaseLoad(EmfModel model) throws Exception {
+        String script = 
+            "var totalBaseLoad = 0.0d;\n" +
+            "for (room in SmartOffice!Room.all) {\n" +
+            "    totalBaseLoad = totalBaseLoad + room.baseLoad;\n" +
+            "}\n" +
+            "return totalBaseLoad;\n";
+        
+        String result = modelService.runSimpleEolScript(model, script);
+        try {
+            return Double.parseDouble(result.trim());
+        } catch (NumberFormatException e) {
+            System.err.println("Warning: Could not parse base load: " + result);
+            return 0.0;
         }
     }
     
@@ -209,10 +326,12 @@ public class WhatIfAnalysisService {
      * @return Result map with savings calculations and chart data
      */
     private Map<String, Object> calculateSavingsWithChartData(Map<String, Object> baselineDetailed, 
-                                                               Map<String, Object> scenarioDetailed,
-                                                               Map<String, Object> changes,
-                                                               int hours,
-                                                               Double investmentCost) {
+                                                            Map<String, Object> scenarioDetailed,
+                                                            Map<String, Object> changes,
+                                                            int hours,
+                                                            Double investmentCost,
+                                                            Map<String, Double> baselineValues,
+                                                            Map<String, Double> scenarioValues) {
         double baselineEnergy = (Double) baselineDetailed.get("predictedEnergy");
         double scenarioEnergy = (Double) scenarioDetailed.get("predictedEnergy");
         double energySaved = baselineEnergy - scenarioEnergy;
@@ -223,8 +342,7 @@ public class WhatIfAnalysisService {
         double annualCostSaved = costSaved * (365.0 / (hours / 24.0));
         
         // Build chart data from step-by-step energy lists
-        // Extract currentDate from baselineDetailed (set by PredictionService)
-                                                                
+        // Extract currentDate from baselineDetailed (set by PredictionService)                                               
         String currentDate = null;
         if (baselineDetailed.containsKey("currentDate")) {
             currentDate = (String)  baselineDetailed.get("currentDate");
@@ -242,9 +360,8 @@ public class WhatIfAnalysisService {
         }
        
 
-        // ═════════════════════════════════════════════════════════════════
-        // COST ANALYSIS (Delegated to CostAnalysisService - SRP)
-        // ═════════════════════════════════════════════════════════════════
+       
+        // Cost Analysis (Delegated to CostAnalysisService - SRP)
         CostAnalysisResult costAnalysis = CostAnalysisService.analyzeCosts(
             energySaved, 
             hours, 
@@ -256,16 +373,43 @@ public class WhatIfAnalysisService {
         Map<String, Double> baseline = new HashMap<>();
         baseline.put("predictedEnergy", baselineEnergy);
         baseline.put("hours", (Double) baselineDetailed.get("hours"));
-        
+       
         Map<String, Double> scenario = new HashMap<>();
         scenario.put("predictedEnergy", scenarioEnergy);
         scenario.put("hours", (Double) scenarioDetailed.get("hours"));
         
+        if (changes.containsKey("targetTemp")) {
+            baseline.put("targetTemp", baselineValues.get("targetTemp"));
+            scenario.put("targetTemp", scenarioValues.get("targetTemp"));
+        }
+        if (changes.containsKey("insulation")) {
+            baseline.put("insulation", baselineValues.get("insulation"));
+            scenario.put("insulation", scenarioValues.get("insulation"));
+        }
+        if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
+            baseline.put("baseLoad", baselineValues.get("baseLoad"));
+            scenario.put("baseLoad", scenarioValues.get("baseLoad"));
+        }
+
         Map<String, Object> result = new HashMap<>();
         result.put("baseline", baseline);
         result.put("scenario", scenario);
         result.put("energySaved", Math.round(energySaved * 100.0) / 100.0);
         result.put("percentSaved", Math.round(percentSaved * 100.0) / 100.0);
+
+       // Calculate differences for changed parameters
+        if (changes.containsKey("targetTemp")) {
+            double targetTempDiff = scenarioValues.get("targetTemp") - baselineValues.get("targetTemp");
+            result.put("targetTempDifference", Math.round(targetTempDiff * 10.0) / 10.0);
+        }
+        if (changes.containsKey("insulation")) {
+            double insulationDiff = scenarioValues.get("insulation") - baselineValues.get("insulation");
+            result.put("insulationDifference", Math.round(insulationDiff * 1000.0) / 1000.0);
+        }
+        if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
+            double baseLoadDiff = scenarioValues.get("baseLoad") - baselineValues.get("baseLoad");
+            result.put("baseLoadDifference", Math.round(baseLoadDiff * 100.0) / 100.0);
+        }
 
         result.put("costAnalysis", costAnalysis);  
         result.put("costSaved", costAnalysis.getPeriodCostSaved());  
@@ -383,7 +527,6 @@ public class WhatIfAnalysisService {
         
         return chartData;
     }
-    
     
     
     /**
