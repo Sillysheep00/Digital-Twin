@@ -34,6 +34,28 @@ if (totalBuildingOccupancy > 0) {
 // Total simulated power (fast estimation)
 var simulatedTotalPower = estimatedHvacPower + estimatedPlugPower;
 
+// ===== NEW: Physics-based power from hvac.eol state =====
+// Sum actual HVAC powerUsage + plugLoad (computed by hvac.eol)
+var physicsHvacPower = 0.0d;
+var physicsPlugPower = 0.0d;
+
+for (r in allRooms) {
+    // HVAC power from actual hvac.eol decision
+    if (r.hvac.isDefined() and r.hvac.status == true) {
+        physicsHvacPower = physicsHvacPower + r.hvac.powerUsage;
+    }
+    
+    // Plug power stored by hvac.eol (fallback to baseLoad if not set)
+    if (r.plugLoad.isDefined()) {
+        physicsPlugPower = physicsPlugPower + r.plugLoad;
+    } else {
+        // Fallback: use baseLoad if plugLoad not set
+        physicsPlugPower = physicsPlugPower + r.baseLoad;
+    }
+}
+
+var simulatedPhysicsPower = physicsHvacPower + physicsPlugPower;
+
 // For room-level display, calculate per-room values
 for (r in allRooms) {
     // HVAC Power (distributed equally among all HVAC systems, not per room)
@@ -129,6 +151,7 @@ jsonOutput = jsonOutput + '"simulationStartTime": "' + simStartTime + '",' + "\n
 jsonOutput = jsonOutput + '"power": {' + "\n";
 jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated_raw": ' + simulatedTotalPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "simulated_physics_raw": ' + simulatedPhysicsPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated": ' + calibratedSimulatedPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "calibration_factor": ' + mlSlope.format("%.4f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "hvac": ' + estimatedHvacPower.format("%.2f") + ',' + "\n";

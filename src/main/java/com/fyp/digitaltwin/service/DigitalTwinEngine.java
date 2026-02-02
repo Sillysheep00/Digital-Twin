@@ -254,6 +254,7 @@ public class DigitalTwinEngine {
             // 3. Extract values
             double realPower = root.path("power").path("real").asDouble();
             double simulatedPower = root.path("power").path("simulated_raw").asDouble();
+            double simulatedPhysicsPower = root.path("power").path("simulated_physics_raw").asDouble();
             double totalEnergy = root.path("energy").path("total").asDouble();
             double outdoorTemp = root.path("environment").path("outdoorTemp").asDouble();
             double avgIndoorTemp = root.path("environment").path("avgIndoorTemp").asDouble();
@@ -269,6 +270,7 @@ public class DigitalTwinEngine {
                 avgIndoorTemp,
                 activeHvacs
             );
+            result.setSimulatedPhysicsPower(simulatedPhysicsPower);
             
             resultRepository.save(result);
             

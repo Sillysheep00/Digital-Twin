@@ -1,5 +1,6 @@
 import ModalWrapper from '../ui/ModalWrapper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -95,13 +96,14 @@ function PowerTrendModal({
         fullTimestamp: timestamps[actualIndex] || null,
         real: trendData.realPowerHistory ? trendData.realPowerHistory[actualIndex] : null,
         simulated: trendData.simulatedPowerHistory[actualIndex],
+        physics: trendData.simulatedPhysicsPowerHistory ? trendData.simulatedPhysicsPowerHistory[actualIndex] : null,
         predicted: trendData.predictedPowerHistory[actualIndex]
       };
     });
   };
 
   return (
-    <ModalWrapper onClose={() => setShowPowerTrend(false)} title="📈 Power Trends">
+    <ModalWrapper onClose={() => setShowPowerTrend(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TrendingUp size={18} />Power Trends</span>}>
       <p style={{ color: '#666', marginBottom: '20px' }}>
         Compare simulated power consumption with ML-calibrated predictions over time
       </p>
@@ -161,7 +163,15 @@ function PowerTrendModal({
             whiteSpace: 'nowrap'
           }}
         >
-          {isLoading ? '⏳ Loading...' : '🔄 Refresh'}
+          {isLoading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={16} className="animate-spin" />Loading...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={16} />Refresh
+            </span>
+          )}
         </button>
       </div>
 
@@ -228,8 +238,17 @@ function PowerTrendModal({
                 dataKey="simulated" 
                 stroke="#ff6b6b" 
                 strokeWidth={2}
-                name="Simulated Power"
+                name="Simulated Power (Fast Est.)"
                 dot={{ r: 3 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="physics" 
+                stroke="#ff922b" 
+                strokeWidth={2}
+                name="Simulated Power (Physics)"
+                dot={{ r: 3 }}
+                connectNulls={false}
               />
               <Line 
                 type="monotone" 

@@ -2,8 +2,6 @@
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report   
 enhance the cost analysis logic so ROI higher than how many percentage then you only recoommedn the user to apply the setting otherwise do not recommend it 
 Fix per room bug: When i adjust the base load in per room control and  it does not display in the result section but all when i change the apply to all room it will display
-The payback period display in this  1 year how many months if less than 1 year display in months
-Power trend graph show two line only 
 Remove 12 hour horizon in whatifanalysis
 
 
@@ -286,3 +284,95 @@ If the examiner asks “How do you prevent predictions from affecting the live s
 “I use deep cloning at the EMF Resource level. The live digital twin is already a clone of the base model, and every prediction or 
 what-if analysis is run on a further deep-cloned copy. That means each timeline – live, prediction, and scenario – has its own isolated EObject graph.
  There is no shared state, so contamination is structurally impossible.”
+
+
+ 3️⃣ MPC explained to you (NOT for the report)
+
+This is just so you personally understand it.
+
+MPC in simple math terms
+
+At every timestep, MPC solves something like:
+
+min
+⁡
+𝑢
+0..
+𝑁
+∑
+𝑡
+=
+0
+𝑁
+(
+EnergyCost
+(
+𝑡
+)
++
+𝜆
+⋅
+ComfortPenalty
+(
+𝑡
+)
+)
+u
+0..N
+	​
+
+min
+	​
+
+t=0
+∑
+N
+	​
+
+(EnergyCost(t)+λ⋅ComfortPenalty(t))
+
+Subject to:
+
+thermal dynamics (your digital twin model)
+
+temperature comfort bounds
+
+HVAC power limits
+
+Where:
+
+𝑢
+𝑡
+u
+t
+	​
+
+ = control actions (setpoints, ON/OFF, mode)
+
+𝑁
+N = prediction horizon (e.g. next 24 hours)
+
+𝜆
+λ = trade-off between comfort and cost
+
+Key idea:
+
+MPC plans many steps ahead
+
+but only executes the first step
+
+then replans when new data arrives
+
+That’s why it’s powerful and safe.
+
+4️⃣ Relationship to What-If Analysis (important conceptual link)
+
+You can think of it like this:
+
+What-If Analysis
+→ “What happens if I choose this strategy?”
+
+Control Optimisation (MPC)
+→ “What strategy should I choose?”
+
+This mental model is exactly what examiners want to see, even if you don’t write it explicitly.

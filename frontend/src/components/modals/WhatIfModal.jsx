@@ -1,5 +1,6 @@
 import ModalWrapper from '../ui/ModalWrapper';
 import MetricCard from '../ui/MetricCard';
+import { FlaskConical, Play, Loader2, ArrowDown, ArrowUp } from 'lucide-react';
 
 function WhatIfModal({
   showWhatIfModal,
@@ -45,7 +46,7 @@ function WhatIfModal({
 
 
   return (
-    <ModalWrapper onClose={() => setShowWhatIfModal(false)} title="🔬 What-If Analysis">
+    <ModalWrapper onClose={() => setShowWhatIfModal(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FlaskConical size={18} />What-If Analysis</span>}>
       {/* Description */}
       <p style={{ color: '#666', marginBottom: '20px' }}>
         Test different scenarios to optimize energy usage and costs. Adjust parameters below and see the impact!
@@ -92,7 +93,7 @@ function WhatIfModal({
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
             <span>0.01 (Excellent)</span>
-            <span>0.04 (Current)</span>
+            <span>0.045 (Medium)</span>
             <span>0.08 (Poor)</span>
           </div>
         </div>
@@ -301,7 +302,15 @@ function WhatIfModal({
             opacity: isRunningWhatIf ? 0.6 : 1
           }}
         >
-          {isRunningWhatIf ? '⏳ Running Analysis...' : '▶️ Run What-If Analysis'}
+          {isRunningWhatIf ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={16} className="animate-spin" />Running Analysis...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Play size={16} />Run What-If Analysis
+            </span>
+          )}
         </button>
       </div>
 
@@ -338,7 +347,10 @@ function WhatIfModal({
                     color: whatIfResult.energySaved > 0 ? '#00b894' : '#d63031'
                   }}
                 >
-                  {whatIfResult.energySaved > 0 ? '▼' : '▲'} {Math.abs(whatIfResult.energySaved).toFixed(2)} kWh
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {whatIfResult.energySaved > 0 ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                    {Math.abs(whatIfResult.energySaved).toFixed(2)} kWh
+                  </span>
                   <br />
                   <span style={{ fontSize: '12px' }}>
                     ({whatIfResult.energySaved > 0 ? '-' : '+'}{Math.abs(whatIfResult.percentSaved).toFixed(1)}%)
@@ -364,7 +376,10 @@ function WhatIfModal({
                       color: whatIfResult.targetTempDifference < 0 ? '#00b894' : '#d63031'
                     }}
                   >
-                    {whatIfResult.targetTempDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.targetTempDifference || 0).toFixed(1)}°C
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {whatIfResult.targetTempDifference < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
+                      {Math.abs(whatIfResult.targetTempDifference || 0).toFixed(1)}°C
+                    </span>
                     <br />
                     <span style={{ fontSize: '12px', color: '#666' }}>
                       {whatIfResult.targetTempDifference < 0 ? 'Reduced' : 'Increased'} target temperature
@@ -391,7 +406,10 @@ function WhatIfModal({
                       color: whatIfResult.insulationDifference < 0 ? '#00b894' : '#d63031'
                     }}
                   >
-                    {whatIfResult.insulationDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.insulationDifference || 0).toFixed(3)}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {whatIfResult.insulationDifference < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
+                      {Math.abs(whatIfResult.insulationDifference || 0).toFixed(3)}
+                    </span>
                     <br />
                     <span style={{ fontSize: '12px', color: '#666' }}>
                       {whatIfResult.insulationDifference < 0 ? 'Improved' : 'Worsened'} insulation
@@ -418,7 +436,10 @@ function WhatIfModal({
                       color: whatIfResult.baseLoadDifference < 0 ? '#00b894' : '#d63031'
                     }}
                   >
-                    {whatIfResult.baseLoadDifference < 0 ? '▼' : '▲'} {Math.abs(whatIfResult.baseLoadDifference || 0).toFixed(2)} kW
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {whatIfResult.baseLoadDifference < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
+                      {Math.abs(whatIfResult.baseLoadDifference || 0).toFixed(2)} kW
+                    </span>
                     <br />
                     <span style={{ fontSize: '12px', color: '#666' }}>
                       {whatIfResult.baseLoadDifference < 0 ? 'Reduced' : 'Increased'} equipment load
@@ -555,21 +576,7 @@ function WhatIfModal({
               </div>
             </div>
           )}
-          {/* Savings Summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
-            <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Cost Saved (Period)</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: (whatIfResult.costSaved >= 0 ? 'green' : 'red') }}>
-                ${whatIfResult.costSaved?.toFixed(2)}
-              </div>
-            </div>
-            <div style={{ background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Annual Savings</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: (whatIfResult.costSaved >= 0 ? 'green' : 'red') }}>
-                ${whatIfResult.annualCostSaved?.toFixed(2)}
-              </div>
-            </div>
-          </div>
+          
 
           {/* Chart Button */}
           {whatIfResult.chartData && whatIfResult.chartData.length > 0 && (

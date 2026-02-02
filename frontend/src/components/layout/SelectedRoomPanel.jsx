@@ -1,3 +1,5 @@
+import { MapPin, Snowflake, Flame, Power, RefreshCw, Info, Zap } from 'lucide-react';
+
 function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
   if (!selectedRoom) return null;
 
@@ -39,8 +41,8 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
         minWidth: '300px'
       }}
     >
-      <h2 style={{ margin: '0 0 15px 0', fontSize: '20px' }}>
-        📍 {selectedRoom.name}
+      <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <MapPin size={20} />{selectedRoom.name}
       </h2>
 
       <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
@@ -62,9 +64,12 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
             margin: '5px 0', 
             fontSize: '12px', 
             color: '#ffd700',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
           }}>
-            ⚡ Mode: {currentMode}
+            <Zap size={12} />Mode: {currentMode}
           </p>
         )}
       </div>
@@ -83,26 +88,26 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               onClick={() => handleControl('COOL')}
-              style={getButtonStyle('COOL', '#00d2d3', '#00ffff', '#000')}
-            >❄️ COOL
+              style={{...getButtonStyle('COOL', '#00d2d3', '#00ffff', '#000'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}
+            ><Snowflake size={14} />COOL
             </button>
 
             <button
               onClick={() => handleControl('HEAT')}
-              style={getButtonStyle('HEAT', '#ff9f43', '#ff6b35', '#000')}
-            >🔥 HEAT
+              style={{...getButtonStyle('HEAT', '#ff9f43', '#ff6b35', '#000'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}
+            ><Flame size={14} />HEAT
             </button>
 
             <button
               onClick={() => handleControl('OFF')}
-              style={getButtonStyle('OFF', '#576574', '#c0392b', '#fff')}
-            >⭕ OFF
+              style={{...getButtonStyle('OFF', '#576574', '#c0392b', '#fff'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}
+            ><Power size={14} />OFF
             </button>
 
             <button
               onClick={() => handleControl('AUTO')}
-              style={getButtonStyle('AUTO', '#2e86de', '#3498db', '#fff')}
-            >🔄 AUTO
+              style={{...getButtonStyle('AUTO', '#2e86de', '#3498db', '#fff'), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6}}
+            ><RefreshCw size={14} />AUTO
             </button>
           </div>
         </>
@@ -113,9 +118,12 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
           marginTop: '15px', 
           fontSize: '13px', 
           fontStyle: 'italic',
-          opacity: 0.8
+          opacity: 0.8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
         }}>
-          ℹ️ This room does not have an HVAC system 
+          <Info size={14} />This room does not have an HVAC system 
         </p>
       )}      
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DigitalTwinScene from './DigitalTwinScene';
+import { Factory, Clock, Thermometer, Zap, FlaskConical, TrendingUp, AlertTriangle } from 'lucide-react';
 
 import TemperatureModal from './components/modals/TempModal';
 import EnergyModal from './components/modals/EnergyModal';
@@ -30,7 +31,7 @@ function App() {
   // What-If Analysis states
   const [whatIfParams, setWhatIfParams] = useState({
     targetTemp: 22,
-    insulation: 0.04,
+    insulation: 0.03,
     baseLoad: 1.0,  
     hours: 24,
     investmentCost: null
@@ -73,7 +74,7 @@ function App() {
       // Reset all parameters to default values when modal is closed
       setWhatIfParams({
         targetTemp: 22,
-        insulation: 0.04,
+        insulation: 0.03,
         baseLoad: 1.0,
         hours: 24,
         investmentCost: null
@@ -109,7 +110,7 @@ function App() {
     try {
       const changes = {};
       if (whatIfParams.targetTemp !== 22) changes.targetTemp = parseFloat(whatIfParams.targetTemp);
-      if (whatIfParams.insulation !== 0.04) changes.insulation = parseFloat(whatIfParams.insulation);
+      if (whatIfParams.insulation !== 0.03) changes.insulation = parseFloat(whatIfParams.insulation);
       
       // Base Load Logic - Handle both modes
       if (baseLoadMode === 'all') {
@@ -204,19 +205,19 @@ function App() {
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
           display: 'flex', alignItems: 'center', gap: 10
         }}>
-          <span style={{ fontSize: 24 }}>🏭</span>
+          <Factory size={24} color="#2c3e50" />
           <div>
             <h2 style={{ margin: 0, fontSize: 18 }}>Digital Twin Dashboard</h2>
-            {data && <span style={{ fontSize: 12, color: '#666' }}>🕒 {data.timestamp}</span>}
+            {data && <span style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} />{data.timestamp}</span>}
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button onClick={() => setShowTempModal(true)} style={buttonStyle('#fff')}>🌡️ View All Temps</button>
-          <button onClick={() => setShowEnergyModal(true)} style={buttonStyle('#fff')}>⚡ View Energy</button>
-          <button onClick={() => setShowWhatIfModal(true)} style={buttonStyle('#00b894', 'white')}>🔬 What-If Analysis</button>
-          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={buttonStyle('#3498db', 'white')}>📈 Power Trends</button>
-          <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={buttonStyle('#e74c3c', 'white')}>🚨 Anomaly Detection</button>
+          <button onClick={() => setShowTempModal(true)} style={{...buttonStyle('#fff'), display: 'flex', alignItems: 'center', gap: 6}}><Thermometer size={16} />View All Temps</button>
+          <button onClick={() => setShowEnergyModal(true)} style={{...buttonStyle('#fff'), display: 'flex', alignItems: 'center', gap: 6}}><Zap size={16} />View Energy</button>
+          <button onClick={() => setShowWhatIfModal(true)} style={{...buttonStyle('#00b894', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><FlaskConical size={16} />What-If Analysis</button>
+          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={{...buttonStyle('#3498db', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><TrendingUp size={16} />Power Trends</button>
+          <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={{...buttonStyle('#e74c3c', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><AlertTriangle size={16} />Anomaly Detection</button>
         </div>
       </div>
 

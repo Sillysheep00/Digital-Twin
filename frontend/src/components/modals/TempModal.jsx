@@ -1,4 +1,5 @@
 import ModalWrapper from '../ui/ModalWrapper';
+import { CircleDot, Circle } from 'lucide-react';
 
 function TemperatureModal({show, data, onClose }) {
   if (!show ||!data) return null;
@@ -30,7 +31,10 @@ function TemperatureModal({show, data, onClose }) {
                 {r.temp} °C
               </td>
               <td style={{ padding: '10px' }}>
-                {r.hvac === "ON" ? "🟢 On" : "⚪ Off"}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {r.hvac === "ON" ? <CircleDot size={14} color="#51cf66" /> : <Circle size={14} color="#adb5bd" />}
+                  {r.hvac === "ON" ? "On" : "Off"}
+                </span>
               </td>
             </tr>
           ))}

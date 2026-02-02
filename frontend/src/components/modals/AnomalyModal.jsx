@@ -1,6 +1,7 @@
 import React from 'react';
 import ModalWrapper from '../ui/ModalWrapper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle } from 'lucide-react';
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -150,7 +151,7 @@ function AnomalyModal({
   };
 
   return (
-    <ModalWrapper onClose={() => setShowAnomaly(false)} title="🚨 ML-Based Anomaly Detection">
+    <ModalWrapper onClose={() => setShowAnomaly(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={18} />ML-Based Anomaly Detection</span>}>
       <p style={{ color: '#666', marginBottom: '20px' }}>
         Detect anomalies in energy consumption using machine learning and statistical analysis
       </p>
@@ -173,7 +174,15 @@ function AnomalyModal({
             marginBottom: '20px'
           }}
         >
-          {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+          {isCheckingAnomaly ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={16} className="animate-spin" />Checking...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={16} />Check for Anomalies
+            </span>
+          )}
         </button>
       )}
 
@@ -232,8 +241,16 @@ function AnomalyModal({
                 opacity: isCheckingAnomaly ? 0.6 : 1,
                 whiteSpace: 'nowrap'
               }}
-            >
-              {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+              >
+              {isCheckingAnomaly ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Loader2 size={16} className="animate-spin" />Checking...
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RefreshCw size={16} />Check for Anomalies
+                </span>
+              )}
             </button>
           </div>
 
@@ -314,7 +331,6 @@ function AnomalyModal({
             color: '#666',
             fontStyle: 'italic'
           }}>
-            Residuals calculated by proportionally allocating building power to rooms
           </p>
           
           <div style={{ overflowX: 'auto' }}>

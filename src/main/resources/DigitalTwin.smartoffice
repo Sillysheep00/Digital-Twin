@@ -10,7 +10,7 @@
   <floor floorID="F1">
     <room roomID="R1"
         roomName="Meeting Room"
-        insulation="0.02"
+        insulation="0.03"
         capacity="6"
         model3DPath="&quot;model/R1.glb&quot;"
         baseLoad="0.5"
@@ -82,7 +82,7 @@
     </room>
     <room roomID="R4"
         roomName="Boss Office"
-        insulation="0.02"
+        insulation="0.03"
         capacity="4"
         model3DPath="&quot;model/R4.glb&quot;"
         baseLoad="0.8"
