@@ -73,11 +73,22 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
 
   return (
     <div style={{ height: '600px', width: '100%' }}>
-      <a-scene embedded background="color: #ECECEC">
+      <a-scene embedded background="color: #1a1d24">
         
-        {/* LIGHTING */}
-        <a-light type="ambient" color="#FFF" intensity="0.6"></a-light>
-        <a-light type="directional" position="-1 10 5" intensity="0.8"></a-light>
+        {/* LIGHTING - Enhanced Depth with Angled Shadows (Professional "Mid-Day" Look) */}
+        <a-light type="ambient" color="#4a5568" intensity="0.65"></a-light>
+        
+        {/* Key Light - Main illumination from 2 o'clock position */}
+        <a-light type="directional" position="8 12 6" intensity="1.2" color="#e8f0f7"></a-light>
+        
+        {/* Fill Light - Softens shadows from 10 o'clock */}
+        <a-light type="directional" position="-5 8 -3" intensity="0.5" color="#b8c9db"></a-light>
+        
+        {/* Rim Light - Adds depth to edges from behind */}
+        <a-light type="directional" position="0 10 -8" intensity="0.6" color="#8fa9c4"></a-light>
+        
+        {/* Accent Point Light - Blue glow from above */}
+        <a-light type="point" position="0 6 0" intensity="0.3" color="#3B82F6"></a-light>
         
         {/* CAMERA WITH CURSOR */}
         <a-entity camera look-controls wasd-controls position="0 5 10">
@@ -120,46 +131,50 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
             {roomsConfig.map((room) => {
                 const liveData = getRoomData(room.id);
                 
-                // Color Logic for Sensor (Temperature)
-                let tempColor = "#00FFFF"; // Default Cyan
+                // Color Logic for Sensor (Temperature) - Command & Control Style
+                let tempColor = "#0088cc"; // Default Dim Blue
                 if (liveData) {
-                    if (liveData.temp > 24) tempColor = "red";       // Hot
-                    else if (liveData.temp < 18) tempColor = "blue"; // Cold
-                    else tempColor = "#00FF00";                      // Good (Green)
+                    if (liveData.temp > 24) tempColor = "#ff3838";       // Hot Red
+                    else if (liveData.temp < 18) tempColor = "#4fc3f7"; // Cold Blue
+                    else tempColor = "#51cf66";                          // Good Green
                 }
 
                 return (
                     <a-entity key={room.id} id={`group-${room.id}`}>
 
-                        {/* HVAC INDICATOR (Swaps Width/Height based on isHorizontal prop) */}
+                        {/* HVAC INDICATOR - Command & Control Style */}
                         {room.hv && (
                             <a-box 
                                 position={room.hv.pos}
                                 rotation={room.rot || "0 0 0"}
-                                color="orange"
+                                color={liveData?.hvac === "ON" ? "#ff922b" : "#4a4a4a"}
                                 width={room.isHorizontal ? "0.81" : "0.116"} 
                                 height={room.isHorizontal ? "0.116" : "0.81"} 
                                 depth="0.579"
-                                opacity={liveData?.hvac === "ON" ? 1 : 0.5}
+                                opacity={liveData?.hvac === "ON" ? 1 : 0.3}
+                                material={liveData?.hvac === "ON" ? "emissive: #ff922b; emissiveIntensity: 0.5" : ""}
                             ></a-box>
                         )}
 
-                        {/* ENERGY METER (Teal Flat Panel - Vertical) */}
+                        {/* ENERGY METER - Glowing Blue Panel */}
                         {room.e && (
                             <a-box 
                                 position={room.e.pos}
                                 rotation={room.rot || "0 0 0"}
-                                color="#7FE7D7"
+                                color="#3B82F6"
                                 width="0.0468" height="0.328" depth="0.234"
+                                material="emissive: #3B82F6; emissiveIntensity: 0.4"
+                                opacity="0.9"
                             ></a-box>
                         )}
 
-                        {/* TEMPERATURE SENSOR (Sphere - Changes Color) */}
+                        {/* TEMPERATURE SENSOR - Glowing Sphere */}
                         {room.s && (
                             <a-sphere 
                                 position={room.s.pos}
                                 color={tempColor}
                                 radius="0.0665"
+                                material={`emissive: ${tempColor}; emissiveIntensity: 0.6`}
                             ></a-sphere>
                         )}
 

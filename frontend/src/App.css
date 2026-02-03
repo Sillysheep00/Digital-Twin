@@ -54,3 +54,30 @@
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* Professional Glass Button Hover Effects */
+button:hover:not(:disabled):not(.anomaly-button) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3), 0 0 30px rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.6) !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+button:active:not(:disabled):not(.anomaly-button) {
+  transform: translateY(0px);
+}
+
+/* Special hover effect for anomaly/alert button */
+button.anomaly-button:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(231, 76, 60, 0.3), 0 0 30px rgba(231, 76, 60, 0.2) !important;
+  border: 1px solid rgba(231, 76, 60, 0.7) !important;
+  background: rgba(231, 76, 60, 0.25) !important;
+}
+
+/* Active (click and hold) state for anomaly button - Red border */
+button.anomaly-button:active:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4), 0 0 20px rgba(231, 76, 60, 0.3) !important;
+  border: 2px solid rgba(231, 76, 60, 0.9) !important;
+  background: rgba(231, 76, 60, 0.3) !important;
+  transform: translateY(0px);
+}

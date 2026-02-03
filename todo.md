@@ -286,93 +286,39 @@ what-if analysis is run on a further deep-cloned copy. That means each timeline 
  There is no shared state, so contamination is structurally impossible.”
 
 
- 3️⃣ MPC explained to you (NOT for the report)
+Dual Simulation Representation: Fast-Estimation vs Physics-Based Power
+The system implements two distinct simulated power representations to balance stability and fidelity. The fast-estimation approach computes a constant average power baseline using statistical averages (e.g., 35% HVAC duty cycle, occupancy-based plug load), which serves as input to the Linear Regression calibration model. This design choice ensures a stable prediction baseline for anomaly detection, as the ML model learns to correct systematic offsets between a consistent estimate and real sensor data. The statistical threshold (Z-score) for anomaly detection benefits from this stability, reducing false positives caused by normal HVAC cycling.
+In parallel, a physics-based simulation tracks the actual HVAC power consumption and plug loads computed by the hvac.eol thermal model, which responds dynamically to temperature errors, comfort zones, and occupancy-driven control logic. This representation provides high-fidelity feedback for What-If analysis and validates that parameter changes (e.g., target temperature, insulation) produce the expected directional impact on energy consumption.
+This dual-layer architecture avoids the trade-off between ML stability and simulation responsiveness. The fast-estimation ensures robust anomaly detection with minimal noise, while the physics-based layer demonstrates the Digital Twin's ability to predict realistic operational behavior under hypothetical scenarios. This separation of concerns aligns with the principle of fitness-for-purpose: each representation serves its intended analytical role without compromising the other.
+Viva Defense Script (If Asked):
+Q: "Why do you have two simulated power values? Isn't that redundant?"
+Your Answer:
+"No, they serve different purposes. The fast-estimation is designed for machine learning stability—it provides a consistent input so the Linear Regression model learns a clean mapping from simulation to reality. This makes anomaly detection reliable because the threshold is based on stable residuals.
+The physics-based simulation, on the other hand, reflects the actual thermal dynamics from the HVAC control logic. It responds to temperature setpoints, insulation changes, and occupancy patterns in real-time. This is essential for What-If analysis validation—when a facility manager asks, 'What if I raise the temperature to 25°C?', they need to see realistic HVAC power variation, not a flat average.
+If I had used only the physics-based power for ML training, the model would learn from noisy HVAC cycling, making anomaly detection less reliable. If I had used only the fast-estimation, the What-If analysis wouldn't reflect real operational behavior. The dual approach gives me the best of both worlds."
+Q: "But doesn't training on a constant estimate make your ML model less accurate?"
+Your Answer:
+"The ML model's job is not to simulate physics—it's to calibrate the simulation output to match real building data. The fast-estimation already captures the major energy consumers (HVAC average + plug loads). The Linear Regression learns the systematic scaling and offset between that estimate and reality.
+For example, my model learned a slope of ~X and an intercept of ~Y kW, which corrects for unmodeled constant loads like lighting and equipment. Because the input is stable, the calibration is consistent and interpretable. The R² of ~0.XX and RMSE of ~X kW confirm the model generalizes well despite using a simplified input.
+The physics-based simulation handles the dynamic fidelity, while the ML handles the data-driven correction. It's a classic separation of concerns in hybrid modeling."
+Q: "Why not just use the physics-based power for everything and retrain the ML model?"
+Your Answer:
+"That's a valid alternative, and I considered it. However, retraining on physics-based power introduces two risks:
+The training data would include HVAC cycling noise (ON/OFF states, load factor modulation), which could cause the ML model to overfit to short-term fluctuations rather than learning the systematic bias.
+The anomaly detection threshold would need to be adaptive to HVAC state, which adds complexity and may increase false positives during legitimate HVAC ramp-up periods (e.g., morning warm-up).
+Given the time constraints of this project and the need for demonstrable reliability in anomaly detection, I chose the dual-layer approach. It's architecturally sound, well-justified, and achieves both stability and responsiveness. If I were to extend this work post-submission, training on physics-based power with an adaptive threshold would be an interesting research direction."
 
-This is just so you personally understand it.
 
-MPC in simple math terms
+Layer 1: Fast-Estimation (for ML)
+In json.eol: simulatedTotalPower = estimatedHvacPower + estimatedPlugPower (constant)
+Used for: ML training (RegressionTrainingService) and calibration baseline
+Saved in: SimulationResult.simulatedPower
+Displayed in: Power Trend graph (red line)
+Layer 2: Physics-Based (for simulation)
+In hvac.eol: Actual room.hvac.powerUsage + room.plugLoad computed every timestep
+Used for: Live simulation, What-If energy predictions (via energy meters)
+Saved in: Energy meters (EnergyMeter.energyConsumed)
+Displayed in: What-If energy comparison chart
 
-At every timestep, MPC solves something like:
 
-min
-⁡
-𝑢
-0..
-𝑁
-∑
-𝑡
-=
-0
-𝑁
-(
-EnergyCost
-(
-𝑡
-)
-+
-𝜆
-⋅
-ComfortPenalty
-(
-𝑡
-)
-)
-u
-0..N
-	​
-
-min
-	​
-
-t=0
-∑
-N
-	​
-
-(EnergyCost(t)+λ⋅ComfortPenalty(t))
-
-Subject to:
-
-thermal dynamics (your digital twin model)
-
-temperature comfort bounds
-
-HVAC power limits
-
-Where:
-
-𝑢
-𝑡
-u
-t
-	​
-
- = control actions (setpoints, ON/OFF, mode)
-
-𝑁
-N = prediction horizon (e.g. next 24 hours)
-
-𝜆
-λ = trade-off between comfort and cost
-
-Key idea:
-
-MPC plans many steps ahead
-
-but only executes the first step
-
-then replans when new data arrives
-
-That’s why it’s powerful and safe.
-
-4️⃣ Relationship to What-If Analysis (important conceptual link)
-
-You can think of it like this:
-
-What-If Analysis
-→ “What happens if I choose this strategy?”
-
-Control Optimisation (MPC)
-→ “What strategy should I choose?”
-
-This mental model is exactly what examiners want to see, even if you don’t write it explicitly.
+why changing target temperature in what if analysis have no obvious difference in the energy usage and both scenario use the same energy usage most of the time Because in your What‑If the chart is plotting step energy (15‑min kWh) aggregated to hourly points, and target temperature only affects the HVAC part—but most of the time your step energy is dominated by things that don’t change, or the HVAC control saturates / gets overridden. The main reasons (based on your actual code): 1) Your energy includes plug/base load, which is unchanged hvac.eol adds energy each step as: totalRoomPower = hvacPower + plugPower plugPower comes from room.baseLoad (and standby ratio when empty) So if plug load is a big portion, changing target temp may only change a small slice → curves look similar. 2) Your HVAC power can saturate, so both scenarios consume the same when “fully on” When heating/cooling, hvac.eol computes a loadFactor = gap/2 and then caps it to max 1.0. If the temperature gap is large in both scenarios, both hit 100% loadFactor, so powerUsage is the same; only runtime duration changes slightly (often small visually). 3) Night/occupancy logic can override your setpoint Even if you set all HVAC setpoints to 25°C in What‑If, your script can override targetTemp during night/low occupancy (e.g., 22/20/16). That reduces the effective difference across the 24h window. 4) The building may already be near the comfort band HVAC only turns on outside targetTemp ± comfortZone. If the room temps stay inside the band for long periods, HVAC stays off → both scenarios show the same energy (mostly plug load). where should i write this in my report , limitation or design decision

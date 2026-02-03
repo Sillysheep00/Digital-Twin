@@ -196,11 +196,12 @@ function AnomalyModal({
             alignItems: 'center', 
             gap: '10px',
             padding: '10px',
-            background: '#f8f9fa',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
             borderRadius: '5px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-              <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+              <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
                 Analysis Window:
               </label>
               <select
@@ -212,10 +213,11 @@ function AnomalyModal({
                 style={{
                   padding: '8px 12px',
                   borderRadius: '5px',
-                  border: '1px solid #ddd',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
                   fontSize: '14px',
                   cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
-                  background: 'white'
+                  background: 'rgba(30, 30, 30, 0.5)',
+                  color: '#FFFFFF'
                 }}
               >
                 {WINDOW_SIZE_OPTIONS.map(option => (
@@ -255,12 +257,12 @@ function AnomalyModal({
           </div>
 
           {/* Residual Plot Chart */}
-          <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-            <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
+          <div style={{ background: 'rgba(30, 30, 30, 0.5)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+            <h4 style={{ marginTop: 0, color: '#FFFFFF' }}>Residuals (Actual − Predicted Power)</h4>
             <p style={{ 
               margin: '0 0 15px 0', 
               fontSize: '12px', 
-              color: '#666',
+              color: '#B0B0B0',
               fontStyle: 'italic'
             }}>
               {getTimeRangeSubtitle()}
@@ -316,19 +318,19 @@ function AnomalyModal({
       {/* Room Anomaly Breakdown - Only show if room data exists */}
       {anomalyResult?.roomAnomalies && anomalyResult.roomAnomalies.length > 0 && (
         <div style={{ 
-          background: 'white', 
+          background: 'rgba(30, 30, 30, 0.5)', 
           padding: '15px', 
           borderRadius: '8px', 
           marginBottom: '20px',
-          border: '1px solid #ddd'
+          border: '1px solid rgba(59, 130, 246, 0.3)'
         }}>
-          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#2c3e50' }}>
+          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#FFFFFF' }}>
             🏢 Room Anomaly Breakdown
           </h4>
           <p style={{ 
             margin: '0 0 15px 0', 
             fontSize: '12px', 
-            color: '#666',
+            color: '#B0B0B0',
             fontStyle: 'italic'
           }}>
           </p>
@@ -341,13 +343,13 @@ function AnomalyModal({
             }}>
               <thead>
                 <tr style={{ 
-                  background: '#f5f5f5', 
-                  borderBottom: '2px solid #ddd',
+                  background: 'rgba(59, 130, 246, 0.2)', 
+                  borderBottom: '2px solid #3B82F6',
                   textAlign: 'left'
                 }}>
-                  <th style={{ padding: '10px', fontWeight: 'bold' }}>Room</th>
-                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'right' }}>Residual (kW)</th>
-                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', color: '#FFFFFF' }}>Room</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'right', color: '#FFFFFF' }}>Residual (kW)</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'center', color: '#FFFFFF' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -359,10 +361,10 @@ function AnomalyModal({
                   };
                   
                   const getRowStyle = (isAnomaly) => ({
-                    borderBottom: '1px solid #eee',
+                    borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
                     cursor: 'pointer',
                     transition: 'background 0.2s',
-                    background: isAnomaly ? '#fff5f5' : 'white'
+                    background: isAnomaly ? 'rgba(255, 107, 107, 0.15)' : 'transparent'
                   });
                   
                   return (
@@ -371,26 +373,26 @@ function AnomalyModal({
                       style={getRowStyle(room.anomalyDetected)}
                       onMouseEnter={(e) => {
                         if (room.anomalyDetected) {
-                          e.currentTarget.style.background = '#ffe5e5';
+                          e.currentTarget.style.background = 'rgba(255, 107, 107, 0.25)';
                         } else {
-                          e.currentTarget.style.background = '#f9f9f9';
+                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = room.anomalyDetected ? '#fff5f5' : 'white';
+                        e.currentTarget.style.background = room.anomalyDetected ? 'rgba(255, 107, 107, 0.15)' : 'transparent';
                       }}
                       onClick={() => {
                         console.log('Room clicked:', room.roomName);
                       }}
                     >
-                      <td style={{ padding: '10px', fontWeight: '500' }}>
+                      <td style={{ padding: '10px', fontWeight: '500', color: '#FFFFFF' }}>
                         {room.roomName}
                       </td>
                       <td style={{ 
                         padding: '10px', 
                         textAlign: 'right',
                         fontWeight: room.anomalyDetected ? 'bold' : 'normal',
-                        color: room.anomalyDetected ? '#e74c3c' : '#2c3e50'
+                        color: room.anomalyDetected ? '#ff6b6b' : '#B0B0B0'
                       }}>
                         {room.residual?.toFixed(2) || '0.00'} kW
                       </td>
@@ -413,7 +415,8 @@ function AnomalyModal({
           <div style={{ 
             marginTop: '15px', 
             padding: '10px', 
-            background: '#f8f9fa',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
             borderRadius: '4px',
             display: 'flex',
             justifyContent: 'space-around',
@@ -515,9 +518,11 @@ function AnomalyModal({
             <div
               style={{
                 padding: '15px',
-                background: 'white',
+                background: 'rgba(30, 30, 30, 0.5)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
                 borderRadius: '5px',
                 fontSize: '14px',
+                color: '#FFFFFF',
                 lineHeight: 1.6
               }}
             >
@@ -560,14 +565,14 @@ function AnomalyModal({
         <div
           style={{
             padding: '15px',
-            background: '#f8d7da',
-            border: '1px solid #f5c6cb',
+            background: 'rgba(255, 107, 107, 0.15)',
+            border: '1px solid rgba(255, 107, 107, 0.4)',
             borderRadius: '5px',
-            color: '#721c24'
+            color: '#ff6b6b'
           }}
         >
           <strong>⚠️ Detection Failed</strong>
-          <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+          <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#FFFFFF' }}>
             {anomalyResult.message || 'Failed to perform anomaly detection'}
           </p>
         </div>

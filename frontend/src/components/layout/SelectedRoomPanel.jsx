@@ -29,16 +29,21 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
 
   return (
     <div
+      onClick={(e) => e.stopPropagation()}
       style={{
         position: 'absolute',
         top: '20px',
         right: '20px',
-        background: 'rgba(0, 123, 255, 0.95)',
+        background: 'rgba(30, 64, 175, 0.85)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         color: 'white',
         padding: '20px',
         borderRadius: '12px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        minWidth: '300px'
+        boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4)',
+        border: '1px solid rgba(59, 130, 246, 0.3)',
+        minWidth: '300px',
+        zIndex: 20
       }}
     >
       <h2 style={{ margin: '0 0 15px 0', fontSize: '20px', display: 'flex', alignItems: 'center', gap: 8 }}>

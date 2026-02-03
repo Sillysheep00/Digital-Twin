@@ -115,11 +115,12 @@ function PowerTrendModal({
         alignItems: 'center', 
         gap: '10px',
         padding: '10px',
-        background: '#f8f9fa',
+        background: 'rgba(59, 130, 246, 0.1)',
+        border: '1px solid rgba(59, 130, 246, 0.3)',
         borderRadius: '5px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-          <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+          <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
             Analysis Window:
           </label>
           <select
@@ -133,10 +134,11 @@ function PowerTrendModal({
             style={{
               padding: '8px 12px',
               borderRadius: '5px',
-              border: '1px solid #ddd',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
               fontSize: '14px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              background: 'white'
+              background: 'rgba(30, 30, 30, 0.5)',
+              color: '#FFFFFF'
             }}
           >
             {WINDOW_SIZE_OPTIONS.map(option => (
@@ -179,8 +181,9 @@ function PowerTrendModal({
       {error && (
         <div style={{
           padding: '15px',
-          background: '#fee',
-          color: '#c33',
+          background: 'rgba(255, 107, 107, 0.15)',
+          border: '1px solid rgba(255, 107, 107, 0.4)',
+          color: '#ff6b6b',
           borderRadius: '5px',
           marginBottom: '20px'
         }}>
@@ -190,8 +193,8 @@ function PowerTrendModal({
 
       {/* Chart */}
       {trendData && !error && (
-        <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-          <h4 style={{ marginTop: 0 }}>Power Trend Comparison</h4>
+        <div style={{ background: 'rgba(30, 30, 30, 0.5)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+          <h4 style={{ marginTop: 0, color: '#FFFFFF' }}>Power Trend Comparison</h4>
           <p style={{ 
             margin: '0 0 15px 0', 
             fontSize: '12px', 

@@ -189,37 +189,55 @@ function App() {
 
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial' }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial', background: '#0B0E14' }}>
       
       {/* FULL SCREEN 3D SCENE */}
-      <div style={{ width: '100%', height: 'calc(100% - 100px)', paddingBottom: '100px' }}>
+      <div style={{ width: '100%', height: 'calc(100% - 60px)', paddingBottom: '60px' }}>
         <DigitalTwinScene data={data} onRoomSelect={setSelectedRoomId} />
       </div>
 
       {/* TOP LEFT - DASHBOARD & BUTTONS */}
-      <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 15 }}>
         <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: 'rgba(30, 30, 30, 0.95)',
           padding: '15px 25px',
           borderRadius: 8,
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
           display: 'flex', alignItems: 'center', gap: 10
         }}>
-          <Factory size={24} color="#2c3e50" />
+          <Factory size={24} color="#3B82F6" />
           <div>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Digital Twin Dashboard</h2>
-            {data && <span style={{ fontSize: 12, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={12} />{data.timestamp}</span>}
+            <h2 style={{ margin: 0, fontSize: 18, color: '#FFFFFF', lineHeight: 1.2 }}>Digital Twin Dashboard</h2>
+            {data && <span style={{ fontSize: 12, color: '#B0B0B0', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}><Clock size={12} />{data.timestamp}</span>}
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button onClick={() => setShowTempModal(true)} style={{...buttonStyle('#fff'), display: 'flex', alignItems: 'center', gap: 6}}><Thermometer size={16} />View All Temps</button>
-          <button onClick={() => setShowEnergyModal(true)} style={{...buttonStyle('#fff'), display: 'flex', alignItems: 'center', gap: 6}}><Zap size={16} />View Energy</button>
-          <button onClick={() => setShowWhatIfModal(true)} style={{...buttonStyle('#00b894', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><FlaskConical size={16} />What-If Analysis</button>
-          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={{...buttonStyle('#3498db', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><TrendingUp size={16} />Power Trends</button>
-          <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={{...buttonStyle('#e74c3c', 'white'), display: 'flex', alignItems: 'center', gap: 6}}><AlertTriangle size={16} />Anomaly Detection</button>
+          <button onClick={() => setShowTempModal(true)} style={buttonStyleGlass()}><Thermometer size={16} />View All Temps</button>
+          <button onClick={() => setShowEnergyModal(true)} style={buttonStyleGlass()}><Zap size={16} />View Energy</button>
+          <button onClick={() => setShowWhatIfModal(true)} style={buttonStyleGlass()}><FlaskConical size={16} />What-If Analysis</button>
+          <button onClick={() => { setShowPowerTrendModal(true); handlePowerTrendFetch(); }} style={buttonStyleGlass()}><TrendingUp size={16} />Power Trends</button>
+          <button onClick={() => { setShowAnomalyModal(true); handleAnomalyCheck(); }} style={buttonStyleAlert()} className="anomaly-button"><AlertTriangle size={16} />Anomaly Detection</button>
         </div>
       </div>
+
+      {/* OVERLAY - Click outside to dismiss room panel */}
+      {selectedRoomId && (
+        <div 
+          onClick={() => setSelectedRoomId(null)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 10,
+            cursor: 'pointer'
+          }}
+        />
+      )}
 
       {/* TOP RIGHT - SELECTED ROOM PANEL */}
       <SelectedRoomPanel selectedRoom={selectedRoom} 
@@ -274,7 +292,11 @@ function App() {
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'red', color: 'white', padding: 20, borderRadius: 8
+          background: '#e74c3c', 
+          color: 'white', 
+          padding: 20, 
+          borderRadius: 8,
+          boxShadow: '0 8px 32px rgba(231, 76, 60, 0.4)'
         }}>
           {error}
         </div>
@@ -283,16 +305,46 @@ function App() {
   );
 }
 
-// reusable button style
-const buttonStyle = (bgColor, color = 'black') => ({
-  padding: 10,
+// Unified Glass Button Style - Command Center Aesthetic
+const buttonStyleGlass = (isActive = false) => ({
+  padding: '10px 16px',
   borderRadius: 5,
-  border: 'none',
+  border: isActive 
+    ? '1px solid #3B82F6' 
+    : '1px solid rgba(59, 130, 246, 0.3)',
   cursor: 'pointer',
-  background: bgColor,
-  color: color,
-  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-  fontWeight: 'bold'
+  background: isActive 
+    ? 'rgba(59, 130, 246, 0.2)' 
+    : 'rgba(30, 30, 30, 0.6)',
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)',
+  color: isActive ? '#FFFFFF' : '#3B82F6',
+  boxShadow: isActive 
+    ? '0 0 20px rgba(59, 130, 246, 0.4), 0 2px 8px rgba(0,0,0,0.4)' 
+    : '0 2px 8px rgba(0,0,0,0.4)',
+  fontWeight: 'bold',
+  transition: 'all 0.3s ease',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6
+});
+
+// Alert Button Style - Anomaly Detection Only
+const buttonStyleAlert = () => ({
+  padding: '10px 16px',
+  borderRadius: 5,
+  border: '1px solid rgba(231, 76, 60, 0.5)',
+  cursor: 'pointer',
+  background: 'rgba(231, 76, 60, 0.15)',
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)',
+  color: '#ff6b6b',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+  fontWeight: 'bold',
+  transition: 'all 0.3s ease',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6
 });
 
 export default App;
