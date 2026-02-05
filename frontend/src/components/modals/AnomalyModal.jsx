@@ -1,7 +1,8 @@
 import React from 'react';
 import ModalWrapper from '../ui/ModalWrapper';
+import InfoTooltip from '../ui/Tooltip';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle, CheckCircle, BarChart3, Building2 } from 'lucide-react';
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -43,11 +44,11 @@ function AnomalyModal({
     const severity = anomalyResult?.severity;
     switch (severity) {
       case 'CRITICAL':
-        return '#fadbd8'; // Light red
+        return 'rgba(231, 76, 60, 0.1)'; // Dark red tint
       case 'WARNING':
-        return '#fef5e7'; // Light orange
+        return 'rgba(243, 156, 18, 0.1)'; // Dark orange tint
       default:
-        return '#d4efdf'; // Light green (NORMAL)
+        return 'rgba(39, 174, 96, 0.1)'; // Dark green tint (NORMAL)
     }
   };
 
@@ -152,9 +153,6 @@ function AnomalyModal({
 
   return (
     <ModalWrapper onClose={() => setShowAnomaly(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={18} />ML-Based Anomaly Detection</span>}>
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Detect anomalies in energy consumption using machine learning and statistical analysis
-      </p>
 
       {/* Initial Check Button - Show when no data yet */}
       {(!anomalyResult || anomalyResult.error || !anomalyResult.timeSteps) && (
@@ -201,9 +199,11 @@ function AnomalyModal({
             borderRadius: '5px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-              <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
-                Analysis Window:
-              </label>
+              <InfoTooltip text="Time window for anomaly detection. Larger windows provide more context but may delay detection of recent anomalies." position="right">
+                <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
+                  Analysis Window:
+                </label>
+              </InfoTooltip>
               <select
                 id="anomaly-window-size-select"
                 name="windowSize"
@@ -324,8 +324,8 @@ function AnomalyModal({
           marginBottom: '20px',
           border: '1px solid rgba(59, 130, 246, 0.3)'
         }}>
-          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#FFFFFF' }}>
-            🏢 Room Anomaly Breakdown
+          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Building2 size={18} /> Room Anomaly Breakdown
           </h4>
           <p style={{ 
             margin: '0 0 15px 0', 
@@ -355,9 +355,14 @@ function AnomalyModal({
               <tbody>
                 {anomalyResult.roomAnomalies.map((room, index) => {
                   const getStatusColor = (status) => {
-                    if (status.includes('🔴')) return '#e74c3c';
-                    if (status.includes('🟠')) return '#f39c12';
+                    if (status.includes('🔴') || status.toLowerCase().includes('critical') || status.toLowerCase().includes('anomaly')) return '#e74c3c';
+                    if (status.includes('🟠') || status.toLowerCase().includes('warning')) return '#f39c12';
                     return '#27ae60';
+                  };
+                  
+                  const getStatusText = (status) => {
+                    // Remove emoji and get clean text
+                    return status.replace(/🔴|🟠|🟢/g, '').trim();
                   };
                   
                   const getRowStyle = (isAnomaly) => ({
@@ -402,7 +407,10 @@ function AnomalyModal({
                         fontWeight: 'bold',
                         color: getStatusColor(room.status)
                       }}>
-                        {room.status}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <CircleDot size={14} style={{ fill: getStatusColor(room.status) }} />
+                          {getStatusText(room.status)}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -453,17 +461,17 @@ function AnomalyModal({
           <h3
             style={{
               marginTop: 0,
-              color: getBorderColor(),
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
             }}
           >
             {anomalyResult.severity === 'CRITICAL' 
-              ? '⚠️ ANOMALY DETECTED!' 
+              ? <><AlertTriangle size={20} /> ANOMALY DETECTED!</>
               : anomalyResult.severity === 'WARNING'
-              ? '⚠️ WARNING'
-              : '✅ System Normal'}
+              ? <><AlertTriangle size={20} /> WARNING</>
+              : <><CheckCircle size={20} /> System Normal</>}
             <span
               style={{
                 fontSize: '14px',
@@ -487,25 +495,28 @@ function AnomalyModal({
             }}
           >
             {[
-              { label: 'Real Power', value: anomalyResult.realPower, color: '#2c3e50' },
-              { label: 'ML Predicted', value: anomalyResult.calibratedSimulatedPower, color: '#3498db' },
-              { label: 'Residual', value: anomalyResult.residual, color: anomalyResult.anomalyDetected ? '#e74c3c' : '#27ae60', threshold: anomalyResult.threshold }
+              { label: 'Real Power', value: anomalyResult.realPower, color: '#FFFFFF', tooltip: 'Actual power consumption from historical sensor data (ground truth)' },
+              { label: 'ML Predicted', value: anomalyResult.calibratedSimulatedPower, color: '#3498db', tooltip: 'Expected power consumption predicted by ML-calibrated model based on current conditions' },
+              { label: 'Residual', value: anomalyResult.residual, color: anomalyResult.anomalyDetected ? '#e74c3c' : '#27ae60', threshold: anomalyResult.threshold, tooltip: 'Difference between real and predicted power (Real - Predicted). Large residuals indicate anomalies.' }
             ].map((item) => (
               <div
                 key={item.label}
                 style={{
-                  background: 'white',
+                  background: 'rgba(255, 255, 255, 0.05)',
                   padding: '15px',
                   borderRadius: '8px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                <InfoTooltip text={item.tooltip} position="top">
+                  <div style={{ fontSize: '12px', color: '#B0B0B0', marginBottom: '5px' }}>{item.label}</div>
+                </InfoTooltip>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: item.color }}>
                   {item.value?.toFixed(2)} kW
                 </div>
                 {item.threshold && (
-                  <div style={{ fontSize: '11px', color: '#666' }}>
+                  <div style={{ fontSize: '11px', color: '#B0B0B0' }}>
                     (Threshold: {item.threshold?.toFixed(2)} kW)
                   </div>
                 )}
@@ -533,26 +544,28 @@ function AnomalyModal({
 
           {/* Technical Details */}
           <details style={{ marginTop: '15px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 'bold', padding: '10px' }}>
-              📊 Technical Details
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold', padding: '10px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BarChart3 size={16} /> Technical Details
             </summary>
             <div
               style={{
                 padding: '15px',
-                background: 'white',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '5px',
                 marginTop: '10px',
-                fontSize: '13px'
+                fontSize: '13px',
+                color: '#B0B0B0'
               }}
             >
-              <p><strong>Raw Simulated Power:</strong> {anomalyResult.simulatedPower?.toFixed(2)} kW</p>
-              <p><strong>ML-Calibrated Power:</strong> {anomalyResult.calibratedSimulatedPower?.toFixed(2)} kW</p>
-              <p><strong>Detection Method:</strong> Z-Score Statistical Analysis (Rolling Mean + Std)</p>
-              <p><strong>Threshold:</strong> {anomalyResult.threshold?.toFixed(2)} kW (Statistical threshold based on rolling statistics)</p>
-              <p><strong>Minimum Absolute Threshold:</strong> 5 kW (ignores residuals below this)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Raw Simulated Power:</strong> {anomalyResult.simulatedPower?.toFixed(2)} kW</p>
+              <p><strong style={{ color: '#FFFFFF' }}>ML-Calibrated Power:</strong> {anomalyResult.calibratedSimulatedPower?.toFixed(2)} kW</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Detection Method:</strong> Z-Score Statistical Analysis (Rolling Mean + Std)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Threshold:</strong> {anomalyResult.threshold?.toFixed(2)} kW (Statistical threshold based on rolling statistics)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Minimum Absolute Threshold:</strong> 5 kW (ignores residuals below this)</p>
               {anomalyResult.explanation && anomalyResult.explanation.includes('Z-score') && (
-                <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#666' }}>
-                  <strong>Note:</strong> Detection uses rolling mean and standard deviation of residuals over the last {windowInfo.hours} hours.
+                <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#B0B0B0' }}>
+                  <strong style={{ color: '#FFFFFF' }}>Note:</strong> Detection uses rolling mean and standard deviation of residuals over the last {windowInfo.hours} hours.
                 </p>
               )}
             </div>
@@ -571,7 +584,9 @@ function AnomalyModal({
             color: '#ff6b6b'
           }}
         >
-          <strong>⚠️ Detection Failed</strong>
+          <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={16} /> Detection Failed
+          </strong>
           <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#FFFFFF' }}>
             {anomalyResult.message || 'Failed to perform anomaly detection'}
           </p>

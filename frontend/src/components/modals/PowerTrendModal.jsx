@@ -104,10 +104,6 @@ function PowerTrendModal({
 
   return (
     <ModalWrapper onClose={() => setShowPowerTrend(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TrendingUp size={18} />Power Trends</span>}>
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Compare simulated power consumption with ML-calibrated predictions over time
-      </p>
-
       {/* Window Size Selector */}
       <div style={{ 
         marginBottom: '20px', 

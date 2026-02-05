@@ -1,6 +1,7 @@
 import ModalWrapper from '../ui/ModalWrapper';
 import MetricCard from '../ui/MetricCard';
-import { FlaskConical, Play, Loader2, ArrowDown, ArrowUp } from 'lucide-react';
+import Tooltip from '../ui/Tooltip';
+import { FlaskConical, Play, Loader2, ArrowDown, ArrowUp, BarChart3, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
 
 function WhatIfModal({
   showWhatIfModal,
@@ -47,20 +48,17 @@ function WhatIfModal({
 
   return (
     <ModalWrapper onClose={() => setShowWhatIfModal(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FlaskConical size={18} />What-If Analysis</span>}>
-      {/* Description */}
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Test different scenarios to optimize energy usage and costs. Adjust parameters below and see the impact!
-      </p>
-
       {/* Input Control */}
       <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
         <h3 style={{ marginTop: 0, color: '#FFFFFF' }}>Scenario Parameters</h3>
 
         {/* Target Temperature */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Target Temperature: {whatIfParams.targetTemp}°C
-          </label>
+          <Tooltip text="Desired indoor temperature. Higher temperatures increase heating costs and energy consumption." position="right">
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Target Temperature: {whatIfParams.targetTemp}°C
+            </label>
+          </Tooltip>
           <input
             type="range"
             min="18"
@@ -79,9 +77,11 @@ function WhatIfModal({
 
         {/* Insulation */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Insulation Quality: {whatIfParams.insulation} (Lower = Better)
-          </label>
+          <Tooltip text="Wall insulation coefficient (W/m²·K). Lower values mean better insulation and less heat loss, reducing HVAC energy consumption." position="right">
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Insulation Quality: {whatIfParams.insulation} (Lower = Better)
+            </label>
+          </Tooltip>
           <input
             type="range"
             min="0.01"
@@ -100,9 +100,11 @@ function WhatIfModal({
 
         {/* Base Load - Toggle Mode */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
-            Base Load (Equipment Power)
-          </label>
+          <Tooltip text="Baseline power consumption from equipment (computers, lights, etc.) excluding HVAC. Can be adjusted globally or per-room." position="right">
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+              Base Load (Equipment Power)
+            </label>
+          </Tooltip>
           
           {/* Mode Toggle */}
           <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
@@ -265,9 +267,11 @@ function WhatIfModal({
       
         {/* Investment Cost (Optional) */}
         <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#FFFFFF' }}>
-            Investment Cost (Optional): £
-          </label>
+          <Tooltip text="Initial cost for implementing the scenario changes (e.g., insulation upgrade, equipment replacement). Used to calculate ROI and payback period." position="right">
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#FFFFFF' }}>
+              Investment Cost (Optional): £
+            </label>
+          </Tooltip>
           <input
             type="number"
             min="0"
@@ -317,7 +321,9 @@ function WhatIfModal({
       {/* Results */}
       {whatIfResult && !whatIfResult.error && (
         <div style={{ border: '2px solid #00b894', borderRadius: '8px', padding: '20px', background: 'rgba(0, 184, 148, 0.15)' }}>
-          <h3 style={{ marginTop: 0, color: '#51cf66' }}>📊 Analysis Results</h3>
+          <h3 style={{ marginTop: 0, color: '#51cf66', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BarChart3 size={20} /> Analysis Results
+          </h3>
 
           {/* Comparison Table */}
           <table style={{ width: '100%', marginBottom: '20px', borderCollapse: 'collapse' }}>
@@ -497,8 +503,8 @@ function WhatIfModal({
                 border: '2px solid #3498db'
               }}
             >
-              <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
-                💰 Return on Investment (ROI) Analysis
+              <h4 style={{ marginTop: 0, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <DollarSign size={18} /> Return on Investment (ROI) Analysis
               </h4>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
@@ -518,13 +524,13 @@ function WhatIfModal({
                 />
                 ) : costAnalysis?.annualCostSaved < 0 ? (
                 <div style={{
-                  background: 'white',
+                  background: 'rgba(255, 255, 255, 0.05)',
                   padding: '15px',
                   borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                  <div style={{ fontSize: '12px', color: '#B0B0B0', marginBottom: '5px' }}>
                     Payback Period
                   </div>
                   <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
@@ -549,13 +555,13 @@ function WhatIfModal({
                   />
                 ) : costAnalysis?.annualCostSaved < 0 ? (
                   <div style={{
-                    background: 'white',
+                    background: 'rgba(255, 255, 255, 0.05)',
                     padding: '15px',
                     borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     textAlign: 'center'
                   }}>
-                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '12px', color: '#B0B0B0', marginBottom: '5px' }}>
                       Annual Cost Impact
                     </div>
                     <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>
@@ -599,7 +605,9 @@ function WhatIfModal({
               onMouseOver={(e) => (e.target.style.transform = 'translateY(-2px)')}
               onMouseOut={(e) => (e.target.style.transform = 'translateY(0)')}
             >
-              📊 View Energy Comparison Chart
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                <BarChart3 size={18} /> View Energy Comparison Chart
+              </span>
             </button>
           )}
 
@@ -612,10 +620,12 @@ function WhatIfModal({
                 background: 'rgba(81, 207, 102, 0.15)',
                 border: '1px solid rgba(81, 207, 102, 0.4)',
                 borderRadius: '5px',
-                color: '#155724'
+                color: '#22C55E'
               }}
             >
-              <strong>✅ Recommendation:</strong> This scenario would save energy and reduce costs. Consider implementing these changes!
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle size={16} /> Recommendation:
+              </strong> This scenario would save energy and reduce costs. Consider implementing these changes!
             </div>
           ) : (
             <div
@@ -625,10 +635,12 @@ function WhatIfModal({
                 background: 'rgba(255, 107, 107, 0.15)',
                 border: '1px solid rgba(255, 107, 107, 0.4)',
                 borderRadius: '5px',
-                color: '#721c24'
+                color: '#ff6b6b'
               }}
             >
-              <strong>⚠️ Note:</strong> This scenario would increase energy consumption. Current settings are more efficient.
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle size={16} /> Note:
+              </strong> This scenario would increase energy consumption. Current settings are more efficient.
             </div>
           )}
         </div>
@@ -637,19 +649,12 @@ function WhatIfModal({
       {/* Error */}
       {whatIfResult && whatIfResult.error && (
         <div style={{ padding: '15px', background: 'rgba(255, 107, 107, 0.15)', border: '1px solid rgba(255, 107, 107, 0.4)', borderRadius: '5px', color: '#ff6b6b' }}>
-          <strong>⚠️ Analysis Failed</strong>
+          <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <AlertCircle size={16} /> Analysis Failed
+          </strong>
           <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#FFFFFF' }}>
             {whatIfResult.message || 'Please check backend logs for details.'}
           </p>
-          <div style={{ marginTop: '10px', fontSize: '13px', background: 'rgba(30, 30, 30, 0.5)', padding: '10px', borderRadius: '4px', color: '#FFFFFF' }}>
-            <strong>Common Solutions:</strong>
-            <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-              <li>Wait 2 minutes after starting backend</li>
-              <li>Try clicking "🔮 Predict Next 24H" first</li>
-              <li>Check backend console for errors</li>
-              <li>Ensure MongoDB is running</li>
-            </ul>
-          </div>
         </div>
       )}
     </ModalWrapper>

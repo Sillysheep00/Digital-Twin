@@ -1,9 +1,13 @@
 
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report   
 enhance the cost analysis logic so ROI higher than how many percentage then you only recoommedn the user to apply the setting otherwise do not recommend it 
-Fix per room bug: When i adjust the base load in per room control and  it does not display in the result section but all when i change the apply to all room it will display
 Remove 12 hour horizon in whatifanalysis
 
+Week 5-6: Error Messages
+创建ErrorMessage组件
+替换所有error显示
+测试各种error scenarios
+添加recovery建议
 
 Note 
 always run mvn clean compile when make any changes on the .ecore and .smartoffice file
@@ -322,3 +326,59 @@ Displayed in: What-If energy comparison chart
 
 
 why changing target temperature in what if analysis have no obvious difference in the energy usage and both scenario use the same energy usage most of the time Because in your What‑If the chart is plotting step energy (15‑min kWh) aggregated to hourly points, and target temperature only affects the HVAC part—but most of the time your step energy is dominated by things that don’t change, or the HVAC control saturates / gets overridden. The main reasons (based on your actual code): 1) Your energy includes plug/base load, which is unchanged hvac.eol adds energy each step as: totalRoomPower = hvacPower + plugPower plugPower comes from room.baseLoad (and standby ratio when empty) So if plug load is a big portion, changing target temp may only change a small slice → curves look similar. 2) Your HVAC power can saturate, so both scenarios consume the same when “fully on” When heating/cooling, hvac.eol computes a loadFactor = gap/2 and then caps it to max 1.0. If the temperature gap is large in both scenarios, both hit 100% loadFactor, so powerUsage is the same; only runtime duration changes slightly (often small visually). 3) Night/occupancy logic can override your setpoint Even if you set all HVAC setpoints to 25°C in What‑If, your script can override targetTemp during night/low occupancy (e.g., 22/20/16). That reduces the effective difference across the 24h window. 4) The building may already be near the comfort band HVAC only turns on outside targetTemp ± comfortZone. If the room temps stay inside the band for long periods, HVAC stays off → both scenarios show the same energy (mostly plug load). where should i write this in my report , limitation or design decision
+
+
+
+Live temperature affected features:
+Anomaly Detection (Indirectly)
+Live outdoor temp → hvac.eol → calculates heat transfer differently
+HVAC systems respond to live temp → different simulatedPower
+Anomaly detection compares:
+Real power (historical CSV)
+Predicted power = ML model(simulatedPower with LIVE temp)
+If live temp is very different from historical temp → larger residual → more anomalies detected
+Example:
+Historical temp (May 2018): 10°C
+Live temp (Feb 2026): 4°C
+HVAC works harder in simulation → higher simulated power → bigger gap vs historical real power → anomaly triggered
+
+What-If Analysis ✅ YES, AFFECTED (Directly)
+This calls PredictionService, which runs hvac.eol on the live model state. The live model contains:
+Room temperatures (affected by live outdoor temp in previous steps)
+HVAC states (ON/OFF based on live conditions)
+Energy meters (accumulated using live temp calculations)
+What-If scenarios:
+Baseline: Uses current model state (which reflects live outdoor temp effects)
+Scenario: Applies changes and predicts using the same live conditions
+Example:
+Change target temp from 22°C → 25°C
+With live outdoor temp = 4°C (cold) → less heating needed → smaller energy savings
+With live outdoor temp = 20°C (warm) → more heating needed → bigger energy savings
+
+
+Digital twin 
+Digital Twin ≠ 必须用live data
+Digital Twin的定义：
+✅ 有physical asset的virtual model
+✅ 可以模拟行为和预测结果
+✅ 可以run scenarios和analysis
+❌ 不一定要real-time data
+
+Examples:
+NASA的spacecraft digital twin用历史数据做training
+Manufacturing digital twin用recorded sensor logs
+Building digital twin可以用historical data + simulation
+你的系统是digital twin吗？是的，因为：
+✅ 有building的virtual model（EMF .ecore）
+✅ 可以simulate HVAC behavior
+✅ 有What-If Analysis
+✅ 有anomaly detection
+✅ 有predictive capability
+
+用途1：Dashboard Information Display
+在UI上显示current weather：
+╔═══════════════════════════════════════╗║ Digital Twin Dashboard                ║║ Simulation: 2018-05-27 10:30         ║║ Current Weather: 4°C (London, Live)   ║╚═══════════════════════════════════════╝
+价值：
+展示external API integration
+提供context awareness
+为future live mode做准备

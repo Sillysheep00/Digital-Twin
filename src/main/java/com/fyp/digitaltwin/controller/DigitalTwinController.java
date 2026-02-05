@@ -5,14 +5,17 @@ import com.fyp.digitaltwin.dto.WhatIfRequest;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
 import com.fyp.digitaltwin.service.AnomalyDetectionService;
 import com.fyp.digitaltwin.service.DigitalTwinEngine;
+import com.fyp.digitaltwin.service.WeatherService;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api")
@@ -23,6 +26,12 @@ public class DigitalTwinController {
     
     @Autowired
     private AnomalyDetectionService anomalyDetectionService;
+    
+    @Autowired
+    private WeatherService weatherService;
+    
+    @Value("${weather.location.name:Unknown}")
+    private String locationName;
 
     // Endpoint: http://localhost:8080/api/status
     @GetMapping("/status")
@@ -103,6 +112,31 @@ public class DigitalTwinController {
     
 
         return ResponseEntity.ok(result);
+    }
+    
+    // Endpoint for Live Weather Info (Display Only)
+    // URL: GET http://localhost:8080/api/weather/live
+    // Returns current live weather data for dashboard display
+    @GetMapping(value = "/weather/live", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getLiveWeather() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Get live temperature (with fallback)
+            double liveTemp = weatherService.getLiveOutdoorTemperature(null);
+            String cacheStatus = weatherService.getCacheStatus();
+            
+            response.put("temperature", liveTemp);
+            response.put("location", locationName);
+            response.put("cacheStatus", cacheStatus);
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", "Failed to fetch live weather");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
     

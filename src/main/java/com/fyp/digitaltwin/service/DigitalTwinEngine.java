@@ -201,12 +201,13 @@ public class DigitalTwinEngine {
             if (currentData != null) {
                 System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
 
-                // 3. Run Physics Simulation (hvac.eol)
+                // 3. Run Physics Simulation (hvac.eol) with DATASET temperature
+                // Note: Using historical outdoor temperature for reproducible simulation
                 String physicsLog = modelService.runEolScript(
                     smartOfficeModel, 
                     "hvac.eol", 
                     "HVAC Physics", 
-                    currentData, 
+                    currentData, // Using dataset temperature for consistent physics
                     TIME_STEP_HOURS, 
                     manualOverrides,
                     mlSlope,

@@ -56,33 +56,32 @@ for (r in allRooms) {
 
 var simulatedPhysicsPower = physicsHvacPower + physicsPlugPower;
 
-// For room-level display, calculate per-room values
+// For room-level display, calculate per-room values (physics-based)
 for (r in allRooms) {
-    // HVAC Power (distributed equally among all HVAC systems, not per room)
+    // HVAC Power from physics simulation (actual hvac.eol state)
     var hvacStatus = "OFF";
     var currentHvacPower = 0.0d;
     var hasHvac = r.hvac.isDefined();
     
     if (hasHvac) {
-        // Distribute HVAC power equally among all HVAC systems
-        currentHvacPower = (hvacCount > 0) ? (estimatedHvacPower / hvacCount) : 0.0d;
-        hvacStatus = "ON";  // Assume ON for display purposes
-    }
-    // Plug Load (occupancy-based, same logic as training but with per-room capacity weighting )
-    var plugLoad = 0.0d;
-    if (totalCapacity > 0 and r.capacity > 0) {
-        var roomShare = r.capacity / totalCapacity;
-        var estOccupancy = totalBuildingOccupancy * roomShare;
-        if (estOccupancy > r.capacity) { estOccupancy = r.capacity; }
-
-        if (estOccupancy > 0) {
-            plugLoad = r.baseLoad;  // Full power when occupied
+        if (r.hvac.status == true) {
+            currentHvacPower = r.hvac.powerUsage;  // Actual physics-based HVAC power
+            hvacStatus = "ON";
         } else {
-            plugLoad = r.baseLoad * STANDBY_RATIO;  // Standby when empty
+            hvacStatus = "OFF";
         }
     }
+    
+    // Plug Load from physics simulation (actual hvac.eol computation)
+    var plugLoad = 0.0d;
+    if (r.plugLoad.isDefined()) {
+        plugLoad = r.plugLoad;  // Use actual plug load from hvac.eol
+    } else {
+        // Fallback: use baseLoad if plugLoad not set
+        plugLoad = r.baseLoad;
+    }
 
-    // Total Current Power for Room
+    // Total Current Power for Room (physics-based)
     var roomCurrentPower = currentHvacPower + plugLoad;
 
     // Accumulated Energy (from Sensor)
