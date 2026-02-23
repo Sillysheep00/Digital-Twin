@@ -1,4 +1,6 @@
 import ModalWrapper from '../ui/ModalWrapper';
+import InfoTooltip from '../ui/Tooltip';
+import ErrorMessage from '../ui/ErrorMessage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 
@@ -116,9 +118,11 @@ function PowerTrendModal({
         borderRadius: '5px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-          <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
-            Analysis Window:
-          </label>
+          <InfoTooltip text="Time range for power trend visualization. Select how far back to display historical data." position="right">
+            <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
+              Analysis Window:
+            </label>
+          </InfoTooltip>
           <select
             id="trend-window-size-select"
             value={windowSize || 32}
@@ -175,16 +179,19 @@ function PowerTrendModal({
 
       {/* Error Message */}
       {error && (
-        <div style={{
-          padding: '15px',
-          background: 'rgba(255, 107, 107, 0.15)',
-          border: '1px solid rgba(255, 107, 107, 0.4)',
-          color: '#ff6b6b',
-          borderRadius: '5px',
-          marginBottom: '20px'
-        }}>
-          {error}
-        </div>
+        <ErrorMessage
+          type="critical"
+          title="DATA LOAD FAILED"
+          message={error}
+          recovery={[
+            "Ensure backend is running and responsive",
+            "Check if historical data is available",
+            "Try refreshing the data using the Refresh button",
+            "Reduce analysis window size if data is insufficient"
+          ]}
+          onRetry={handleFetchTrends}
+          isRetrying={isLoading}
+        />
       )}
 
       {/* Chart */}

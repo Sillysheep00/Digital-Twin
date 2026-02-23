@@ -1,6 +1,7 @@
 import ModalWrapper from '../ui/ModalWrapper';
 import MetricCard from '../ui/MetricCard';
 import Tooltip from '../ui/Tooltip';
+import ErrorMessage from '../ui/ErrorMessage';
 import { FlaskConical, Play, Loader2, ArrowDown, ArrowUp, BarChart3, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
 
 function WhatIfModal({
@@ -648,14 +649,17 @@ function WhatIfModal({
 
       {/* Error */}
       {whatIfResult && whatIfResult.error && (
-        <div style={{ padding: '15px', background: 'rgba(255, 107, 107, 0.15)', border: '1px solid rgba(255, 107, 107, 0.4)', borderRadius: '5px', color: '#ff6b6b' }}>
-          <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <AlertCircle size={16} /> Analysis Failed
-          </strong>
-          <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#FFFFFF' }}>
-            {whatIfResult.message || 'Please check backend logs for details.'}
-          </p>
-        </div>
+        <ErrorMessage
+          type="critical"
+          title="ANALYSIS FAILED"
+          message={whatIfResult.message || 'What-If analysis could not be completed.'}
+          recovery={[
+            "Ensure backend is running and responsive",
+            "Check if prediction data is available (requires ML model training)",
+            "Verify parameter values are within valid ranges",
+            "Try resetting parameters to defaults"
+          ]}
+        />
       )}
     </ModalWrapper>
   );

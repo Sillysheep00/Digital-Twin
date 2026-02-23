@@ -12,6 +12,7 @@ import SelectedRoomPanel from './components/layout/SelectedRoomPanel';
 import StatusBar from './components/layout/StatusBar';
 import PowerTrendModal from './components/modals/PowerTrendModal';
 import Tooltip from './components/ui/Tooltip';
+import ErrorMessage from './components/ui/ErrorMessage';
 
 function App() {
   const [data, setData] = useState(null);
@@ -116,12 +117,17 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    fetchLiveWeather(); // Fetch once on mount
+    // Don't fetch weather on mount - wait for backend to be ready
   }, []);
   
   // Start polling only after initial load is complete
   useEffect(() => {
     if (!isLoading && data) {
+      // If we don't have weather data yet, fetch it immediately when backend is ready
+      if (!liveWeather) {
+        fetchLiveWeather();
+      }
+      
       const interval = setInterval(fetchData, 5000);
       const weatherInterval = setInterval(fetchLiveWeather, 300000); // Refresh every 5 minutes
       return () => {
@@ -485,15 +491,33 @@ function App() {
       {/* ERROR DISPLAY */}
       {error && (
         <div style={{
-          position: 'absolute', top: '50%', left: '50%',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: '#e74c3c', 
-          color: 'white', 
-          padding: 20, 
-          borderRadius: 8,
-          boxShadow: '0 8px 32px rgba(231, 76, 60, 0.4)'
+          width: '500px',
+          maxWidth: '90vw',
+          zIndex: 1000
         }}>
-          {error}
+          <ErrorMessage
+            type="critical"
+            title="CONNECTION FAILED"
+            message={error}
+            recovery={[
+              "Start backend: mvn spring-boot:run",
+              "Verify MongoDB is running on port 27017",
+              "Check if port 8080 is available",
+              "Check terminal for backend error logs"
+            ]}
+            onRetry={() => {
+              setError(null);
+              setIsLoading(true);
+              retryCountRef.current = 0;
+              isLoadingRef.current = true;
+              fetchData();
+            }}
+            isRetrying={isLoading}
+          />
         </div>
       )}
     </div>

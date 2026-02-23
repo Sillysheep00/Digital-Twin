@@ -163,6 +163,16 @@ jsonOutput = jsonOutput + '"energy": {' + "\n";
 jsonOutput = jsonOutput + '  "total": ' + simulatedEnergyTotal.format("%.2f") + "\n";
 jsonOutput = jsonOutput + "}," + "\n";
 
+jsonOutput = jsonOutput + '"environment": {' + "\n";
+var outdoorTempValue = 0.0d;
+if (simulateData.isDefined()) {
+    outdoorTempValue = simulateData.outdoorTemperature;
+}
+jsonOutput = jsonOutput + '  "outdoorTemp": ' + outdoorTempValue.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "avgIndoorTemp": ' + avgTemp.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "activeHvacs": ' + allHvacs.select(h | h.status == true).size() + "\n";
+jsonOutput = jsonOutput + "}," + "\n";
+
 jsonOutput = jsonOutput + '"comfort": {' + "\n";
 jsonOutput = jsonOutput + '  "avgTemp": ' + avgTemp.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "activeHvacs": ' + allHvacs.select(h | h.status == true).size() + "\n";

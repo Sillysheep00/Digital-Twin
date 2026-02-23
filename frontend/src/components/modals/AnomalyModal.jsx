@@ -1,6 +1,7 @@
 import React from 'react';
 import ModalWrapper from '../ui/ModalWrapper';
 import InfoTooltip from '../ui/Tooltip';
+import ErrorMessage from '../ui/ErrorMessage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle, CheckCircle, BarChart3, Building2 } from 'lucide-react';
 
@@ -575,22 +576,19 @@ function AnomalyModal({
 
       {/* Error Handling */}
       {anomalyResult && anomalyResult.error && (
-        <div
-          style={{
-            padding: '15px',
-            background: 'rgba(255, 107, 107, 0.15)',
-            border: '1px solid rgba(255, 107, 107, 0.4)',
-            borderRadius: '5px',
-            color: '#ff6b6b'
-          }}
-        >
-          <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <AlertTriangle size={16} /> Detection Failed
-          </strong>
-          <p style={{ margin: '10px 0 0 0', fontSize: '14px', color: '#FFFFFF' }}>
-            {anomalyResult.message || 'Failed to perform anomaly detection'}
-          </p>
-        </div>
+        <ErrorMessage
+          type="critical"
+          title="DETECTION FAILED"
+          message={anomalyResult.message || 'Failed to perform anomaly detection'}
+          recovery={[
+            "Ensure sufficient historical data is available (minimum 8 hours)",
+            "Check if ML model has been trained successfully",
+            "Try reducing the analysis window size",
+            "Verify backend anomaly detection service is running"
+          ]}
+          onRetry={handleAnomalyCheck}
+          isRetrying={isCheckingAnomaly}
+        />
       )}
     </ModalWrapper>
   );

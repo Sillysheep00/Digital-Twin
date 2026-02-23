@@ -139,5 +139,23 @@ public class DigitalTwinController {
         }
     }
 
-    
+    // 在 DigitalTwinController.java 中添加
+    @GetMapping("/weather/status")
+    public ResponseEntity<Map<String, Object>> getWeatherStatus() {
+        Map<String, Object> status = new HashMap<>();
+        try {
+            double temp = weatherService.getLiveOutdoorTemperature(null);
+            String cacheStatus = weatherService.getCacheStatus();
+            
+            status.put("temperature", temp);
+            status.put("cacheStatus", cacheStatus);
+            status.put("apiWorking", true);
+            status.put("message", "Weather API is working");
+        } catch (Exception e) {
+            status.put("apiWorking", false);
+            status.put("error", e.getMessage());
+            status.put("message", "Weather API failed: " + e.getMessage());
+        }
+        return ResponseEntity.ok(status);
+    }
 }
