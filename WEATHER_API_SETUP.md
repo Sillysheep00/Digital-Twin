@@ -1,10 +1,4 @@
-# Weather API Integration Setup Guide
 
-## Live Outdoor Temperature - Transform to Digital Twin
-
-Your system has been successfully integrated with OpenWeatherMap API to fetch live outdoor temperature data. This transforms your system from a CSV-based simulation into a true **digital twin** where real-world environmental data influences the virtual model.
-
----
 
 ## Setup Instructions
 

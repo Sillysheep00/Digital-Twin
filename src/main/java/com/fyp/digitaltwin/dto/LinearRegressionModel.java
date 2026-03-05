@@ -6,17 +6,6 @@ package com.fyp.digitaltwin.dto;
  * This model learns the relationship between simulated and real power consumption:
  *     realPower ≈ slope × simulatedPower + intercept
  * 
- * Why Linear Regression for FYP:
- * - Simple and explainable (not a black box)
- * - Qualifies as machine learning (learns from data)
- * - No external libraries needed (pure Java implementation)
- * - Provides interpretable coefficients
- * 
- * Machine Learning Justification:
- * - Learns parameters (slope, intercept) from historical data
- * - Generalizes to predict future power consumption
- * - Uses statistical optimization (least squares)
- * - Improves prediction compared to simple averaging
  */
 public class LinearRegressionModel {
     

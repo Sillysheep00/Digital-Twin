@@ -452,3 +452,29 @@ Calibration
 可解释性：物理模拟和ML校正分离，便于调试
 灵活性：可以随时重新训练回归模型，不影响物理引擎
 简答：B，回归是后处理校正，不调整物理系数。
+
+How RMSE and R square value is calculated 
+项目	Baseline (未校准)	Calibrated (校准后)
+预测值	yPred = simulatedPower	yPred = slope × simulatedPower + intercept
+残差	realPower - simulatedPower	realPower - (slope × simulatedPower + intercept)
+R²公式	1 - (Σ(real-simulated)² / SS_total)	1 - (Σ(real-predicted_calibrated)² / SS_total)
+RMSE公式	√(Σ(real-simulated)² / n)	√(Σ(real-predicted_calibrated)² / n)
+
+
+ * Why Linear Regression for FYP:
+ * - Simple and explainable (not a black box)
+ * - Qualifies as machine learning (learns from data)
+ * - No external libraries needed (pure Java implementation)
+ * - Provides interpretable coefficients
+ * 
+ * Machine Learning Justification:
+ * - Learns parameters (slope, intercept) from historical data
+ * - Generalizes to predict future power consumption
+ * - Uses statistical optimization (least squares)
+ * - Improves prediction compared to simple averaging
+
+
+ Global exception reason
+ Provides consistent error responses across the API.
+ Best Practice: Centralized exception handling makes the API
+ more maintainable and provides better error messages to clients.

@@ -12,7 +12,7 @@ public class SimulationResult {
     private String timestamp;
     private double realPower;
     private double simulatedPower;
-    private double simulatedPhysicsPower;  // NEW: physics-based simulation
+    private double simulatedPhysicsPower;  
     private double totalEnergy;
     private double outdoorTemp;
     private double avgIndoorTemp;

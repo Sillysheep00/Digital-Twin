@@ -9,7 +9,6 @@ import java.util.List;
  * comparing real power consumption against calibrated simulated power.
  * 
  * Used in the Digital Twin system to identify unusual energy consumption patterns
- * that may indicate equipment malfunction, sensor errors, or unexpected usage.
  */
 public class AnomalyResult {
     
