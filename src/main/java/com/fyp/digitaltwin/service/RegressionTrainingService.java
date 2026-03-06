@@ -4,6 +4,8 @@ import com.fyp.digitaltwin.dto.LinearRegressionModel;
 import com.fyp.digitaltwin.model.SensorData;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import org.eclipse.epsilon.emc.emf.EmfModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -15,7 +17,9 @@ import java.util.List;
 
 @Service
 public class RegressionTrainingService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(RegressionTrainingService.class);
+
     @Autowired
     private SensorDataRepository repository;
     
@@ -45,18 +49,16 @@ public class RegressionTrainingService {
      * @return Trained LinearRegressionModel with learned coefficients
      */
     public LinearRegressionModel trainModel(EmfModel model, long totalDataCount) {
-        System.out.println("\n TRAINING LINEAR REGRESSION MODEL...");
-        System.out.println("   Using Machine Learning approach for energy prediction");
-        System.out.println("   Training set: First " + (TRAINING_SAMPLE_RATIO * 100) + "% of dataset");
+        log.info("TRAINING LINEAR REGRESSION MODEL...");
+        log.info("Using Machine Learning approach for energy prediction");
+        log.info("Training set: First {}% of dataset", (TRAINING_SAMPLE_RATIO * 100));
         
         try {
             // STEP 1: Extract Building Parameters
             BuildingParameters params = extractBuildingParameters(model);
             
-            System.out.println("   Building Configuration:");
-            System.out.println("     - Capacity: " + params.totalCapacity + " people");
-            System.out.println("     - Base Load: " + String.format("%.2f", params.totalBaseLoad) + " kW");
-            System.out.println("     - HVAC Systems: " + params.hvacCount);
+            log.info("Building Configuration: Capacity={} people, BaseLoad={} kW, HVAC Systems={}",
+                    params.totalCapacity, String.format("%.2f", params.totalBaseLoad), params.hvacCount);
             
            
             // STEP 2: Fetch Training Data
@@ -65,7 +67,7 @@ public class RegressionTrainingService {
                 PageRequest.of(0, trainingSampleSize, Sort.by(Sort.Direction.ASC, "date"))
             ).getContent();
             
-            System.out.println("   Loaded " + trainingData.size() + " training samples");
+            log.info("Loaded {} training samples", trainingData.size());
             
             // STEP 3: Collect Training Pairs (X, Y)
             List<Double> X = new ArrayList<>(); // simulatedPower (independent variable)
@@ -89,10 +91,10 @@ public class RegressionTrainingService {
             }
             
             int n = X.size();
-            System.out.println("   Valid training pairs: " + n);
-            
+            log.info("Valid training pairs: {}", n);
+
             if (n < 10) {
-                System.err.println("   ERROR: Insufficient training data (need at least 10 samples)");
+                log.error("Insufficient training data (need at least 10 samples)");
                 return new LinearRegressionModel();
             }
             
@@ -115,9 +117,8 @@ public class RegressionTrainingService {
             double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
             double intercept = (sumY - slope * sumX) / n;
             
-            System.out.println("\n   LEARNED PARAMETERS (via Least Squares):");
-            System.out.println("     - Slope (a):     " + String.format("%.4f", slope));
-            System.out.println("     - Intercept (b): " + String.format("%.4f", intercept) + " kW");
+            log.info("Learned Parameters - Slope: {}, Intercept: {} kW",
+                    String.format("%.4f", slope), String.format("%.4f", intercept));
             
             // STEP 5: Calculate Model Quality Metrics
             // R² (Coefficient of Determination): measures how well model explains variance
@@ -137,10 +138,8 @@ public class RegressionTrainingService {
             // RMSE (Root Mean Squared Error): average prediction error
             double rmse = Math.sqrt(ssResidual / n);
             
-            System.out.println("\n   MODEL QUALITY METRICS:");
-            System.out.println("     - R² Score:      " + String.format("%.4f", rSquared) + 
-                               " (1.0 = perfect fit)");
-            System.out.println("     - RMSE:          " + String.format("%.4f", rmse) + " kW");
+            log.info("Model Quality Metrics - R²: {} (1.0=perfect fit), RMSE: {} kW",
+                    String.format("%.4f", rSquared), String.format("%.4f", rmse));
             
             // STEP 5.5: Calculate Baseline Metrics (NO CALIBRATION)
             // Baseline prediction: directly use simulatedPower (no slope/intercept adjustment)
@@ -169,20 +168,18 @@ public class RegressionTrainingService {
             this.rmseDifference = rmseDifference;
             this.rmseImprovementPercent = rmseImprovementPercent;
             
-            System.out.println("\n   ===== COMPARISON: BASELINE vs CALIBRATED =====");
-            System.out.println("\n   BASELINE (No Calibration):");
-            System.out.println("     - R² Score:      " + String.format("%.4f", rSquaredBaseline));
-            System.out.println("     - RMSE:          " + String.format("%.4f", rmseBaseline) + " kW");
-            System.out.println("\n   CALIBRATED (With ML Model):");
-            System.out.println("     - R² Score:      " + String.format("%.4f", rSquared));
-            System.out.println("     - RMSE:          " + String.format("%.4f", rmse) + " kW");
-            System.out.println("\n   IMPROVEMENT FROM CALIBRATION:");
-            System.out.println("     - R² Difference:  " + String.format("%.4f", rSquaredDifference) + 
-                               (rSquaredDifference > 0 ? " (improvement)" : " (no improvement)"));
-            System.out.println("     - RMSE Difference: " + String.format("%.4f", rmseDifference) + " kW" +
-                               (rmseDifference > 0 ? " (reduction)" : " (increase)"));
+            System.out.println("===== COMPARISON: BASELINE vs CALIBRATED =====");
+            log.info("Baseline (No Calibration) - R²: {}, RMSE: {} kW",
+                    String.format("%.4f", rSquaredBaseline), String.format("%.4f", rmseBaseline));
+            log.info("Calibrated (With ML Model) - R²: {}, RMSE: {} kW",
+                    String.format("%.4f", rSquared), String.format("%.4f", rmse));
+            log.info("Improvement - R² diff: {} {}, RMSE diff: {} kW {}",
+                    String.format("%.4f", rSquaredDifference),
+                    (rSquaredDifference > 0 ? "(improvement)" : "(no improvement)"),
+                    String.format("%.4f", rmseDifference),
+                    (rmseDifference > 0 ? "(reduction)" : "(increase)"));
             if (rmseBaseline > 0) {
-                System.out.println("     - RMSE Improvement: " + String.format("%.2f", rmseImprovementPercent) + "%");
+                log.info("RMSE Improvement: {}%", String.format("%.2f", rmseImprovementPercent));
             }
             System.out.println("   ================================================\n");
             
@@ -196,17 +193,13 @@ public class RegressionTrainingService {
                 LocalDateTime.now().toString()
             );
             
-            System.out.println("\n    TRAINING COMPLETE!");
-            System.out.println("   Model equation: realPower = " + 
-                               String.format("%.4f", slope) + " × simulatedPower + " + 
-                               String.format("%.4f", intercept));
-            System.out.println("   (This model will now be used for anomaly detection)\n");
+            log.info("TRAINING COMPLETE - Model: realPower = {} x simulatedPower + {} (used for anomaly detection)",
+                    String.format("%.4f", slope), String.format("%.4f", intercept));
             
             return trainedModel;
             
         } catch (Exception e) {
-            System.err.println("   Training failed: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Training failed: {}", e.getMessage(), e);
             return new LinearRegressionModel();
         }
     }

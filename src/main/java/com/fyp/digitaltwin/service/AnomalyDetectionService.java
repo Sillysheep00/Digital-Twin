@@ -5,6 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -20,8 +22,9 @@ import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
 @Service
 public class AnomalyDetectionService {
-    
-   
+
+    private static final Logger log = LoggerFactory.getLogger(AnomalyDetectionService.class);
+
     private static final double Z_SCORE_THRESHOLD = 3.0; // 3-sigma rule (99.7% confidence)
     private static final double MIN_ABSOLUTE_THRESHOLD = 5.0; // Ignore residuals < 5 kW
     private static final int ROLLING_WINDOW_SIZE = 32; // Last 32 steps = 8 hours (15-min intervals)
@@ -213,7 +216,7 @@ public class AnomalyDetectionService {
             List<SimulationResult> recentResults = resultRepository.findAll(Sort.by(Sort.Direction.DESC,"timestamp")
             ).stream().limit(numberOfSteps).sorted(Comparator.comparing(SimulationResult::getTimestamp)).collect(Collectors.toList());
 
-            System.out.println("Found " + recentResults.size() + " historical simulation results for charts");
+            log.info("Found {} historical simulation results for charts", recentResults.size());
 
             // Build chart data arrays
             List<Integer> timeSteps = new ArrayList<>();
@@ -281,11 +284,10 @@ public class AnomalyDetectionService {
             result.setPredictedPowerHistory(predictedPowerList);
             result.setResiduals(residualsList);
 
-            System.out.println("Chart data prepared: " + timeSteps.size() + " data points");
+            log.info("Chart data prepared: {} data points", timeSteps.size());
 
-        }catch (Exception e) {
-            System.err.println("Error collecting historical data for charts: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.error("Error collecting historical data for charts: {}", e.getMessage(), e);
             // Initialize empty arrays so frontend doesn't break
             result.setTimeSteps(new ArrayList<>());
             result.setSimulatedPowerHistory(new ArrayList<>());
@@ -415,8 +417,7 @@ public class AnomalyDetectionService {
                 roomIndex++;
         }
         } catch (Exception e) {
-            System.err.println("Error calculating room anomalies: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error calculating room anomalies: {}", e.getMessage(), e);
         }      
         return roomAnomalies;
     }
@@ -444,7 +445,7 @@ public class AnomalyDetectionService {
                 residuals.add(residual);
             }
         } catch (Exception e) {
-            System.err.println("Error fetching historical residuals: " + e.getMessage());
+            log.warn("Error fetching historical residuals: {}", e.getMessage());
         }
         
         return residuals;

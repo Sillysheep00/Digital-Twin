@@ -13,6 +13,8 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.epsilon.evl.execute.UnsatisfiedConstraint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -28,7 +30,9 @@ import java.lang.reflect.Field;
 
 @Service
 public class ModelService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(ModelService.class);
+
     private static final String MODEL_RESOURCE = "DigitalTwin.smartoffice";
     private static final String METAMODEL_RESOURCE = "SmartOffice.ecore";
     
@@ -42,7 +46,7 @@ public class ModelService {
      * @throws Exception if model loading fails
      */
     public EmfModel loadBaseModel() throws Exception {
-        System.out.println("Loading SmartOffice model from resources...");
+        log.info("Loading SmartOffice model from resources...");
         
         EmfModel model = new EmfModel();
         model.setName("SmartOffice");
@@ -61,7 +65,7 @@ public class ModelService {
                 "    s.energyConsumed = 0.0d;\n" +
                 "}\n";
             runSimpleEolScript(model, resetScript);
-            System.out.println("   Reset energy meters to ensure clean base model state");
+            log.info("Reset energy meters to ensure clean base model state");
         } catch (Exception e) {
             throw new IllegalStateException("Failed to reset energy meters in base model", e);
         }
@@ -82,7 +86,7 @@ public class ModelService {
             throw new IllegalArgumentException("Source model cannot be null");
         }
         
-        System.out.println("Deep cloning model (creating isolated Resource and EObject graph)...");
+        log.info("Deep cloning model (creating isolated Resource and EObject graph)...");
         
         // 1. Get original resource
         Resource originalResource = sourceModel.getResource();
@@ -111,12 +115,12 @@ public class ModelService {
         if (originalResource.getContents().size() > 0 && clonedResource.getContents().size() > 0) {
             EObject originalRoot = originalResource.getContents().get(0);
             EObject clonedRoot = clonedResource.getContents().get(0);
-            System.out.println("   VERIFICATION - Original root hash: " + System.identityHashCode(originalRoot));
-            System.out.println("   VERIFICATION - Cloned root hash: " + System.identityHashCode(clonedRoot));
+            log.debug("VERIFICATION - Original root hash: {}, Cloned root hash: {}",
+                    System.identityHashCode(originalRoot), System.identityHashCode(clonedRoot));
             if (System.identityHashCode(originalRoot) == System.identityHashCode(clonedRoot)) {
-                System.err.println("    WARNING: Hash codes match! Cloning may have failed!");
+                log.warn("Hash codes match! Cloning may have failed!");
             } else {
-                System.out.println("    VERIFIED: Models are isolated (different hash codes)");
+                log.info("VERIFIED: Models are isolated (different hash codes)");
             }
         }
         return clonedResource;
@@ -156,7 +160,7 @@ public class ModelService {
                 resourceSet.getResources().add(resource);
             }
             
-            System.out.println("   Wrapped Resource in EmfModel for EOL execution");
+            log.debug("Wrapped Resource in EmfModel for EOL execution");
         } catch (Exception e) {
             // Fallback: Save to temp file and load
             File tempFile = File.createTempFile("eol_model_", ".smartoffice");
@@ -168,7 +172,7 @@ public class ModelService {
             model.setReadOnLoad(true);
             model.load();
             
-            System.out.println("   Wrapped Resource in EmfModel via temp file: " + tempFile.getAbsolutePath());
+            log.debug("Wrapped Resource in EmfModel via temp file: {}", tempFile.getAbsolutePath());
         }
         
         return model;
@@ -219,7 +223,8 @@ public class ModelService {
         boolean silentMode = logPrefix != null && 
                             (logPrefix.contains("Prediction") || 
                             logPrefix.contains("Scenario") ||
-                            logPrefix.contains("Calibration"));
+                            logPrefix.contains("Calibration") ||
+                            logPrefix.contains("HVAC Physics"));
         module.getContext().getFrameStack().put("SILENT_MODE", silentMode);
         
         // Capture console output - synchronized to prevent race conditions

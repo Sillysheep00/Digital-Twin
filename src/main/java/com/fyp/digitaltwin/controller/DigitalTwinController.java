@@ -3,12 +3,13 @@ package com.fyp.digitaltwin.controller;
 import com.fyp.digitaltwin.dto.AnomalyResult;
 import com.fyp.digitaltwin.dto.WhatIfRequest;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
-import com.fyp.digitaltwin.dto.ModelMetrics;
 import com.fyp.digitaltwin.service.AnomalyDetectionService;
 import com.fyp.digitaltwin.service.DigitalTwinEngine;
 import com.fyp.digitaltwin.service.WeatherService;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -21,6 +22,8 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/api")
 public class DigitalTwinController {
+
+    private static final Logger log = LoggerFactory.getLogger(DigitalTwinController.class);
 
     @Autowired
     private DigitalTwinEngine engine;
@@ -72,7 +75,7 @@ public class DigitalTwinController {
     // Body: {"changes": {"targetTemp": 21.0, "insulation": 0.03}, "hours": 24}
     @PostMapping("/what-if")
     public ResponseEntity<Map<String, Object>> runWhatIfAnalysis(@Valid @RequestBody WhatIfRequest request) {
-        System.out.println("What-If Analysis Request: " + request);
+        log.info("What-If Analysis Request: {}", request);
         Map<String, Object> result = engine.predictWithWhatIf(request.getChanges(), request.getHours(),request.getInvestmentCost());
         if (result == null) {
             return ResponseEntity.status(500).body(Map.of("error", "What-If analysis failed"));
@@ -160,15 +163,4 @@ public class DigitalTwinController {
         return ResponseEntity.ok(status);
     }
     
-    // Endpoint for Model Metrics (R² and RMSE values)
-    // URL: GET http://localhost:8080/api/model/metrics
-    // Returns baseline and calibrated R² and RMSE values
-    @GetMapping(value = "/model/metrics", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ModelMetrics> getModelMetrics() {
-        ModelMetrics metrics = engine.getModelMetrics();
-        if (metrics == null) {
-            return ResponseEntity.status(503).body(null); // Service Unavailable - model not trained yet
-        }
-        return ResponseEntity.ok(metrics);
-    }
 }

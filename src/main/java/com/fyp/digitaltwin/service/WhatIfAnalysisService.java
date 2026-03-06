@@ -6,6 +6,8 @@ import com.fyp.digitaltwin.dto.CostAnalysisResult;
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.epsilon.eol.EolModule;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +27,9 @@ import java.time.LocalDateTime;
  */
 @Service
 public class WhatIfAnalysisService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(WhatIfAnalysisService.class);
+
     @Autowired
     private ModelService modelService;
     
@@ -39,9 +43,8 @@ public class WhatIfAnalysisService {
      * This method is kept for initialization logging purposes.
      */
     public void setRegressionModel(LinearRegressionModel model) {
-        System.out.println("WhatIfAnalysisService: Initialized with ML model - slope=" + 
-                          String.format("%.4f", model.getSlope()) + 
-                          ", intercept=" + String.format("%.4f", model.getIntercept()));
+        log.info("WhatIfAnalysisService: Initialized with ML model - slope={}, intercept={}",
+                String.format("%.4f", model.getSlope()), String.format("%.4f", model.getIntercept()));
     }
     
     /**
@@ -52,21 +55,19 @@ public class WhatIfAnalysisService {
      * @return Comparison result with baseline, scenario, savings, and recommendations
      */
     public Map<String, Object> runAnalysis(Map<String, Object> changes, int hours,Double investmentCost) {
-        System.out.println("=== WHAT-IF ANALYSIS START ===");
-        System.out.println("Changes requested: " + changes);
-        System.out.println("Prediction horizon: " + hours + " hours");
+        log.info("=== WHAT-IF ANALYSIS START === Changes: {}, Horizon: {} hours", changes, hours);
         
         try {
             // STEP 1: Run baseline prediction with current live state (with step data for charting)
-            System.out.println("\n[1/5] Running baseline prediction...");
+            log.info("[1/5] Running baseline prediction...");
             Map<String, Object> baselineDetailed = predictionService.predictFutureEnergyWithSteps(hours);
-            
+
             // Check if baseline prediction failed
             if (baselineDetailed == null || baselineDetailed.containsKey("error") || !baselineDetailed.containsKey("predictedEnergy")) {
                 return createErrorResponse("Baseline prediction failed. Please wait for simulation to run.", null);
             }
-            
-            System.out.println("Baseline energy: " + baselineDetailed.get("predictedEnergy") + " kWh");
+
+            log.info("Baseline energy: {} kWh", baselineDetailed.get("predictedEnergy"));
             
             // STEP 1.5: Extract baseline base load BEFORE cloning
             EmfModel liveModel = predictionService.getLiveModel();
@@ -78,23 +79,23 @@ public class WhatIfAnalysisService {
             if (changes.containsKey("targetTemp")) {
                 double baselineTargetTemp = extractAverageTargetTemp(liveModel);
                 baselineValues.put("targetTemp", baselineTargetTemp);
-                System.out.println("Baseline target temperature: " + baselineTargetTemp + "°C");
+                log.info("Baseline target temperature: {}°C", baselineTargetTemp);
             }
             if (changes.containsKey("insulation")) {
                 double baselineInsulation = extractAverageInsulation(liveModel);
                 baselineValues.put("insulation", baselineInsulation);
-                System.out.println("Baseline insulation: " + baselineInsulation);
+                log.info("Baseline insulation: {}", baselineInsulation);
             }
             // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
             if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
                 double baselineBaseLoad = extractBaseLoad(liveModel);
                 baselineValues.put("baseLoad", baselineBaseLoad);
-                System.out.println("Baseline base load: " + baselineBaseLoad + " kW");
+                log.info("Baseline base load: {} kW", baselineBaseLoad);
             }
 
 
             // STEP 2: Clone live model for scenario testing
-            System.out.println("\n[2/5] Cloning live model for scenario...");
+            log.info("[2/5] Cloning live model for scenario...");
             // Pure EMF deep clone - returns Resource, not EmfModel
             Resource clonedResource = modelService.deepCloneModel(liveModel);
 
@@ -102,7 +103,7 @@ public class WhatIfAnalysisService {
             EmfModel scenarioModel = modelService.createEmfModelFromResource(clonedResource);
 
             // STEP 3: Apply changes using EOL model transformation
-            System.out.println("\n[3/5] Applying what-if changes to model...");
+            log.info("[3/5] Applying what-if changes to model...");
             applyChangesToModel(scenarioModel, changes);
 
 
@@ -111,31 +112,28 @@ public class WhatIfAnalysisService {
             if (changes.containsKey("targetTemp")) {
                 double scenarioTargetTemp = extractAverageTargetTemp(scenarioModel);
                 scenarioValues.put("targetTemp", scenarioTargetTemp);
-                System.out.println("Scenario target temperature: " + scenarioTargetTemp + "°C");
+                log.info("Scenario target temperature: {}°C", scenarioTargetTemp);
             }
             if (changes.containsKey("insulation")) {
                 double scenarioInsulation = extractAverageInsulation(scenarioModel);
                 scenarioValues.put("insulation", scenarioInsulation);
-                System.out.println("Scenario insulation: " + scenarioInsulation);
+                log.info("Scenario insulation: {}", scenarioInsulation);
             }
             // Check for both baseLoad (all rooms) and roomBaseLoad (per-room)
             if (changes.containsKey("baseLoad") || changes.containsKey("roomBaseLoad")) {
                 double scenarioBaseLoad = extractBaseLoad(scenarioModel);
                 scenarioValues.put("baseLoad", scenarioBaseLoad);
-                System.out.println("Scenario base load: " + scenarioBaseLoad + " kW");
+                log.info("Scenario base load: {} kW", scenarioBaseLoad);
             }
 
             
             // Debug: Show what changes were applied
-            System.out.println("CHANGES APPLIED:");
-            for (Map.Entry<String, Object> entry : changes.entrySet()) {
-                System.out.println("   • " + entry.getKey() + ": " + entry.getValue());
-            }
-            
+            log.info("Changes applied: {}", changes);
+
             // STEP 4: Run prediction on modified model (with step data for charting)
-            System.out.println("\n[4/5] Running scenario prediction with ML calibration...");
-            System.out.println("   ML Model: slope=" + String.format("%.4f", predictionService.getMlSlope()) + 
-                               ", intercept=" + String.format("%.4f", predictionService.getMlIntercept()));
+            log.info("[4/5] Running scenario prediction with ML calibration - slope={}, intercept={}",
+                    String.format("%.4f", predictionService.getMlSlope()),
+                    String.format("%.4f", predictionService.getMlIntercept()));
             Map<String, Object> scenarioDetailed = predictionService.predictOnModelWithSteps(scenarioModel, hours);
             
             // Check if scenario prediction failed
@@ -144,21 +142,20 @@ public class WhatIfAnalysisService {
                 return createErrorResponse("Scenario prediction failed.", null);
             }
             
-            System.out.println("Scenario energy: " + scenarioDetailed.get("predictedEnergy") + " kWh");
-            
+            log.info("Scenario energy: {} kWh", scenarioDetailed.get("predictedEnergy"));
+
             // STEP 5: Calculate savings and prepare results with chart data
-            System.out.println("\n[5/5] Calculating savings and building chart data...");
+            log.info("[5/5] Calculating savings and building chart data...");
             Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours,investmentCost,baselineValues,scenarioValues);
             
             // Clean up
             scenarioModel.dispose();
             
-            System.out.println("\n=== WHAT-IF ANALYSIS COMPLETE ===\n");
+            log.info("=== WHAT-IF ANALYSIS COMPLETE ===");
             return result;
-            
+
         } catch (Exception e) {
-            System.err.println("ERROR in What-If Analysis: " + e.getMessage());
-            e.printStackTrace();
+            log.error("ERROR in What-If Analysis: {}", e.getMessage(), e);
             return createErrorResponse("Analysis failed: " + e.getMessage(), null);
         }
     }
@@ -180,7 +177,7 @@ public class WhatIfAnalysisService {
         try {
             return Double.parseDouble(result.trim());
         } catch (NumberFormatException e) {
-            System.err.println("Warning: Could not parse target temperature: " + result);
+            log.warn("Could not parse target temperature: {}", result);
             return 22.0;
         }
     }
@@ -202,7 +199,7 @@ public class WhatIfAnalysisService {
         try {
             return Double.parseDouble(result.trim());
         } catch (NumberFormatException e) {
-            System.err.println("Warning: Could not parse insulation: " + result);
+            log.warn("Could not parse insulation: {}", result);
             return 0.04;
         }
     }
@@ -224,7 +221,7 @@ public class WhatIfAnalysisService {
         try {
             return Double.parseDouble(result.trim());
         } catch (NumberFormatException e) {
-            System.err.println("Warning: Could not parse base load: " + result);
+            log.warn("Could not parse base load: {}", result);
             return 0.0;
         }
     }
@@ -244,7 +241,7 @@ public class WhatIfAnalysisService {
         // Change 1: Target Temperature (applies to all HVAC systems)
         if (changes.containsKey("targetTemp")) {
             double newTarget = ((Number) changes.get("targetTemp")).doubleValue();
-            System.out.println("  - Setting all HVAC target temperatures to: " + newTarget + "°C");
+            log.info("Setting all HVAC target temperatures to: {}°C", newTarget);
             eolScript.append("for (hvac in SmartOffice!HVACSystem.all) {\n");
             eolScript.append("    hvac.targetTemperature = ").append(newTarget).append("d;\n");
             eolScript.append("}\n");
@@ -253,7 +250,7 @@ public class WhatIfAnalysisService {
         // Change 2: Insulation (applies to all rooms)
         if (changes.containsKey("insulation")) {
             double newInsulation = ((Number) changes.get("insulation")).doubleValue();
-            System.out.println("  - Setting all room insulation to: " + newInsulation);
+            log.info("Setting all room insulation to: {}", newInsulation);
             eolScript.append("for (room in SmartOffice!Room.all) {\n");
             eolScript.append("    room.insulation = ").append(newInsulation).append("d;\n");
             eolScript.append("}\n");
@@ -263,10 +260,10 @@ public class WhatIfAnalysisService {
         if (changes.containsKey("roomInsulation")) {
             @SuppressWarnings("unchecked")
             Map<String, Object> roomChanges = (Map<String, Object>) changes.get("roomInsulation");
-            System.out.println("  - Setting per-room insulation:");
+            log.info("Setting per-room insulation:");
             for (Map.Entry<String, Object> entry : roomChanges.entrySet()) {
                 double value = ((Number) entry.getValue()).doubleValue();
-                System.out.println("    * " + entry.getKey() + " → " + value);
+                log.info("  {} -> {}", entry.getKey(), value);
                 eolScript.append("var room = SmartOffice!Room.all.selectOne(r | r.roomName == '")
                          .append(entry.getKey()).append("');\n");
                 eolScript.append("if (room.isDefined()) { room.insulation = ").append(value).append("d; }\n");
@@ -276,7 +273,7 @@ public class WhatIfAnalysisService {
         // Change 4: Base load (equipment power)
         if (changes.containsKey("baseLoad")) {
             double newBaseLoad = ((Number) changes.get("baseLoad")).doubleValue();
-            System.out.println("  - Setting all room base loads to: " + newBaseLoad + " kW");
+            log.info("Setting all room base loads to: {} kW", newBaseLoad);
             eolScript.append("for (room in SmartOffice!Room.all) {\n");
             eolScript.append("    room.baseLoad = ").append(newBaseLoad).append("d;\n");
             eolScript.append("}\n");
@@ -286,10 +283,10 @@ public class WhatIfAnalysisService {
         if (changes.containsKey("roomBaseLoad")) {
             @SuppressWarnings("unchecked")
             Map<String, Object> roomChanges = (Map<String, Object>) changes.get("roomBaseLoad");
-            System.out.println("  - Setting per-room base load:");
+            log.info("Setting per-room base load:");
             for (Map.Entry<String, Object> entry : roomChanges.entrySet()) {
                 double value = ((Number) entry.getValue()).doubleValue();
-                System.out.println("    * " + entry.getKey() + " → " + value + " kW");
+                log.info("  {} -> {} kW", entry.getKey(), value);
                 eolScript.append("var room = SmartOffice!Room.all.selectOne(r | r.roomName == '")
                          .append(entry.getKey()).append("');\n");
                 eolScript.append("if (room.isDefined()) { room.baseLoad = ").append(value).append("d; }\n");
@@ -299,7 +296,7 @@ public class WhatIfAnalysisService {
         // Execute the transformation
         String scriptContent = eolScript.toString();
         if (scriptContent.contains("SmartOffice")) {
-            System.out.println("\n  Executing EOL transformation...");
+            log.info("Executing EOL transformation...");
             EolModule module = new EolModule();
             module.parse(scriptContent);
             if (!module.getParseProblems().isEmpty()) {
@@ -308,9 +305,9 @@ public class WhatIfAnalysisService {
             module.getContext().getModelRepository().addModel(model);
             module.execute();
             module.getContext().getModelRepository().removeModel(model);
-            System.out.println("  Transformation complete!");
+            log.info("Transformation complete!");
         } else {
-            System.out.println("  No changes to apply.");
+            log.info("No changes to apply.");
         }
     }
     
@@ -423,13 +420,12 @@ public class WhatIfAnalysisService {
             result.put("analysisStartTime", analysisStartTime);
         }
         
-        System.out.println("Energy Saved: " + energySaved + " kWh (" + percentSaved + "%)");
-        System.out.println("Cost Analysis: Daily=£" + costAnalysis.getDailyCostSaved() + 
-                      ", Monthly=£" + costAnalysis.getMonthlyCostSaved() + 
-                      ", Annual=£" + costAnalysis.getAnnualCostSaved());
+        log.info("Energy Saved: {} kWh ({}%)", energySaved, percentSaved);
+        log.info("Cost Analysis: Daily=£{}, Monthly=£{}, Annual=£{}",
+                costAnalysis.getDailyCostSaved(), costAnalysis.getMonthlyCostSaved(), costAnalysis.getAnnualCostSaved());
         if (costAnalysis.getPaybackPeriodMonths() != null) {
-            System.out.println("ROI: Payback=" + costAnalysis.getPaybackPeriodMonths() + " months, " +
-                            "ROI=" + costAnalysis.getRoiPercentage() + "%");
+            log.info("ROI: Payback={} months, ROI={}%",
+                    costAnalysis.getPaybackPeriodMonths(), costAnalysis.getRoiPercentage());
         }
         
         return result;
@@ -481,7 +477,7 @@ public class WhatIfAnalysisService {
                     startDateTime = java.time.LocalDateTime.of(year, month, day, hour, minute);
                 }
             } catch (Exception e) {
-                System.err.println("Warning: Could not parse start date: " + startDate);
+                log.warn("Could not parse start date: {}", startDate);
             }
         }
 
@@ -533,7 +529,7 @@ public class WhatIfAnalysisService {
      * Creates an error response for What-If analysis failures
      */
     private Map<String, Object> createErrorResponse(String message, Map<String, Double> data) {
-        System.err.println("ERROR: " + message);
+        log.error("ERROR: {}", message);
         Map<String, Object> errorResult = new HashMap<>();
         errorResult.put("error", true);
         errorResult.put("message", message);

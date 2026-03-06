@@ -7,6 +7,8 @@ import com.fyp.digitaltwin.model.SensorData;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -25,7 +27,9 @@ import java.util.Map;
  */
 @Service
 public class PredictionService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(PredictionService.class);
+
     private static final double TIME_STEP_HOURS = 0.25; // 15 minutes
     
     @Autowired
@@ -62,7 +66,7 @@ public class PredictionService {
     //Sets the ML slope for predictions (called by DigitalTwinEngine)
     public void setMlSlope(double slope) {
         this.mlSlope = slope;
-        System.out.println("PredictionService: ML slope set to " + String.format("%.4f", slope));
+        log.info("PredictionService: ML slope set to {}", String.format("%.4f", slope));
     }
 
     public EmfModel getLiveModel() {
@@ -72,7 +76,7 @@ public class PredictionService {
     //Sets the ML intercept for predictions (called by DigitalTwinEngine)
     public void setMlIntercept(double intercept) {
         this.mlIntercept = intercept;
-        System.out.println("PredictionService: ML intercept set to " + String.format("%.4f", intercept));
+        log.info("PredictionService: ML intercept set to {}", String.format("%.4f", intercept));
     }
     
     //Gets the current ML slope (for debugging and logging)
@@ -116,7 +120,7 @@ public class PredictionService {
      * @return Map with predictedEnergy, stepEnergyList, hours, or error
      */
     public synchronized Map<String, Object> predictFutureEnergyWithSteps(int hoursToPredict) {
-        System.out.println("Running prediction for next " + hoursToPredict + " hours...");
+        log.info("Running prediction for next {} hours...", hoursToPredict);
         double totalPredictedEnergy = 0.0;
         List<Double> stepEnergyList = new ArrayList<>();
         
@@ -143,10 +147,9 @@ public class PredictionService {
                     "    s.energyConsumed = 0.0d;\n" +
                     "}\n";
                 modelService.runSimpleEolScript(predictionModel, resetScript);
-                System.out.println("   Reset energy meters for prediction (starting from 0 kWh)");
+                log.info("Reset energy meters for prediction (starting from 0 kWh)");
             } catch (Exception e) {
-                System.err.println("Warning: Failed to reset energy meters: " + e.getMessage());
-                e.printStackTrace();
+                log.warn("Failed to reset energy meters: {}", e.getMessage());
             }
 
             // 2. Prepare future data
@@ -167,7 +170,7 @@ public class PredictionService {
                 PageRequest.of(0, stepsNeeded, Sort.by(Sort.Direction.ASC, "date"))
             );
 
-            System.out.println("   Found " + futureDataList.size() + " future records for prediction.");
+            log.info("Found {} future records for prediction.", futureDataList.size());
 
             // 5. Run fast-forward simulation and collect step data
             // Track cumulative energy to calculate step-by-step energy (energy.total is cumulative)
@@ -193,8 +196,8 @@ public class PredictionService {
                 // Validate JSON output before parsing
                 if (jsonOutput == null || jsonOutput.trim().isEmpty() || 
                 (!jsonOutput.trim().startsWith("{") && !jsonOutput.trim().startsWith("["))) {
-                System.err.println("Warning: Invalid JSON output from json.eol, skipping step. Output: " + 
-                                (jsonOutput != null ? jsonOutput.substring(0, Math.min(100, jsonOutput.length())) : "null"));
+                log.warn("Invalid JSON output from json.eol, skipping step. Output: {}",
+                        (jsonOutput != null ? jsonOutput.substring(0, Math.min(100, jsonOutput.length())) : "null"));
 
                 // Skip this step and continue with next (keep previous cumulative energy unchanged)
                 stepEnergyList.add(0.0); //Add 0 instead of crashing 
@@ -205,9 +208,9 @@ public class PredictionService {
                 try {
                     root = objectMapper.readTree(jsonOutput);
                 } catch (Exception e) {
-                    System.err.println("Warning: Failed to parse JSON from json.eol: " + e.getMessage());
-                    System.err.println("JSON output (first 200 chars): " + 
-                                    (jsonOutput.length() > 200 ? jsonOutput.substring(0, 200) : jsonOutput));
+                    log.warn("Failed to parse JSON from json.eol: {}. Output (first 200 chars): {}",
+                            e.getMessage(),
+                            (jsonOutput.length() > 200 ? jsonOutput.substring(0, 200) : jsonOutput));
                     // Skip this step and continue with next (keep previous cumulative energy unchanged)
                     stepEnergyList.add(0.0);
                     continue;
@@ -235,7 +238,7 @@ public class PredictionService {
             // 6. Clean up
             predictionModel.dispose();
 
-            System.out.println("Prediction Complete. Est. Energy: " + totalPredictedEnergy + " kWh");
+            log.info("Prediction Complete. Est. Energy: {} kWh", totalPredictedEnergy);
 
             // 7. Return result map with step data
             Map<String, Object> result = new HashMap<>();
@@ -247,13 +250,13 @@ public class PredictionService {
             return result;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Prediction failed: {}", e.getMessage(), e);
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("error", -1.0);
             return errorResult;
         }
     }
-    
+
     /**
      * Predicts future energy consumption on a specific model (simplified API for backward compability)
      * 
@@ -310,9 +313,9 @@ public class PredictionService {
                     "    s.energyConsumed = 0.0d;\n" +
                     "}\n";
                 modelService.runSimpleEolScript(model, resetScript);
-                System.out.println("   Reset energy meters for What-If prediction (starting from 0 kWh)");
+                log.info("Reset energy meters for What-If prediction (starting from 0 kWh)");
             } catch (Exception e) {
-                System.err.println("Warning: Failed to reset energy meters: " + e.getMessage());
+                log.warn("Failed to reset energy meters: {}", e.getMessage());
             }
             
             // Get current date from current simulation step
@@ -368,8 +371,7 @@ public class PredictionService {
             result.put("stepEnergyList", stepEnergyList);
             
         } catch (Exception e) {
-            System.err.println("Prediction on model failed: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Prediction on model failed: {}", e.getMessage(), e);
             result.put("error", 1.0);
         }
         return result;
@@ -411,13 +413,11 @@ public class PredictionService {
             if (jsonNode.has("power") && jsonNode.get("power").has("simulated")) {
                 double rawSimulated = jsonNode.get("power").get("simulated_raw").asDouble();
                 double mlPredicted = jsonNode.get("power").get("simulated").asDouble();
-                System.out.println(String.format(
-                    "  📊 Step %d | Raw HVAC: %.2f kW → ML Predicted: %.2f kW | Cumulative Energy: %.3f kWh (from sensors)",
-                    stepIndex, rawSimulated, mlPredicted, currentCumulativeEnergy
-                ));
+                log.debug("Step {} | Raw HVAC: {:.2f} kW -> ML Predicted: {:.2f} kW | Cumulative: {:.3f} kWh",
+                        stepIndex, rawSimulated, mlPredicted, currentCumulativeEnergy);
             }
         } catch (Exception e) {
-            System.err.println("Failed to parse energy from JSON: " + e.getMessage());
+            log.warn("Failed to parse energy from JSON: {}", e.getMessage());
         }
         
         return currentCumulativeEnergy;
@@ -443,7 +443,7 @@ public class PredictionService {
                 data.getOccupancy()
             );
         } catch (Exception e) {
-            System.err.println("Error fetching record at index " + index + ": " + e.getMessage());
+            log.error("Error fetching record at index {}: {}", index, e.getMessage());
             return null;
         }
     }

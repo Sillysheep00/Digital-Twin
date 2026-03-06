@@ -2,6 +2,8 @@ package com.fyp.digitaltwin.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,9 @@ import java.time.LocalDateTime;
  */
 @Service
 public class WeatherService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(WeatherService.class);
+
     @Value("${weather.api.key}")
     private String apiKey;
     
@@ -66,7 +70,7 @@ public class WeatherService {
     public double getLiveOutdoorTemperature(String currentDate) {
         // Check if cached temperature is still valid
         if (isCacheValid()) {
-            System.out.println("Using cached temperature: " + cachedTemperature + "°C");
+            log.debug("Using cached temperature: {}°C", cachedTemperature);
             return cachedTemperature;
         }
         
@@ -78,18 +82,17 @@ public class WeatherService {
             cachedTemperature = liveTemp;
             cacheExpiry = LocalDateTime.now().plusMinutes(cacheMinutes);
             
-            System.out.println("Fetched LIVE outdoor temperature: " + liveTemp + "°C (cached for " + cacheMinutes + " min)");
+            log.info("Fetched LIVE outdoor temperature: {}°C (cached for {} min)", liveTemp, cacheMinutes);
             return liveTemp;
-            
+
         } catch (Exception e) {
-            System.err.println("Weather API failed: " + e.getMessage());
-            
+            log.warn("Weather API failed: {}", e.getMessage());
+
             // Fallback to historical CSV data if enabled
             if (fallbackEnabled) {
                 return getFallbackTemperature(currentDate);
             } else {
-                // If fallback disabled, use a default temperature
-                System.err.println("Fallback disabled. Using default temperature: 15°C");
+                log.warn("Fallback disabled. Using default temperature: 15°C");
                 return 15.0;
             }
         }
@@ -162,23 +165,22 @@ public class WeatherService {
      */
     private double getFallbackTemperature(String currentDate) {
         try {
-            System.out.println("Falling back to historical CSV data for date: " + currentDate);
-            
+            log.info("Falling back to historical CSV data for date: {}", currentDate);
+
             // Query MongoDB for the matching date
             SensorData data = sensorDataRepository.findByDate(currentDate);
-            
+
             if (data != null) {
                 double historicalTemp = data.getOutdoorTemperature();
-                System.out.println("Using historical CSV temperature: " + historicalTemp + "°C");
+                log.info("Using historical CSV temperature: {}°C", historicalTemp);
                 return historicalTemp;
             } else {
-                // If no matching date found, use a default
-                System.err.println("No historical data found for date: " + currentDate + ". Using default 15°C");
+                log.warn("No historical data found for date: {}. Using default 15°C", currentDate);
                 return 15.0;
             }
-            
+
         } catch (Exception e) {
-            System.err.println("Fallback failed: " + e.getMessage() + ". Using default 15°C");
+            log.warn("Fallback failed: {}. Using default 15°C", e.getMessage());
             return 15.0;
         }
     }
@@ -189,7 +191,7 @@ public class WeatherService {
     public void clearCache() {
         cachedTemperature = null;
         cacheExpiry = null;
-        System.out.println("Weather cache cleared");
+        log.info("Weather cache cleared");
     }
     
     /**

@@ -8,9 +8,10 @@ import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
-import com.fyp.digitaltwin.dto.ModelMetrics;
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.emf.ecore.resource.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,7 +28,9 @@ import java.util.Map;
 
 @Service
 public class DigitalTwinEngine {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(DigitalTwinEngine.class);
+
     @Autowired
     private SensorDataRepository repository;
 
@@ -65,9 +68,6 @@ public class DigitalTwinEngine {
 
     private String simulationStartTime = null;
     
-    // Model metrics storage (for API access)
-    private ModelMetrics modelMetrics;
-
      //Getter for trained regression model (used by anomaly detection)
      public LinearRegressionModel getRegressionModel() {
         return regressionModel;
@@ -83,20 +83,15 @@ public class DigitalTwinEngine {
         return isCalibrated;
     }
     
-    // Getter for model metrics (used by API)
-    public ModelMetrics getModelMetrics() {
-        return modelMetrics;
-    }
-
     //Initialization
     @PostConstruct
     public void init() {
         try {
-            System.out.println("Initializing Digital Twin Engine...");
+            log.info("Initializing Digital Twin Engine...");
 
             //1.Wipe DB to fix graph values
-            resultRepository.deleteAll(); 
-            System.out.println("DATABASE CLEARED");
+            resultRepository.deleteAll();
+            log.info("Database cleared");
 
             //2. Load and Clone model
             EmfModel baseModel = modelService.loadBaseModel();
@@ -104,19 +99,19 @@ public class DigitalTwinEngine {
             this.smartOfficeModel = modelService.createEmfModelFromResource(clonedResource);
 
             //3. Clean up base model, only need the runtime clone
-            baseModel.dispose(); 
-            System.out.println("Runtime twin model created from base model (deep cloned, isolated)");
+            baseModel.dispose();
+            log.info("Runtime twin model created from base model (deep cloned, isolated)");
 
             //4.Check if MongoDB has data
             totalDataCount = repository.count();
             if (totalDataCount == 0) {
-                System.out.println("MongoDB is empty. Importing data from CSV...");
+                log.info("MongoDB is empty. Importing data from CSV...");
                 loadCsvToMongo("src/main/resources/cleandata.csv");
                 totalDataCount = repository.count();
             }
 
-            System.out.println("Digital Twin Engine initialized successfully!");
-            System.out.println("Engine Ready. Using MongoDB with " + totalDataCount + " records.");
+            log.info("Digital Twin Engine initialized successfully!");
+            log.info("Engine Ready. Using MongoDB with {} records.", totalDataCount);
             
             //5.Set live model reference in prediction service BEFORE training
             predictionService.setLiveModel(smartOfficeModel);
@@ -134,21 +129,6 @@ public class DigitalTwinEngine {
             predictionService.setMlIntercept(mlIntercept); 
             whatIfAnalysisService.setRegressionModel(regressionModel);  // Full ML model for What-If
             
-            // Store model metrics for API access
-            modelMetrics = new ModelMetrics();
-            modelMetrics.setBaselineRSquared(regressionTrainingService.getBaselineRSquared());
-            modelMetrics.setBaselineRMSE(regressionTrainingService.getBaselineRMSE());
-            modelMetrics.setCalibratedRSquared(regressionModel.getrSquared());
-            modelMetrics.setCalibratedRMSE(regressionModel.getRmse());
-            modelMetrics.setRSquaredDifference(regressionTrainingService.getRSquaredDifference());
-            modelMetrics.setRmseDifference(regressionTrainingService.getRmseDifference());
-            modelMetrics.setRmseImprovementPercent(regressionTrainingService.getRmseImprovementPercent());
-            modelMetrics.setSlope(regressionModel.getSlope());
-            modelMetrics.setIntercept(regressionModel.getIntercept());
-            modelMetrics.setTrainingSize(regressionModel.getTrainingSize());
-            modelMetrics.setTrainedDate(regressionModel.getTrainedDate());
-            modelMetrics.setValid(regressionModel.isValid());
-            
             //9.Fast-forward initialization for demo readiness
             fastForwardInitialization(20); // Run 20 steps = 5 hours of simulation
             
@@ -161,8 +141,7 @@ public class DigitalTwinEngine {
             }
             
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Fatal Error: Could not start engine.");
+            log.error("Fatal Error: Could not start engine.", e);
         }
     }
     
@@ -174,8 +153,8 @@ public class DigitalTwinEngine {
      * @param steps Number of steps to fast-forward (4 steps = 1 hour)
      */
     private void fastForwardInitialization(int steps) {
-        System.out.println("\n FAST-FORWARD MODE: Running " + steps + " simulation steps for demo readiness...");
-        System.out.println("   (This simulates " + (steps * 0.25) + " hours of building operation)");
+        log.info("FAST-FORWARD MODE: Running {} simulation steps ({} hours of building operation)...",
+                steps, (steps * 0.25));
         
         long startTime = System.currentTimeMillis();
         int successCount = 0;
@@ -187,20 +166,17 @@ public class DigitalTwinEngine {
                 
                 // Show progress every 5 steps
                 if ((i + 1) % 5 == 0) {
-                    System.out.println("   Progress: " + (i + 1) + "/" + steps + " steps completed");
+                    log.info("Fast-forward progress: {}/{} steps completed", (i + 1), steps);
                 }
             } catch (Exception e) {
-                System.err.println("     Fast-forward step " + (i + 1) + " failed: " + e.getMessage());
+                log.warn("Fast-forward step {} failed: {}", (i + 1), e.getMessage());
                 // Continue with remaining steps even if one fails
             }
         }
         
         long duration = System.currentTimeMillis() - startTime;
-        System.out.println("\n FAST-FORWARD COMPLETE!");
-        System.out.println("   Completed: " + successCount + "/" + steps + " steps");
-        System.out.println("   Duration: " + (duration / 1000.0) + " seconds");
-        System.out.println("   Model is now ready for What-If analysis!");
-        System.out.println("   Current simulation step: " + currentStepIndex + "\n");
+        log.info("FAST-FORWARD COMPLETE! {}/{} steps in {}s. Current step: {}",
+                successCount, steps, (duration / 1000.0), currentStepIndex);
     }
 
     //Simulation Loop
@@ -215,15 +191,15 @@ public class DigitalTwinEngine {
         try {
             // 1. Handle Data Looping, restart when reaching end 
             if (currentStepIndex >= totalDataCount) {
-                System.out.println("--- End of Dataset. Restarting Simulation... ---");
+                log.info("End of dataset. Restarting simulation...");
                 currentStepIndex = 0;
             }
 
-            // 2. Get current sensor from MognoDB
+            // 2. Get current sensor from MongoDB
             DataRecord currentData = fetchRecordByIndex(currentStepIndex);
-            
+
             if (currentData != null) {
-                System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
+                log.debug("Simulating Step {} | Date: {}", currentStepIndex, currentData.getDate());
 
                 // 3. Run Physics Simulation (hvac.eol) with DATASET temperature
                 // Note: Using historical outdoor temperature for reproducible simulation
@@ -239,8 +215,8 @@ public class DigitalTwinEngine {
                     null  // Not needed for hvac.eol
                 );
                 if (!physicsLog.isBlank()) {
-                    System.out.println(physicsLog);
-            }
+                    log.debug("Physics log: {}", physicsLog);
+                }
 
                 // 4. Save simulation snapshot to MongoDB
                 saveSimulationSnapshot(currentData);
@@ -250,8 +226,7 @@ public class DigitalTwinEngine {
             currentStepIndex++;
 
         } catch (Exception e) {
-            System.err.println("Error in simulation step: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in simulation step: {}", e.getMessage(), e);
         }
     }
 
@@ -271,7 +246,7 @@ public class DigitalTwinEngine {
                 simulationStartTime
             );
 
-            System.out.println("DEBUG JSON OUTPUT: " + jsonOutput);
+            log.debug("JSON output: {}", jsonOutput);
             
             // 2. Parse the JSON
             JsonNode root = objectMapper.readTree(jsonOutput);
@@ -300,7 +275,7 @@ public class DigitalTwinEngine {
             resultRepository.save(result);
             
         } catch (Exception e) {
-            System.err.println("Failed to save simulation snapshot: " + e.getMessage());
+            log.error("Failed to save simulation snapshot: {}", e.getMessage(), e);
         }
     }
     
@@ -363,10 +338,10 @@ public class DigitalTwinEngine {
     public void setOverride(String roomId, String action) {
         if (action.equals("AUTO")) {
             manualOverrides.remove(roomId);
-            System.out.println("Removed override for " + roomId + " → AUTO mode");
+            log.info("Removed override for {} -> AUTO mode", roomId);
         } else {
             manualOverrides.put(roomId, action);
-            System.out.println("Set override: " + roomId + " → " + action);
+            log.info("Set override: {} -> {}", roomId, action);
         }
     }
     
@@ -431,12 +406,12 @@ public class DigitalTwinEngine {
                 data.getOccupancy()
             );
         } catch (Exception e) {
-            System.err.println("Error fetching record at index " + index + ": " + e.getMessage());
+            log.error("Error fetching record at index {}: {}", index, e.getMessage());
             return null;
         }
     }
-    
-     //Loads CSV data into MongoDB (runs once on first startup)
+
+    //Loads CSV data into MongoDB (runs once on first startup)
     private void loadCsvToMongo(String csvPath) {
         try (BufferedReader reader = new BufferedReader(new FileReader(csvPath))) {
             String line;
@@ -462,14 +437,13 @@ public class DigitalTwinEngine {
                 
                 count++;
                 if (count % 1000 == 0) {
-                    System.out.println("Imported " + count + " records...");
-        }
+                    log.info("Imported {} records...", count);
+                }
             }
-            
-            System.out.println(" CSV Import Complete. Total: " + count + " records.");
+
+            log.info("CSV Import Complete. Total: {} records.", count);
         } catch (Exception e) {
-            System.err.println(" CSV Import Failed: " + e.getMessage());
-            e.printStackTrace();
+            log.error("CSV Import Failed: {}", e.getMessage(), e);
         }
     }
 }
