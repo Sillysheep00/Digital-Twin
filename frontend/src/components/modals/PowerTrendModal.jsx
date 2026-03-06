@@ -1,5 +1,8 @@
 import ModalWrapper from '../ui/ModalWrapper';
+import InfoTooltip from '../ui/Tooltip';
+import ErrorMessage from '../ui/ErrorMessage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -95,17 +98,14 @@ function PowerTrendModal({
         fullTimestamp: timestamps[actualIndex] || null,
         real: trendData.realPowerHistory ? trendData.realPowerHistory[actualIndex] : null,
         simulated: trendData.simulatedPowerHistory[actualIndex],
+        physics: trendData.simulatedPhysicsPowerHistory ? trendData.simulatedPhysicsPowerHistory[actualIndex] : null,
         predicted: trendData.predictedPowerHistory[actualIndex]
       };
     });
   };
 
   return (
-    <ModalWrapper onClose={() => setShowPowerTrend(false)} title="📈 Power Trends">
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Compare simulated power consumption with ML-calibrated predictions over time
-      </p>
-
+    <ModalWrapper onClose={() => setShowPowerTrend(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TrendingUp size={18} />Power Trends</span>}>
       {/* Window Size Selector */}
       <div style={{ 
         marginBottom: '20px', 
@@ -113,13 +113,16 @@ function PowerTrendModal({
         alignItems: 'center', 
         gap: '10px',
         padding: '10px',
-        background: '#f8f9fa',
+        background: 'rgba(59, 130, 246, 0.1)',
+        border: '1px solid rgba(59, 130, 246, 0.3)',
         borderRadius: '5px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-          <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
-            Analysis Window:
-          </label>
+          <InfoTooltip text="Time range for power trend visualization. Select how far back to display historical data." position="right">
+            <label htmlFor="trend-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
+              Analysis Window:
+            </label>
+          </InfoTooltip>
           <select
             id="trend-window-size-select"
             value={windowSize || 32}
@@ -131,10 +134,11 @@ function PowerTrendModal({
             style={{
               padding: '8px 12px',
               borderRadius: '5px',
-              border: '1px solid #ddd',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
               fontSize: '14px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              background: 'white'
+              background: 'rgba(30, 30, 30, 0.5)',
+              color: '#FFFFFF'
             }}
           >
             {WINDOW_SIZE_OPTIONS.map(option => (
@@ -161,27 +165,39 @@ function PowerTrendModal({
             whiteSpace: 'nowrap'
           }}
         >
-          {isLoading ? '⏳ Loading...' : '🔄 Refresh'}
+          {isLoading ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={16} className="animate-spin" />Loading...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={16} />Refresh
+            </span>
+          )}
         </button>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div style={{
-          padding: '15px',
-          background: '#fee',
-          color: '#c33',
-          borderRadius: '5px',
-          marginBottom: '20px'
-        }}>
-          {error}
-        </div>
+        <ErrorMessage
+          type="critical"
+          title="DATA LOAD FAILED"
+          message={error}
+          recovery={[
+            "Ensure backend is running and responsive",
+            "Check if historical data is available",
+            "Try refreshing the data using the Refresh button",
+            "Reduce analysis window size if data is insufficient"
+          ]}
+          onRetry={handleFetchTrends}
+          isRetrying={isLoading}
+        />
       )}
 
       {/* Chart */}
       {trendData && !error && (
-        <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-          <h4 style={{ marginTop: 0 }}>Power Trend Comparison</h4>
+        <div style={{ background: 'rgba(30, 30, 30, 0.5)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+          <h4 style={{ marginTop: 0, color: '#FFFFFF' }}>Power Trend Comparison</h4>
           <p style={{ 
             margin: '0 0 15px 0', 
             fontSize: '12px', 
@@ -228,8 +244,17 @@ function PowerTrendModal({
                 dataKey="simulated" 
                 stroke="#ff6b6b" 
                 strokeWidth={2}
-                name="Simulated Power"
+                name="Simulated Power (Fast Est.)"
                 dot={{ r: 3 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="physics" 
+                stroke="#ff922b" 
+                strokeWidth={2}
+                name="Simulated Power (Physics)"
+                dot={{ r: 3 }}
+                connectNulls={false}
               />
               <Line 
                 type="monotone" 

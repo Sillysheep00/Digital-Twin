@@ -9,7 +9,6 @@ import java.util.List;
  * comparing real power consumption against calibrated simulated power.
  * 
  * Used in the Digital Twin system to identify unusual energy consumption patterns
- * that may indicate equipment malfunction, sensor errors, or unexpected usage.
  */
 public class AnomalyResult {
     
@@ -24,7 +23,8 @@ public class AnomalyResult {
     private List <Integer> timeSteps;
     private List<String> timestamps; // Historical timestamps for chart x-axis
     private List<Double> realPowerHistory; // Historical real(dateset) power
-    private List<Double> simulatedPowerHistory;  // Historical raw simulated power
+    private List<Double> simulatedPowerHistory;  // Historical raw simulated power (fast-estimation)
+    private List<Double> simulatedPhysicsPowerHistory;  // Historical physics-based simulated power
     private List<Double> predictedPowerHistory; // Historical ML-predicted power  
     private List<Double> residuals;            // Historical residuals
     private List<RoomAnomaly> roomAnomalies;  // Per-room anomaly breakdown
@@ -143,6 +143,14 @@ public class AnomalyResult {
 
     public void setSimulatedPowerHistory(List<Double> simulatedPowerHistory) {
         this.simulatedPowerHistory = simulatedPowerHistory;
+    }
+
+    public List<Double> getSimulatedPhysicsPowerHistory() {
+        return simulatedPhysicsPowerHistory;
+    }
+
+    public void setSimulatedPhysicsPowerHistory(List<Double> simulatedPhysicsPowerHistory) {
+        this.simulatedPhysicsPowerHistory = simulatedPhysicsPowerHistory;
     }
     
     public List<Double> getPredictedPowerHistory() {

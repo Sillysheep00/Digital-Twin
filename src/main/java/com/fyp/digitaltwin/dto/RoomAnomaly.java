@@ -10,7 +10,7 @@ public class RoomAnomaly{
     private double threshold;
     private boolean anomalyDetected;
     private String severity; // "NORMAL", "WARNING", "CRITICAL"
-    private String status;   // "🟢 Normal", "🟠 Slight", "🔴 Anomaly"
+    private String status;   // " Normal", " Slight", "Anomaly"
     
     // Default constructor
     public RoomAnomaly() {}

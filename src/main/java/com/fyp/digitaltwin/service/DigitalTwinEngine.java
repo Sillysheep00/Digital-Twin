@@ -8,6 +8,7 @@ import com.fyp.digitaltwin.model.SimulationResult;
 import com.fyp.digitaltwin.repository.SensorDataRepository;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
+import com.fyp.digitaltwin.dto.ModelMetrics;
 import org.eclipse.epsilon.emc.emf.EmfModel;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +64,9 @@ public class DigitalTwinEngine {
     private boolean isCalibrated = false;
 
     private String simulationStartTime = null;
+    
+    // Model metrics storage (for API access)
+    private ModelMetrics modelMetrics;
 
      //Getter for trained regression model (used by anomaly detection)
      public LinearRegressionModel getRegressionModel() {
@@ -77,6 +81,11 @@ public class DigitalTwinEngine {
     //Check if ML model has been trained
     public boolean isCalibrated() {
         return isCalibrated;
+    }
+    
+    // Getter for model metrics (used by API)
+    public ModelMetrics getModelMetrics() {
+        return modelMetrics;
     }
 
     //Initialization
@@ -124,6 +133,21 @@ public class DigitalTwinEngine {
             predictionService.setMlSlope(mlSlope);      
             predictionService.setMlIntercept(mlIntercept); 
             whatIfAnalysisService.setRegressionModel(regressionModel);  // Full ML model for What-If
+            
+            // Store model metrics for API access
+            modelMetrics = new ModelMetrics();
+            modelMetrics.setBaselineRSquared(regressionTrainingService.getBaselineRSquared());
+            modelMetrics.setBaselineRMSE(regressionTrainingService.getBaselineRMSE());
+            modelMetrics.setCalibratedRSquared(regressionModel.getrSquared());
+            modelMetrics.setCalibratedRMSE(regressionModel.getRmse());
+            modelMetrics.setRSquaredDifference(regressionTrainingService.getRSquaredDifference());
+            modelMetrics.setRmseDifference(regressionTrainingService.getRmseDifference());
+            modelMetrics.setRmseImprovementPercent(regressionTrainingService.getRmseImprovementPercent());
+            modelMetrics.setSlope(regressionModel.getSlope());
+            modelMetrics.setIntercept(regressionModel.getIntercept());
+            modelMetrics.setTrainingSize(regressionModel.getTrainingSize());
+            modelMetrics.setTrainedDate(regressionModel.getTrainedDate());
+            modelMetrics.setValid(regressionModel.isValid());
             
             //9.Fast-forward initialization for demo readiness
             fastForwardInitialization(20); // Run 20 steps = 5 hours of simulation
@@ -201,12 +225,13 @@ public class DigitalTwinEngine {
             if (currentData != null) {
                 System.out.println(">> Simulating Step " + currentStepIndex + " | Date: " + currentData.getDate());
 
-                // 3. Run Physics Simulation (hvac.eol)
+                // 3. Run Physics Simulation (hvac.eol) with DATASET temperature
+                // Note: Using historical outdoor temperature for reproducible simulation
                 String physicsLog = modelService.runEolScript(
                     smartOfficeModel, 
                     "hvac.eol", 
                     "HVAC Physics", 
-                    currentData, 
+                    currentData, // Using dataset temperature for consistent physics
                     TIME_STEP_HOURS, 
                     manualOverrides,
                     mlSlope,
@@ -254,6 +279,7 @@ public class DigitalTwinEngine {
             // 3. Extract values
             double realPower = root.path("power").path("real").asDouble();
             double simulatedPower = root.path("power").path("simulated_raw").asDouble();
+            double simulatedPhysicsPower = root.path("power").path("simulated_physics_raw").asDouble();
             double totalEnergy = root.path("energy").path("total").asDouble();
             double outdoorTemp = root.path("environment").path("outdoorTemp").asDouble();
             double avgIndoorTemp = root.path("environment").path("avgIndoorTemp").asDouble();
@@ -269,6 +295,7 @@ public class DigitalTwinEngine {
                 avgIndoorTemp,
                 activeHvacs
             );
+            result.setSimulatedPhysicsPower(simulatedPhysicsPower);
             
             resultRepository.save(result);
             

@@ -1,12 +1,15 @@
 import ModalWrapper from '../ui/ModalWrapper';
 import {LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,ResponsiveContainer} from 'recharts';
+import { BarChart3 } from 'lucide-react';
 
 function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
   if (!show ||!whatIfResult || !whatIfResult.chartData) return null;
 
   return (
     <ModalWrapper onClose={onClose} maxWidth="1100px">
-      <h2 style={{ marginBottom: '10px' }}>📊 Energy Usage Comparison</h2>
+      <h2 style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <BarChart3 size={22} /> Energy Usage Comparison
+      </h2>
      
 
       <p style={{ color: '#666', marginBottom: '5px', fontSize: '14px' }}>

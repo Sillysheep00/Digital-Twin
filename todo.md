@@ -1,11 +1,13 @@
 
 design a clean diagram for Live Twin vs What-If Twin vs Prediction Twin for your report   
 enhance the cost analysis logic so ROI higher than how many percentage then you only recoommedn the user to apply the setting otherwise do not recommend it 
-Fix per room bug: When i adjust the base load in per room control and  it does not display in the result section but all when i change the apply to all room it will display
-The payback period display in this  1 year how many months if less than 1 year display in months
-Power trend graph show two line only 
 Remove 12 hour horizon in whatifanalysis
 
+Week 5-6: Error Messages
+创建ErrorMessage组件
+替换所有error显示
+测试各种error scenarios
+添加recovery建议
 
 Note 
 always run mvn clean compile when make any changes on the .ecore and .smartoffice file
@@ -286,3 +288,193 @@ If the examiner asks “How do you prevent predictions from affecting the live s
 “I use deep cloning at the EMF Resource level. The live digital twin is already a clone of the base model, and every prediction or 
 what-if analysis is run on a further deep-cloned copy. That means each timeline – live, prediction, and scenario – has its own isolated EObject graph.
  There is no shared state, so contamination is structurally impossible.”
+
+
+Dual Simulation Representation: Fast-Estimation vs Physics-Based Power
+The system implements two distinct simulated power representations to balance stability and fidelity. The fast-estimation approach computes a constant average power baseline using statistical averages (e.g., 35% HVAC duty cycle, occupancy-based plug load), which serves as input to the Linear Regression calibration model. This design choice ensures a stable prediction baseline for anomaly detection, as the ML model learns to correct systematic offsets between a consistent estimate and real sensor data. The statistical threshold (Z-score) for anomaly detection benefits from this stability, reducing false positives caused by normal HVAC cycling.
+In parallel, a physics-based simulation tracks the actual HVAC power consumption and plug loads computed by the hvac.eol thermal model, which responds dynamically to temperature errors, comfort zones, and occupancy-driven control logic. This representation provides high-fidelity feedback for What-If analysis and validates that parameter changes (e.g., target temperature, insulation) produce the expected directional impact on energy consumption.
+This dual-layer architecture avoids the trade-off between ML stability and simulation responsiveness. The fast-estimation ensures robust anomaly detection with minimal noise, while the physics-based layer demonstrates the Digital Twin's ability to predict realistic operational behavior under hypothetical scenarios. This separation of concerns aligns with the principle of fitness-for-purpose: each representation serves its intended analytical role without compromising the other.
+
+Viva Defense Script (If Asked):
+Q: "Why do you have two simulated power values? Isn't that redundant?"
+Your Answer:
+"No, they serve different purposes. The fast-estimation is designed for machine learning stability—it provides a consistent input so the Linear Regression model learns a clean mapping from simulation to reality. This makes anomaly detection reliable because the threshold is based on stable residuals.
+The physics-based simulation, on the other hand, reflects the actual thermal dynamics from the HVAC control logic. It responds to temperature setpoints, insulation changes, and occupancy patterns in real-time. This is essential for What-If analysis validation—when a facility manager asks, 'What if I raise the temperature to 25°C?', they need to see realistic HVAC power variation, not a flat average.
+If I had used only the physics-based power for ML training, the model would learn from noisy HVAC cycling, making anomaly detection less reliable. If I had used only the fast-estimation, the What-If analysis wouldn't reflect real operational behavior. The dual approach gives me the best of both worlds."
+Q: "But doesn't training on a constant estimate make your ML model less accurate?"
+Your Answer:
+"The ML model's job is not to simulate physics—it's to calibrate the simulation output to match real building data. The fast-estimation already captures the major energy consumers (HVAC average + plug loads). The Linear Regression learns the systematic scaling and offset between that estimate and reality.
+For example, my model learned a slope of ~X and an intercept of ~Y kW, which corrects for unmodeled constant loads like lighting and equipment. Because the input is stable, the calibration is consistent and interpretable. The R² of ~0.XX and RMSE of ~X kW confirm the model generalizes well despite using a simplified input.
+The physics-based simulation handles the dynamic fidelity, while the ML handles the data-driven correction. It's a classic separation of concerns in hybrid modeling."
+Q: "Why not just use the physics-based power for everything and retrain the ML model?"
+Your Answer:
+"That's a valid alternative, and I considered it. However, retraining on physics-based power introduces two risks:
+The training data would include HVAC cycling noise (ON/OFF states, load factor modulation), which could cause the ML model to overfit to short-term fluctuations rather than learning the systematic bias.
+The anomaly detection threshold would need to be adaptive to HVAC state, which adds complexity and may increase false positives during legitimate HVAC ramp-up periods (e.g., morning warm-up).
+Given the time constraints of this project and the need for demonstrable reliability in anomaly detection, I chose the dual-layer approach. It's architecturally sound, well-justified, and achieves both stability and responsiveness. If I were to extend this work post-submission, training on physics-based power with an adaptive threshold would be an interesting research direction."
+
+
+Layer 1: Fast-Estimation (for ML)
+In json.eol: simulatedTotalPower = estimatedHvacPower + estimatedPlugPower (constant)
+Used for: ML training (RegressionTrainingService) and calibration baseline
+Saved in: SimulationResult.simulatedPower
+Displayed in: Power Trend graph (red line)
+Layer 2: Physics-Based (for simulation)
+In hvac.eol: Actual room.hvac.powerUsage + room.plugLoad computed every timestep
+Used for: Live simulation, What-If energy predictions (via energy meters)
+Saved in: Energy meters (EnergyMeter.energyConsumed)
+Displayed in: What-If energy comparison chart
+
+
+why changing target temperature in what if analysis have no obvious difference in the energy usage and both scenario use the same energy usage most of the time Because in your What‑If the chart is plotting step energy (15‑min kWh) aggregated to hourly points, and target temperature only affects the HVAC part—but most of the time your step energy is dominated by things that don’t change, or the HVAC control saturates / gets overridden. The main reasons (based on your actual code): 
+1) Your energy includes plug/base load, which is unchanged hvac.eol adds energy each step as: totalRoomPower = hvacPower + plugPower plugPower comes from room.baseLoad (and standby ratio when empty) So if plug load is a big portion, changing target temp may only change a small slice → curves look similar.
+
+ 2) Your HVAC power can saturate, so both scenarios consume the same when “fully on” When heating/cooling, hvac.eol computes a loadFactor = gap/2 and then caps it to max 1.0. If the temperature gap is large in both scenarios, both hit 100% loadFactor, so powerUsage is the same; only runtime duration changes slightly (often small visually).
+
+ 3) Night/occupancy logic can override your setpoint Even if you set all HVAC setpoints to 25°C in What‑If, your script can override targetTemp during night/low occupancy (e.g., 22/20/16). That reduces the effective difference across the 24h window. 
+
+ 4) The building may already be near the comfort band HVAC only turns on outside targetTemp ± comfortZone. If the room temps stay inside the band for long periods, HVAC stays off → both scenarios show the same energy (mostly plug load). where should i write this in my report , limitation or design decision
+
+
+
+
+
+Digital twin 
+Digital Twin ≠ 必须用live data
+Digital Twin的定义：
+✅ 有physical asset的virtual model
+✅ 可以模拟行为和预测结果
+✅ 可以run scenarios和analysis
+❌ 不一定要real-time data
+
+Examples:
+NASA的spacecraft digital twin用历史数据做training
+Manufacturing digital twin用recorded sensor logs
+Building digital twin可以用historical data + simulation
+你的系统是digital twin吗？是的，因为：
+✅ 有building的virtual model（EMF .ecore）
+✅ 可以simulate HVAC behavior
+✅ 有What-If Analysis
+✅ 有anomaly detection
+✅ 有predictive capability
+
+
+Power Type详细说明
+1. Real Power (真实功率)
+来源: CSV historical data (May 2018)公式: data.powerConsumption范围: 10-20 kW (typical)
+Use Cases:
+Anomaly Detection: 作为ground truth对比
+Power Trend: 显示历史真实值
+ML Training: 训练线性回归模型的target value
+Limitation: 只有历史数据，不反映当前live weather
+2. Simulated Power - Fast Estimation (快速估算)
+来源: json.eol (lines 21-35)公式:   hvacPower = hvacCount × 5.0 kW × 0.35 (duty cycle)  plugPower = baseLoad (if occupied) or baseLoad × 0.1 (standby)  total = hvacPower + plugPower
+Use Cases:
+ML Model Training: 作为input feature (X)
+快速更新: 不需要运行完整物理模拟
+Dashboard display (之前用这个，现在改用physics-based了)
+Advantages:
+计算速度快
+与ML训练一致
+Limitation:
+不够精确
+不反映实际HVAC状态
+3. Simulated Power - Physics-based (物理模型)
+来源: hvac.eol + json.eol (lines 37-57)公式:  hvacPower = Σ(r.hvac.powerUsage) for all ON HVACs  plugPower = Σ(r.plugLoad) for all rooms  total = hvacPower + plugPower  hvac.eol计算powerUsage考虑:- Heat transfer (Q = U × A × ΔT)- Temperature difference (indoor - outdoor)- HVAC ON/OFF状态- Live outdoor temperature影响
+Use Cases:
+StatusBar "Total Power": 显示当前物理模拟功率
+Energy Modal: 显示room-level真实功率
+Room display: 每个房间的实际功率
+Advantages:
+物理精确
+反映live weather影响
+动态变化 (响应HVAC控制)
+Limitation:
+计算复杂
+需要完整hvac.eol执行
+4. Predicted Power - ML-calibrated (ML校准)
+来源: json.eol (lines 99-112)公式: predictedPower = (FastEstimation × mlSlope) + mlInterceptML模型: Linear Regression (trained on historical data)  mlSlope ≈ 1.0 (learned from training)  mlIntercept ≈ 0.0
+Use Cases:
+Anomaly Detection:
+residual = |realPower - predictedPower|
+Z-score analysis for threshold
+Power Trend Graph: 显示ML预测线
+What-If Analysis: 预测scenario结果
+Advantages:
+结合快速估算和ML精度
+自动校准 (从历史数据学习)
+适合预测和异常检测
+When is it calculated:
+每次simulation step (json.eol执行时)
+使用当前mlSlope和mlIntercept
+
+
+
+Table 5: Live Weather Integration Design
+Aspect	Design Decision	Rationale
+API Provider	OpenWeatherMap API	Free tier, reliable, well-documented
+Location	Fixed coordinates (London: 51.5085, -0.1257)	Consistent testing, matches CSV timezone
+Caching Strategy	10-minute cache	Reduce API calls from 5,760/day to 144/day (97.5% reduction)
+Fallback Mechanism	Automatic switch to CSV historical data	System continues if API fails
+Display Method	Dashboard "LIVE REFERENCE" section	Clear separation from historical simulation
+Simulation Mode	Historical Replay (uses CSV outdoor temp)	Maintains consistency, live temp for display only
+
+Design Decision Summary for Report
+选择Scenario A (Display Only) 的原因:
+Academic Integrity (学术诚信)
+清楚区分historical simulation和live data
+避免混合2018和2026 data造成confusion
+System Consistency (系统一致性)
+ML model trained on historical data
+What-If analysis基于consistent baseline
+Anomaly detection用historical patterns
+Demonstration Value (展示价值)
+证明API integration能力
+显示system扩展性 (可以接入任何external data)
+用户可看到live vs historical对比
+Future Extensibility (未来扩展性)
+架构支持切换到live simulation mode
+只需修改DigitalTwinEngine.simulateStep()
+WeatherService已经ready
+Footer Disclaimer:
+"System operates in Historical Replay Mode. 
+Live weather shown for demonstration of external API integration."
+
+
+Calibration 
+ Producing a correction factor that is applied post-simulation
+ 关键点：
+物理模型不变：hvac.eol 中的热力学系数（U-value, Q = U×A×ΔT）保持原样
+回归是后处理：学习到的 slope 和 intercept 只在模拟完成后应用
+用途是异常检测：不是为了改进模拟精度，而是为了预测"正常情况下真实功率应该是多少"
+为什么这样设计：
+保持物理完整性：不破坏经过验证的物理模型
+可解释性：物理模拟和ML校正分离，便于调试
+灵活性：可以随时重新训练回归模型，不影响物理引擎
+简答：B，回归是后处理校正，不调整物理系数。
+
+How RMSE and R square value is calculated 
+项目	Baseline (未校准)	Calibrated (校准后)
+预测值	yPred = simulatedPower	yPred = slope × simulatedPower + intercept
+残差	realPower - simulatedPower	realPower - (slope × simulatedPower + intercept)
+R²公式	1 - (Σ(real-simulated)² / SS_total)	1 - (Σ(real-predicted_calibrated)² / SS_total)
+RMSE公式	√(Σ(real-simulated)² / n)	√(Σ(real-predicted_calibrated)² / n)
+
+
+ * Why Linear Regression for FYP:
+ * - Simple and explainable (not a black box)
+ * - Qualifies as machine learning (learns from data)
+ * - No external libraries needed (pure Java implementation)
+ * - Provides interpretable coefficients
+ * 
+ * Machine Learning Justification:
+ * - Learns parameters (slope, intercept) from historical data
+ * - Generalizes to predict future power consumption
+ * - Uses statistical optimization (least squares)
+ * - Improves prediction compared to simple averaging
+
+
+ Global exception reason
+ Provides consistent error responses across the API.
+ Best Practice: Centralized exception handling makes the API
+ more maintainable and provides better error messages to clients.

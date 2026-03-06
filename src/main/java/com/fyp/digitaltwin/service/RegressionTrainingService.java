@@ -30,6 +30,13 @@ public class RegressionTrainingService {
     private static final double HVAC_DUTY_CYCLE = 0.35;
     private static final double STANDBY_RATIO = 0.1;
     
+    // Baseline metrics storage (for API access)
+    private double baselineRSquared = 0.0;
+    private double baselineRMSE = 0.0;
+    private double rSquaredDifference = 0.0;
+    private double rmseDifference = 0.0;
+    private double rmseImprovementPercent = 0.0;
+    
     /**
      * Trains a Linear Regression model using historical data.
      * 
@@ -135,6 +142,50 @@ public class RegressionTrainingService {
                                " (1.0 = perfect fit)");
             System.out.println("     - RMSE:          " + String.format("%.4f", rmse) + " kW");
             
+            // STEP 5.5: Calculate Baseline Metrics (NO CALIBRATION)
+            // Baseline prediction: directly use simulatedPower (no slope/intercept adjustment)
+            double ssResidualBaseline = 0.0;
+            for (int i = 0; i < n; i++) {
+                double yTrue = Y.get(i);
+                double yPredBaseline = X.get(i);  // Baseline: simulatedPower directly
+                ssResidualBaseline += Math.pow(yTrue - yPredBaseline, 2);
+            }
+            
+            double rSquaredBaseline = 1.0 - (ssResidualBaseline / ssTotal);
+            double rmseBaseline = Math.sqrt(ssResidualBaseline / n);
+            
+            // Calculate differences
+            double rSquaredDifference = rSquared - rSquaredBaseline;
+            double rmseDifference = rmseBaseline - rmse;  // Positive = improvement (lower RMSE is better)
+            double rmseImprovementPercent = 0.0;
+            if (rmseBaseline > 0) {
+                rmseImprovementPercent = (rmseDifference / rmseBaseline) * 100.0;
+            }
+            
+            // Store baseline metrics for API access
+            this.baselineRSquared = rSquaredBaseline;
+            this.baselineRMSE = rmseBaseline;
+            this.rSquaredDifference = rSquaredDifference;
+            this.rmseDifference = rmseDifference;
+            this.rmseImprovementPercent = rmseImprovementPercent;
+            
+            System.out.println("\n   ===== COMPARISON: BASELINE vs CALIBRATED =====");
+            System.out.println("\n   BASELINE (No Calibration):");
+            System.out.println("     - R² Score:      " + String.format("%.4f", rSquaredBaseline));
+            System.out.println("     - RMSE:          " + String.format("%.4f", rmseBaseline) + " kW");
+            System.out.println("\n   CALIBRATED (With ML Model):");
+            System.out.println("     - R² Score:      " + String.format("%.4f", rSquared));
+            System.out.println("     - RMSE:          " + String.format("%.4f", rmse) + " kW");
+            System.out.println("\n   IMPROVEMENT FROM CALIBRATION:");
+            System.out.println("     - R² Difference:  " + String.format("%.4f", rSquaredDifference) + 
+                               (rSquaredDifference > 0 ? " (improvement)" : " (no improvement)"));
+            System.out.println("     - RMSE Difference: " + String.format("%.4f", rmseDifference) + " kW" +
+                               (rmseDifference > 0 ? " (reduction)" : " (increase)"));
+            if (rmseBaseline > 0) {
+                System.out.println("     - RMSE Improvement: " + String.format("%.2f", rmseImprovementPercent) + "%");
+            }
+            System.out.println("   ================================================\n");
+            
             // STEP 6: Create and Return Trained Model
             LinearRegressionModel trainedModel = new LinearRegressionModel(
                 slope,
@@ -193,6 +244,29 @@ public class RegressionTrainingService {
         double totalCapacity;
         double totalBaseLoad;
         int hvacCount;
+    }
+    
+    /**
+     * Get baseline metrics for API access
+     */
+    public double getBaselineRSquared() {
+        return baselineRSquared;
+    }
+    
+    public double getBaselineRMSE() {
+        return baselineRMSE;
+    }
+    
+    public double getRSquaredDifference() {
+        return rSquaredDifference;
+    }
+    
+    public double getRmseDifference() {
+        return rmseDifference;
+    }
+    
+    public double getRmseImprovementPercent() {
+        return rmseImprovementPercent;
     }
 }
 

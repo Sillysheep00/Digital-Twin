@@ -220,6 +220,7 @@ public class AnomalyDetectionService {
             List<String> timestamps = new ArrayList<>();
             List<Double> realPowerList = new ArrayList<>(); 
             List<Double> simulatedPowerList = new ArrayList<>();
+            List<Double> simulatedPhysicsPowerList = new ArrayList<>();  // NEW: physics-based power
             List<Double> predictedPowerList = new ArrayList<>();
             List<Double> residualsList = new ArrayList<>();
 
@@ -253,9 +254,13 @@ public class AnomalyDetectionService {
 
                 realPowerList.add(Math.round(sr.getRealPower() * 100.0) / 100.0);
  
-                // 1. GET RAW SIMULATED POWER
+                // 1. GET RAW SIMULATED POWER (fast-estimation)
                 double rawSimulated = sr.getSimulatedPower();
                 simulatedPowerList.add(Math.round(rawSimulated * 100.0) / 100.0);
+
+                // 1b. GET PHYSICS-BASED SIMULATED POWER (NEW)
+                double physicsSimulated = sr.getSimulatedPhysicsPower();
+                simulatedPhysicsPowerList.add(Math.round(physicsSimulated * 100.0) / 100.0);
 
                 // 2. CALCULATE ML PREDICTION (Forward Calculation)
                 // predicted = raw * slope + intercept
@@ -272,6 +277,7 @@ public class AnomalyDetectionService {
             result.setTimestamps(timestamps);
             result.setRealPowerHistory(realPowerList);
             result.setSimulatedPowerHistory(simulatedPowerList);
+            result.setSimulatedPhysicsPowerHistory(simulatedPhysicsPowerList);  // NEW
             result.setPredictedPowerHistory(predictedPowerList);
             result.setResiduals(residualsList);
 
@@ -283,6 +289,7 @@ public class AnomalyDetectionService {
             // Initialize empty arrays so frontend doesn't break
             result.setTimeSteps(new ArrayList<>());
             result.setSimulatedPowerHistory(new ArrayList<>());
+            result.setSimulatedPhysicsPowerHistory(new ArrayList<>());  // NEW
             result.setPredictedPowerHistory(new ArrayList<>());
             result.setResiduals(new ArrayList<>());
         }

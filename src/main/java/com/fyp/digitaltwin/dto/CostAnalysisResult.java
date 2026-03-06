@@ -11,19 +11,19 @@ public class CostAnalysisResult {
     private int analysisPeriodHours; // hours
     
     // Monetary savings (calculated)
-    private double dailyCostSaved;      // £/day
-    private double monthlyCostSaved;    // £/month
-    private double annualCostSaved;     // £/year
+    private double dailyCostSaved;      
+    private double monthlyCostSaved;    
+    private double annualCostSaved;     
     private double periodCostSaved;     // £ for analysis period
     
     // ROI metrics (if investment provided)
-    private Double investmentCost;      // £ (optional)
-    private Double paybackPeriodMonths; // months (optional)
-    private Double paybackPeriodYears;  // years (optional)
-    private Double roiPercentage;       // % (optional)
+    private Double investmentCost;      
+    private Double paybackPeriodMonths;
+    private Double paybackPeriodYears;  
+    private Double roiPercentage;      
     
     // Configuration
-    private double electricityTariff;    // £/kWh (UK pricing)
+    private double electricityTariff;  
     
     // Constructors
     public CostAnalysisResult() {}

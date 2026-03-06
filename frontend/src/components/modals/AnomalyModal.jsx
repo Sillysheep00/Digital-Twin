@@ -1,6 +1,9 @@
 import React from 'react';
 import ModalWrapper from '../ui/ModalWrapper';
+import InfoTooltip from '../ui/Tooltip';
+import ErrorMessage from '../ui/ErrorMessage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle, CheckCircle, BarChart3, Building2 } from 'lucide-react';
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -42,11 +45,11 @@ function AnomalyModal({
     const severity = anomalyResult?.severity;
     switch (severity) {
       case 'CRITICAL':
-        return '#fadbd8'; // Light red
+        return 'rgba(231, 76, 60, 0.1)'; // Dark red tint
       case 'WARNING':
-        return '#fef5e7'; // Light orange
+        return 'rgba(243, 156, 18, 0.1)'; // Dark orange tint
       default:
-        return '#d4efdf'; // Light green (NORMAL)
+        return 'rgba(39, 174, 96, 0.1)'; // Dark green tint (NORMAL)
     }
   };
 
@@ -150,10 +153,7 @@ function AnomalyModal({
   };
 
   return (
-    <ModalWrapper onClose={() => setShowAnomaly(false)} title="🚨 ML-Based Anomaly Detection">
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Detect anomalies in energy consumption using machine learning and statistical analysis
-      </p>
+    <ModalWrapper onClose={() => setShowAnomaly(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={18} />ML-Based Anomaly Detection</span>}>
 
       {/* Initial Check Button - Show when no data yet */}
       {(!anomalyResult || anomalyResult.error || !anomalyResult.timeSteps) && (
@@ -173,7 +173,15 @@ function AnomalyModal({
             marginBottom: '20px'
           }}
         >
-          {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+          {isCheckingAnomaly ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={16} className="animate-spin" />Checking...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={16} />Check for Anomalies
+            </span>
+          )}
         </button>
       )}
 
@@ -187,13 +195,16 @@ function AnomalyModal({
             alignItems: 'center', 
             gap: '10px',
             padding: '10px',
-            background: '#f8f9fa',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
             borderRadius: '5px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-              <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                Analysis Window:
-              </label>
+              <InfoTooltip text="Time window for anomaly detection. Larger windows provide more context but may delay detection of recent anomalies." position="right">
+                <label htmlFor="anomaly-window-size-select" style={{ fontWeight: 'bold', fontSize: '14px', color: '#FFFFFF' }}>
+                  Analysis Window:
+                </label>
+              </InfoTooltip>
               <select
                 id="anomaly-window-size-select"
                 name="windowSize"
@@ -203,10 +214,11 @@ function AnomalyModal({
                 style={{
                   padding: '8px 12px',
                   borderRadius: '5px',
-                  border: '1px solid #ddd',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
                   fontSize: '14px',
                   cursor: isCheckingAnomaly ? 'not-allowed' : 'pointer',
-                  background: 'white'
+                  background: 'rgba(30, 30, 30, 0.5)',
+                  color: '#FFFFFF'
                 }}
               >
                 {WINDOW_SIZE_OPTIONS.map(option => (
@@ -232,18 +244,26 @@ function AnomalyModal({
                 opacity: isCheckingAnomaly ? 0.6 : 1,
                 whiteSpace: 'nowrap'
               }}
-            >
-              {isCheckingAnomaly ? '⏳ Checking...' : '🔄 Check for Anomalies'}
+              >
+              {isCheckingAnomaly ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Loader2 size={16} className="animate-spin" />Checking...
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <RefreshCw size={16} />Check for Anomalies
+                </span>
+              )}
             </button>
           </div>
 
           {/* Residual Plot Chart */}
-          <div style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-            <h4 style={{ marginTop: 0 }}>Residuals (Actual − Predicted Power)</h4>
+          <div style={{ background: 'rgba(30, 30, 30, 0.5)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+            <h4 style={{ marginTop: 0, color: '#FFFFFF' }}>Residuals (Actual − Predicted Power)</h4>
             <p style={{ 
               margin: '0 0 15px 0', 
               fontSize: '12px', 
-              color: '#666',
+              color: '#B0B0B0',
               fontStyle: 'italic'
             }}>
               {getTimeRangeSubtitle()}
@@ -299,22 +319,21 @@ function AnomalyModal({
       {/* Room Anomaly Breakdown - Only show if room data exists */}
       {anomalyResult?.roomAnomalies && anomalyResult.roomAnomalies.length > 0 && (
         <div style={{ 
-          background: 'white', 
+          background: 'rgba(30, 30, 30, 0.5)', 
           padding: '15px', 
           borderRadius: '8px', 
           marginBottom: '20px',
-          border: '1px solid #ddd'
+          border: '1px solid rgba(59, 130, 246, 0.3)'
         }}>
-          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#2c3e50' }}>
-            🏢 Room Anomaly Breakdown
+          <h4 style={{ marginTop: 0, marginBottom: '15px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Building2 size={18} /> Room Anomaly Breakdown
           </h4>
           <p style={{ 
             margin: '0 0 15px 0', 
             fontSize: '12px', 
-            color: '#666',
+            color: '#B0B0B0',
             fontStyle: 'italic'
           }}>
-            Residuals calculated by proportionally allocating building power to rooms
           </p>
           
           <div style={{ overflowX: 'auto' }}>
@@ -325,28 +344,33 @@ function AnomalyModal({
             }}>
               <thead>
                 <tr style={{ 
-                  background: '#f5f5f5', 
-                  borderBottom: '2px solid #ddd',
+                  background: 'rgba(59, 130, 246, 0.2)', 
+                  borderBottom: '2px solid #3B82F6',
                   textAlign: 'left'
                 }}>
-                  <th style={{ padding: '10px', fontWeight: 'bold' }}>Room</th>
-                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'right' }}>Residual (kW)</th>
-                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', color: '#FFFFFF' }}>Room</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'right', color: '#FFFFFF' }}>Residual (kW)</th>
+                  <th style={{ padding: '10px', fontWeight: 'bold', textAlign: 'center', color: '#FFFFFF' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {anomalyResult.roomAnomalies.map((room, index) => {
                   const getStatusColor = (status) => {
-                    if (status.includes('🔴')) return '#e74c3c';
-                    if (status.includes('🟠')) return '#f39c12';
+                    if (status.includes('🔴') || status.toLowerCase().includes('critical') || status.toLowerCase().includes('anomaly')) return '#e74c3c';
+                    if (status.includes('🟠') || status.toLowerCase().includes('warning')) return '#f39c12';
                     return '#27ae60';
                   };
                   
+                  const getStatusText = (status) => {
+                    // Remove emoji and get clean text
+                    return status.replace(/🔴|🟠|🟢/g, '').trim();
+                  };
+                  
                   const getRowStyle = (isAnomaly) => ({
-                    borderBottom: '1px solid #eee',
+                    borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
                     cursor: 'pointer',
                     transition: 'background 0.2s',
-                    background: isAnomaly ? '#fff5f5' : 'white'
+                    background: isAnomaly ? 'rgba(255, 107, 107, 0.15)' : 'transparent'
                   });
                   
                   return (
@@ -355,26 +379,26 @@ function AnomalyModal({
                       style={getRowStyle(room.anomalyDetected)}
                       onMouseEnter={(e) => {
                         if (room.anomalyDetected) {
-                          e.currentTarget.style.background = '#ffe5e5';
+                          e.currentTarget.style.background = 'rgba(255, 107, 107, 0.25)';
                         } else {
-                          e.currentTarget.style.background = '#f9f9f9';
+                          e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = room.anomalyDetected ? '#fff5f5' : 'white';
+                        e.currentTarget.style.background = room.anomalyDetected ? 'rgba(255, 107, 107, 0.15)' : 'transparent';
                       }}
                       onClick={() => {
                         console.log('Room clicked:', room.roomName);
                       }}
                     >
-                      <td style={{ padding: '10px', fontWeight: '500' }}>
+                      <td style={{ padding: '10px', fontWeight: '500', color: '#FFFFFF' }}>
                         {room.roomName}
                       </td>
                       <td style={{ 
                         padding: '10px', 
                         textAlign: 'right',
                         fontWeight: room.anomalyDetected ? 'bold' : 'normal',
-                        color: room.anomalyDetected ? '#e74c3c' : '#2c3e50'
+                        color: room.anomalyDetected ? '#ff6b6b' : '#B0B0B0'
                       }}>
                         {room.residual?.toFixed(2) || '0.00'} kW
                       </td>
@@ -384,7 +408,10 @@ function AnomalyModal({
                         fontWeight: 'bold',
                         color: getStatusColor(room.status)
                       }}>
-                        {room.status}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <CircleDot size={14} style={{ fill: getStatusColor(room.status) }} />
+                          {getStatusText(room.status)}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -397,7 +424,8 @@ function AnomalyModal({
           <div style={{ 
             marginTop: '15px', 
             padding: '10px', 
-            background: '#f8f9fa',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
             borderRadius: '4px',
             display: 'flex',
             justifyContent: 'space-around',
@@ -434,17 +462,17 @@ function AnomalyModal({
           <h3
             style={{
               marginTop: 0,
-              color: getBorderColor(),
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
             }}
           >
             {anomalyResult.severity === 'CRITICAL' 
-              ? '⚠️ ANOMALY DETECTED!' 
+              ? <><AlertTriangle size={20} /> ANOMALY DETECTED!</>
               : anomalyResult.severity === 'WARNING'
-              ? '⚠️ WARNING'
-              : '✅ System Normal'}
+              ? <><AlertTriangle size={20} /> WARNING</>
+              : <><CheckCircle size={20} /> System Normal</>}
             <span
               style={{
                 fontSize: '14px',
@@ -468,25 +496,28 @@ function AnomalyModal({
             }}
           >
             {[
-              { label: 'Real Power', value: anomalyResult.realPower, color: '#2c3e50' },
-              { label: 'ML Predicted', value: anomalyResult.calibratedSimulatedPower, color: '#3498db' },
-              { label: 'Residual', value: anomalyResult.residual, color: anomalyResult.anomalyDetected ? '#e74c3c' : '#27ae60', threshold: anomalyResult.threshold }
+              { label: 'Real Power', value: anomalyResult.realPower, color: '#FFFFFF', tooltip: 'Actual power consumption from historical sensor data (ground truth)' },
+              { label: 'ML Predicted', value: anomalyResult.calibratedSimulatedPower, color: '#3498db', tooltip: 'Expected power consumption predicted by ML-calibrated model based on current conditions' },
+              { label: 'Residual', value: anomalyResult.residual, color: anomalyResult.anomalyDetected ? '#e74c3c' : '#27ae60', threshold: anomalyResult.threshold, tooltip: 'Difference between real and predicted power (Real - Predicted). Large residuals indicate anomalies.' }
             ].map((item) => (
               <div
                 key={item.label}
                 style={{
-                  background: 'white',
+                  background: 'rgba(255, 255, 255, 0.05)',
                   padding: '15px',
                   borderRadius: '8px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                <InfoTooltip text={item.tooltip} position="top">
+                  <div style={{ fontSize: '12px', color: '#B0B0B0', marginBottom: '5px' }}>{item.label}</div>
+                </InfoTooltip>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: item.color }}>
                   {item.value?.toFixed(2)} kW
                 </div>
                 {item.threshold && (
-                  <div style={{ fontSize: '11px', color: '#666' }}>
+                  <div style={{ fontSize: '11px', color: '#B0B0B0' }}>
                     (Threshold: {item.threshold?.toFixed(2)} kW)
                   </div>
                 )}
@@ -499,9 +530,11 @@ function AnomalyModal({
             <div
               style={{
                 padding: '15px',
-                background: 'white',
+                background: 'rgba(30, 30, 30, 0.5)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
                 borderRadius: '5px',
                 fontSize: '14px',
+                color: '#FFFFFF',
                 lineHeight: 1.6
               }}
             >
@@ -512,26 +545,28 @@ function AnomalyModal({
 
           {/* Technical Details */}
           <details style={{ marginTop: '15px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 'bold', padding: '10px' }}>
-              📊 Technical Details
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold', padding: '10px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BarChart3 size={16} /> Technical Details
             </summary>
             <div
               style={{
                 padding: '15px',
-                background: 'white',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '5px',
                 marginTop: '10px',
-                fontSize: '13px'
+                fontSize: '13px',
+                color: '#B0B0B0'
               }}
             >
-              <p><strong>Raw Simulated Power:</strong> {anomalyResult.simulatedPower?.toFixed(2)} kW</p>
-              <p><strong>ML-Calibrated Power:</strong> {anomalyResult.calibratedSimulatedPower?.toFixed(2)} kW</p>
-              <p><strong>Detection Method:</strong> Z-Score Statistical Analysis (Rolling Mean + Std)</p>
-              <p><strong>Threshold:</strong> {anomalyResult.threshold?.toFixed(2)} kW (Statistical threshold based on rolling statistics)</p>
-              <p><strong>Minimum Absolute Threshold:</strong> 5 kW (ignores residuals below this)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Raw Simulated Power:</strong> {anomalyResult.simulatedPower?.toFixed(2)} kW</p>
+              <p><strong style={{ color: '#FFFFFF' }}>ML-Calibrated Power:</strong> {anomalyResult.calibratedSimulatedPower?.toFixed(2)} kW</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Detection Method:</strong> Z-Score Statistical Analysis (Rolling Mean + Std)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Threshold:</strong> {anomalyResult.threshold?.toFixed(2)} kW (Statistical threshold based on rolling statistics)</p>
+              <p><strong style={{ color: '#FFFFFF' }}>Minimum Absolute Threshold:</strong> 5 kW (ignores residuals below this)</p>
               {anomalyResult.explanation && anomalyResult.explanation.includes('Z-score') && (
-                <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#666' }}>
-                  <strong>Note:</strong> Detection uses rolling mean and standard deviation of residuals over the last {windowInfo.hours} hours.
+                <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#B0B0B0' }}>
+                  <strong style={{ color: '#FFFFFF' }}>Note:</strong> Detection uses rolling mean and standard deviation of residuals over the last {windowInfo.hours} hours.
                 </p>
               )}
             </div>
@@ -541,20 +576,19 @@ function AnomalyModal({
 
       {/* Error Handling */}
       {anomalyResult && anomalyResult.error && (
-        <div
-          style={{
-            padding: '15px',
-            background: '#f8d7da',
-            border: '1px solid #f5c6cb',
-            borderRadius: '5px',
-            color: '#721c24'
-          }}
-        >
-          <strong>⚠️ Detection Failed</strong>
-          <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
-            {anomalyResult.message || 'Failed to perform anomaly detection'}
-          </p>
-        </div>
+        <ErrorMessage
+          type="critical"
+          title="DETECTION FAILED"
+          message={anomalyResult.message || 'Failed to perform anomaly detection'}
+          recovery={[
+            "Ensure sufficient historical data is available (minimum 8 hours)",
+            "Check if ML model has been trained successfully",
+            "Try reducing the analysis window size",
+            "Verify backend anomaly detection service is running"
+          ]}
+          onRetry={handleAnomalyCheck}
+          isRetrying={isCheckingAnomaly}
+        />
       )}
     </ModalWrapper>
   );

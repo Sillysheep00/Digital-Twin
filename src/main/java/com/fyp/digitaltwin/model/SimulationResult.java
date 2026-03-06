@@ -12,6 +12,7 @@ public class SimulationResult {
     private String timestamp;
     private double realPower;
     private double simulatedPower;
+    private double simulatedPhysicsPower;  
     private double totalEnergy;
     private double outdoorTemp;
     private double avgIndoorTemp;
@@ -41,6 +42,9 @@ public class SimulationResult {
 
     public double getSimulatedPower() { return simulatedPower; }
     public void setSimulatedPower(double simulatedPower) { this.simulatedPower = simulatedPower; }
+
+    public double getSimulatedPhysicsPower() { return simulatedPhysicsPower; }
+    public void setSimulatedPhysicsPower(double simulatedPhysicsPower) { this.simulatedPhysicsPower = simulatedPhysicsPower; }
 
     public double getTotalEnergy() { return totalEnergy; }
     public void setTotalEnergy(double totalEnergy) { this.totalEnergy = totalEnergy; }

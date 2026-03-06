@@ -34,33 +34,54 @@ if (totalBuildingOccupancy > 0) {
 // Total simulated power (fast estimation)
 var simulatedTotalPower = estimatedHvacPower + estimatedPlugPower;
 
-// For room-level display, calculate per-room values
+// ===== NEW: Physics-based power from hvac.eol state =====
+// Sum actual HVAC powerUsage + plugLoad (computed by hvac.eol)
+var physicsHvacPower = 0.0d;
+var physicsPlugPower = 0.0d;
+
 for (r in allRooms) {
-    // HVAC Power (distributed equally among all HVAC systems, not per room)
+    // HVAC power from actual hvac.eol decision
+    if (r.hvac.isDefined() and r.hvac.status == true) {
+        physicsHvacPower = physicsHvacPower + r.hvac.powerUsage;
+    }
+    
+    // Plug power stored by hvac.eol (fallback to baseLoad if not set)
+    if (r.plugLoad.isDefined()) {
+        physicsPlugPower = physicsPlugPower + r.plugLoad;
+    } else {
+        // Fallback: use baseLoad if plugLoad not set
+        physicsPlugPower = physicsPlugPower + r.baseLoad;
+    }
+}
+
+var simulatedPhysicsPower = physicsHvacPower + physicsPlugPower;
+
+// For room-level display, calculate per-room values (physics-based)
+for (r in allRooms) {
+    // HVAC Power from physics simulation (actual hvac.eol state)
     var hvacStatus = "OFF";
     var currentHvacPower = 0.0d;
     var hasHvac = r.hvac.isDefined();
     
     if (hasHvac) {
-        // Distribute HVAC power equally among all HVAC systems
-        currentHvacPower = (hvacCount > 0) ? (estimatedHvacPower / hvacCount) : 0.0d;
-        hvacStatus = "ON";  // Assume ON for display purposes
-    }
-    // Plug Load (occupancy-based, same logic as training but with per-room capacity weighting )
-    var plugLoad = 0.0d;
-    if (totalCapacity > 0 and r.capacity > 0) {
-        var roomShare = r.capacity / totalCapacity;
-        var estOccupancy = totalBuildingOccupancy * roomShare;
-        if (estOccupancy > r.capacity) { estOccupancy = r.capacity; }
-
-        if (estOccupancy > 0) {
-            plugLoad = r.baseLoad;  // Full power when occupied
+        if (r.hvac.status == true) {
+            currentHvacPower = r.hvac.powerUsage;  // Actual physics-based HVAC power
+            hvacStatus = "ON";
         } else {
-            plugLoad = r.baseLoad * STANDBY_RATIO;  // Standby when empty
+            hvacStatus = "OFF";
         }
     }
+    
+    // Plug Load from physics simulation (actual hvac.eol computation)
+    var plugLoad = 0.0d;
+    if (r.plugLoad.isDefined()) {
+        plugLoad = r.plugLoad;  // Use actual plug load from hvac.eol
+    } else {
+        // Fallback: use baseLoad if plugLoad not set
+        plugLoad = r.baseLoad;
+    }
 
-    // Total Current Power for Room
+    // Total Current Power for Room (physics-based)
     var roomCurrentPower = currentHvacPower + plugLoad;
 
     // Accumulated Energy (from Sensor)
@@ -129,6 +150,7 @@ jsonOutput = jsonOutput + '"simulationStartTime": "' + simStartTime + '",' + "\n
 jsonOutput = jsonOutput + '"power": {' + "\n";
 jsonOutput = jsonOutput + '  "real": ' + realPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated_raw": ' + simulatedTotalPower.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "simulated_physics_raw": ' + simulatedPhysicsPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "simulated": ' + calibratedSimulatedPower.format("%.2f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "calibration_factor": ' + mlSlope.format("%.4f") + ',' + "\n";
 jsonOutput = jsonOutput + '  "hvac": ' + estimatedHvacPower.format("%.2f") + ',' + "\n";
@@ -139,6 +161,16 @@ jsonOutput = jsonOutput + "}," + "\n";
 
 jsonOutput = jsonOutput + '"energy": {' + "\n";
 jsonOutput = jsonOutput + '  "total": ' + simulatedEnergyTotal.format("%.2f") + "\n";
+jsonOutput = jsonOutput + "}," + "\n";
+
+jsonOutput = jsonOutput + '"environment": {' + "\n";
+var outdoorTempValue = 0.0d;
+if (simulateData.isDefined()) {
+    outdoorTempValue = simulateData.outdoorTemperature;
+}
+jsonOutput = jsonOutput + '  "outdoorTemp": ' + outdoorTempValue.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "avgIndoorTemp": ' + avgTemp.format("%.2f") + ',' + "\n";
+jsonOutput = jsonOutput + '  "activeHvacs": ' + allHvacs.select(h | h.status == true).size() + "\n";
 jsonOutput = jsonOutput + "}," + "\n";
 
 jsonOutput = jsonOutput + '"comfort": {' + "\n";

@@ -13,18 +13,12 @@ import java.util.Map;
  * Global exception handler for all REST controllers.
  * 
  * Provides consistent error responses across the API.
- * 
- * Best Practice: Centralized exception handling makes the API
- * more maintainable and provides better error messages to clients.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
      * Handles validation errors from @Valid annotations.
-     * 
-     * Example: When @NotNull validation fails, this method
-     * converts the exception into a user-friendly 400 Bad Request response.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(
