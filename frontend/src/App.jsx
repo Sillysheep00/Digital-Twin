@@ -53,6 +53,7 @@ function App() {
   //Power Trend
   const [powerTrendData, setPowerTrendData] = useState(null);
   const [isLoadingPowerTrend, setIsLoadingPowerTrend] = useState(false);
+
   // Anomaly Detection states
   const [anomalyResult, setAnomalyResult] = useState(null);
   const [isCheckingAnomaly, setIsCheckingAnomaly] = useState(false);
@@ -229,7 +230,6 @@ function App() {
 
   const handleAnomalyCheck = async () => {
     setIsCheckingAnomaly(true);
-    setAnomalyResult(null);
     try {
       const response = await axios.get(`http://localhost:8080/api/anomaly?windowSize=${anomalyWindowSize}`);
       setAnomalyResult(response.data);
@@ -244,7 +244,6 @@ function App() {
 
   const handlePowerTrendFetch = async () => {
     setIsLoadingPowerTrend(true);
-    setPowerTrendData(null);
     try {
       const response = await axios.get(`http://localhost:8080/api/anomaly?windowSize=${anomalyWindowSize || 32}`);
       setPowerTrendData(response.data);
@@ -255,6 +254,7 @@ function App() {
       setIsLoadingPowerTrend(false);
     }
   };
+
 
 
   return (

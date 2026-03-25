@@ -12,9 +12,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration Test for Simulation Run
  * 
  * Verifies that the simulation engine is operational end-to-end.
- * 
- * Purpose (for viva):
- * "The digital twin engine is operational end-to-end."
  */
 @SpringBootTest
 @TestPropertySource(properties = {

@@ -35,9 +35,9 @@ public class DeepCloneTest {
      * Test: Deep Clone Isolation - Proves true isolation with no contamination
      * 
      * This test verifies three critical properties:
-     * A. Object identity is different (true deep clone)
+     * A. Object identity is different 
      * B. Data is copied correctly
-     * C. Mutation does NOT leak (most important - proves no contamination)
+     * C. Mutation does NOT leak 
      */
     @Test
     public void testDeepCloneIsolation() throws Exception {
@@ -190,7 +190,7 @@ public class DeepCloneTest {
                     "Room objects should have different identity (not same object)");
         assertNotEquals(originalHvacId, clonedHvacId, 
                     "HVAC objects should have different identity (not same object)");
-        System.out.println("✓ TEST A PASSED: Objects have different identity (true deep clone)");
+        System.out.println("TEST A PASSED: Objects have different identity (true deep clone)");
         
         // TEST B: Data is Copied Correctly
         System.out.println("\n[TEST B] Verifying data is copied correctly...");
@@ -200,7 +200,7 @@ public class DeepCloneTest {
                     "Room currentTemp should be copied correctly");
         assertEquals(originalHvacTarget, clonedHvacTarget, 0.01, 
                     "HVAC targetTemperature should be copied correctly");
-        System.out.println("✓ TEST B PASSED: Data is copied correctly");
+        System.out.println("TEST B PASSED: Data is copied correctly");
         
         // TEST C: Mutation Does NOT Leak (Most Important - Proves No Contamination)
         System.out.println("\n[TEST C] Verifying mutation does NOT leak (no contamination)...");
@@ -254,7 +254,7 @@ public class DeepCloneTest {
         assertEquals(originalHvacTarget, originalHvacTargetAfterMutation, 0.01, 
                     "Original HVAC target should remain unchanged");
         
-        System.out.println("✓ TEST C PASSED: Mutation does NOT leak - no contamination!");
+        System.out.println("TEST C PASSED: Mutation does NOT leak - no contamination!");
         System.out.println("  Original EnergyMeter: " + originalEnergyAfterMutation + " (unchanged)");
         System.out.println("  Cloned EnergyMeter: " + mutatedClonedEnergy + " (mutated)");
         

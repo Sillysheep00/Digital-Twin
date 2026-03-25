@@ -281,7 +281,7 @@ public class CalibrationTest {
     }
 
     /**
-     * Test 6: ML Model idempotency (detailed)
+     * Test 6: ML Model idempotency
      * Purpose: Verify repeatability - training model twice produces stable coefficients
      * 
      * This is a more detailed version of Test 5, focusing specifically on ML model stability.

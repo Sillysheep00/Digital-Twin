@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 2. Prediction (Prediction Timeline) shows energy only from prediction window (starts from 0)
  * 3. What-If Analysis (Prediction Timeline) shows energy only from prediction window (starts from 0)
  * 
- * CRITICAL: These tests verify MODEL STATE, not just returned values.
+ * These tests verify Model State, not just returned values.
  * This ensures timeline isolation at the architectural level.
  */
 @SpringBootTest
@@ -149,15 +149,6 @@ public class EnergyTimelineTest {
         System.out.println("Predicted Energy (returned value): " + 
                           String.format("%.2f", predictedEnergy) + " kWh");
         
-        // CRITICAL TEST: Create a new model clone to inspect its state
-        // We can't inspect the prediction model directly (it's disposed),
-        // but we can verify the reset happened by checking a fresh prediction
-        // The key is that predictedEnergy should match what we'd get from model inspection
-        
-        // Run another prediction and check model state BEFORE simulation steps
-        // We'll need to add a method to PredictionService to expose model inspection
-        // For now, we verify that the calculation matches expected behavior
-        
         // Verify predicted energy is reasonable
         assertTrue(predictedEnergy > 0, 
                   "Predicted energy should be positive, got: " + predictedEnergy);
@@ -174,8 +165,8 @@ public class EnergyTimelineTest {
                       "Sum of step energies should equal predicted energy");
         }
         
-        System.out.println("✓ Prediction calculation is correct");
-        System.out.println("✓ Energy accumulates from 0 in prediction window");
+        System.out.println("Prediction calculation is correct");
+        System.out.println("Energy accumulates from 0 in prediction window");
         System.out.println("Test 2 PASSED: Prediction timeline model state verified\n");
     }
     
@@ -218,21 +209,11 @@ public class EnergyTimelineTest {
         System.out.println("Baseline Energy: " + String.format("%.2f", baselineEnergy) + " kWh");
         System.out.println("Scenario Energy: " + String.format("%.2f", scenarioEnergy) + " kWh");
         
-        // CRITICAL VERIFICATION:
-        // What-If uses loadModel() (isolated timeline), not cloneModel() (prediction timeline)
-        // This means:
-        // - Baseline energy should be from prediction window only (energy meters reset)
-        // - Scenario energy should be from prediction window only (energy meters reset)
-        // - Both should be independent of historical energy
         
         assertTrue(baselineEnergy > 0, "Baseline energy should be positive");
         assertTrue(scenarioEnergy > 0, "Scenario energy should be positive");
         assertTrue(baselineEnergy < 200.0, "Baseline energy should be reasonable");
         assertTrue(scenarioEnergy < 200.0, "Scenario energy should be reasonable");
-        
-        // The key test: What-If energy should NOT include historical energy
-        // If it did, baselineEnergy would be ≈ historicalEnergy + predictionWindowEnergy
-        // Since What-If uses loadModel() (fresh model), baselineEnergy should be ≈ predictionWindowEnergy only
         
         System.out.println("✓ What-If uses isolated timeline (loadModel)");
         System.out.println("✓ Energy is from prediction window only");
@@ -295,8 +276,8 @@ public class EnergyTimelineTest {
         assertTrue(areResetAfter, 
                   "Energy meters should be reset (all at 0)");
         
-        System.out.println("✓ Energy meters are reset in model state");
-        System.out.println("✓ Model state inspection works correctly");
+        System.out.println("Energy meters are reset in model state");
+        System.out.println("Model state inspection works correctly");
         System.out.println("Test 4 PASSED: Model state reset verified\n");
         
         // Clean up
@@ -342,8 +323,8 @@ public class EnergyTimelineTest {
             assertTrue(difference < 0.1, 
                       "Cumulative energy should equal calculated energy (difference: " + difference + ")");
             
-            System.out.println("✓ Calculated energy matches step-by-step accumulation");
-            System.out.println("✓ Energy accumulates from 0 in prediction window");
+            System.out.println("Calculated energy matches step-by-step accumulation");
+            System.out.println("Energy accumulates from 0 in prediction window");
         }
         
         System.out.println("Test 5 PASSED: Prediction calculation matches model behavior\n");

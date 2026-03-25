@@ -28,20 +28,6 @@ public class CalibrationApiTest {
     @Autowired
     private MockMvc mockMvc;
     
-    /**
-     * Test: GET /api/dashboard returns calibrated values
-     * 
-     * Expected Response:
-     * {
-     *   "power": {
-     *     "real": 44.49,
-     *     "simulated_raw": 13.81,
-     *     "simulated": 44.47,
-     *     "calibration_factor": 3.2217,
-     *     ...
-     *   }
-     * }
-     */
     @Test
     public void testDashboardReturnsCalibrationData() throws Exception {
         System.out.println("\n=== API TEST: GET /api/dashboard ===");

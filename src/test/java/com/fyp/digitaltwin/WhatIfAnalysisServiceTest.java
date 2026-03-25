@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Comprehensive API Tests for What-If Analysis Sensitivity and Scalability
  * 
  * Tests single-variable sensitivity, temporal scalability, multi-variable combinations,
  * and investment cost handling to validate system robustness.

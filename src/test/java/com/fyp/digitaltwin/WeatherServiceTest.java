@@ -52,7 +52,7 @@ public class WeatherServiceTest {
         String cacheStatus = weatherService.getCacheStatus();
         System.out.println("Cache status: " + cacheStatus);
         
-        System.out.println("✓ Caching test passed (temperatures match)\n");
+        System.out.println("Caching test passed (temperatures match)\n");
     }
     
     /**
@@ -73,7 +73,7 @@ public class WeatherServiceTest {
         assertTrue(temperature >= -50 && temperature <= 60, 
             "Temperature should be within reasonable range");
         
-        System.out.println("✓ Fallback test passed\n");
+        System.out.println("Fallback test passed\n");
     }
     
     /**
@@ -113,6 +113,6 @@ public class WeatherServiceTest {
         weatherService.getLiveOutdoorTemperature(testDate);
         System.out.println("After fetch: " + weatherService.getCacheStatus());
         
-        System.out.println("✓ Cache status test complete\n");
+        System.out.println("Cache status test complete\n");
     }
 }

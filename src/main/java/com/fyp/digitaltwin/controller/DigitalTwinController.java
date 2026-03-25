@@ -5,6 +5,7 @@ import com.fyp.digitaltwin.dto.WhatIfRequest;
 import com.fyp.digitaltwin.dto.LinearRegressionModel;
 import com.fyp.digitaltwin.service.AnomalyDetectionService;
 import com.fyp.digitaltwin.service.DigitalTwinEngine;
+import com.fyp.digitaltwin.service.RegressionTrainingService;
 import com.fyp.digitaltwin.service.WeatherService;
 import com.fyp.digitaltwin.repository.SimulationResultRepository;
 
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -33,6 +35,9 @@ public class DigitalTwinController {
     
     @Autowired
     private WeatherService weatherService;
+    
+    @Autowired
+    private RegressionTrainingService regressionTrainingService;
     
     @Value("${weather.location.name:Unknown}")
     private String locationName;
@@ -141,6 +146,31 @@ public class DigitalTwinController {
             response.put("message", e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
+    }
+
+    // Endpoint for Residual Distribution Plot
+    // URL: GET http://localhost:8080/api/model/residuals
+    // Returns all residual data points for histogram computation on frontend
+    @GetMapping(value = "/model/residuals", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getResiduals() {
+        List<Map<String, Object>> allResiduals = regressionTrainingService.getResidualData();
+        int total = allResiduals.size();
+
+        // Compute summary stats server-side
+        double rawSum = 0, calSum = 0;
+        for (Map<String, Object> r : allResiduals) {
+            rawSum += ((Number) r.get("rawResidual")).doubleValue();
+            calSum += ((Number) r.get("calibratedResidual")).doubleValue();
+        }
+        double rawMean = total > 0 ? rawSum / total : 0;
+        double calMean = total > 0 ? calSum / total : 0;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("residuals", allResiduals);
+        response.put("totalSamples", total);
+        response.put("rawMean", Math.round(rawMean * 100.0) / 100.0);
+        response.put("calibratedMean", Math.round(calMean * 100.0) / 100.0);
+        return ResponseEntity.ok(response);
     }
 
     // 在 DigitalTwinController.java 中添加

@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 
  * Tests different window sizes (8h, 16h, 24h) and boundary conditions.
  * 
- * Purpose (for viva):
+ * Purpose:
  * "To verify sliding window analysis functionality and robustness against insufficient data."
  */
 @SpringBootTest

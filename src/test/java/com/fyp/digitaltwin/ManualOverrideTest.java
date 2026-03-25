@@ -15,9 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration Test for Manual Override (HVAC Control)
  * 
  * Tests that user control pathways are validated.
- * 
- * Purpose (for viva):
- * "User control pathways are validated."
  */
 @SpringBootTest
 @AutoConfigureMockMvc

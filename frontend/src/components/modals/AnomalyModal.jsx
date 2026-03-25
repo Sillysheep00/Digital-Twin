@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import ModalWrapper from '../ui/ModalWrapper';
 import InfoTooltip from '../ui/Tooltip';
 import ErrorMessage from '../ui/ErrorMessage';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Bar } from 'recharts';
 import { AlertTriangle, Loader2, RefreshCw, CircleDot, Circle, CheckCircle, BarChart3, Building2 } from 'lucide-react';
+
+const NUM_BINS = 28;
+
+function buildHistogram(values, min, max, numBins) {
+  const binWidth = (max - min) / numBins;
+  const bins = Array.from({ length: numBins }, (_, i) => ({
+    binCenter: parseFloat((min + (i + 0.5) * binWidth).toFixed(1)),
+    count: 0,
+  }));
+  for (const v of values) {
+    let idx = Math.floor((v - min) / binWidth);
+    idx = Math.min(Math.max(idx, 0), numBins - 1);
+    bins[idx].count += 1;
+  }
+  return bins;
+}
 
 const WINDOW_SIZE_OPTIONS = [
   { value: 32, label: '8 hours', hours: 8 },
@@ -20,6 +37,43 @@ function AnomalyModal({
   windowSize,
   setWindowSize
 }) {
+
+  const [residualData, setResidualData] = useState(null);
+  const [isLoadingResidual, setIsLoadingResidual] = useState(false);
+
+  useEffect(() => {
+    if (showAnomaly) {
+      fetchResiduals();
+    }
+  }, [showAnomaly]);
+
+  const fetchResiduals = async () => {
+    setIsLoadingResidual(true);
+    try {
+      const res = await axios.get('http://localhost:8080/api/model/residuals');
+      setResidualData(res.data);
+    } catch (e) {
+      setResidualData(null);
+    } finally {
+      setIsLoadingResidual(false);
+    }
+  };
+
+  const histData = useMemo(() => {
+    if (!residualData?.residuals || residualData.residuals.length === 0) return [];
+    const rawVals = residualData.residuals.map(r => r.rawResidual);
+    const calVals = residualData.residuals.map(r => r.calibratedResidual);
+    const allVals = [...rawVals, ...calVals];
+    const gMin = Math.floor(Math.min(...allVals));
+    const gMax = Math.ceil(Math.max(...allVals));
+    const rawBins = buildHistogram(rawVals, gMin, gMax, NUM_BINS);
+    const calBins = buildHistogram(calVals, gMin, gMax, NUM_BINS);
+    return rawBins.map((b, i) => ({
+      binCenter: b.binCenter,
+      rawCount: b.count,
+      calCount: calBins[i].count,
+    }));
+  }, [residualData]);
 
   if (!showAnomaly) return null;
   console.log('Anomaly Result:', anomalyResult);
@@ -590,6 +644,102 @@ function AnomalyModal({
           isRetrying={isCheckingAnomaly}
         />
       )}
+
+      {/* Residual Distribution Section */}
+      <div style={{
+        marginTop: 24,
+        background: 'rgba(20, 20, 35, 0.7)',
+        border: '1px solid rgba(167, 139, 250, 0.3)',
+        borderRadius: 8,
+        padding: 16
+      }}>
+        <h4 style={{ margin: '0 0 12px 0', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BarChart3 size={16} color="#a78bfa" />
+          Residual Distribution — Before vs After ML Calibration
+        </h4>
+
+        {/* Summary stats row */}
+        {!isLoadingResidual && residualData && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+            {[
+              { label: 'Total Samples', value: residualData.totalSamples, unit: '', color: '#a78bfa' },
+              { label: 'Raw Mean Residual', value: residualData.rawMean, unit: ' kW', color: '#f87171', sub: 'Before calibration' },
+              { label: 'Calibrated Mean Residual', value: residualData.calibratedMean, unit: ' kW', color: '#34d399', sub: 'After calibration' },
+            ].map(s => (
+              <div key={s.label} style={{
+                flex: 1, borderRadius: 6, padding: '8px 12px',
+                background: `rgba(${s.color === '#a78bfa' ? '167,139,250' : s.color === '#f87171' ? '248,113,113' : '52,211,153'}, 0.08)`,
+                border: `1px solid rgba(${s.color === '#a78bfa' ? '167,139,250' : s.color === '#f87171' ? '248,113,113' : '52,211,153'}, 0.3)`
+              }}>
+                <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 'bold', color: s.color }}>{s.value}{s.unit}</div>
+                {s.sub && <div style={{ fontSize: 10, color: '#9ca3af' }}>{s.sub}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isLoadingResidual && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9ca3af', padding: 30, justifyContent: 'center' }}>
+            <Loader2 size={16} />Computing distribution...
+          </div>
+        )}
+
+        {!isLoadingResidual && histData.length > 0 && (() => {
+          const rawMean = residualData?.rawMean ?? 0;
+          const calMean = residualData?.calibratedMean ?? 0;
+          const findClosest = (target) =>
+            histData.reduce((p, c) => Math.abs(c.binCenter - target) < Math.abs(p.binCenter - target) ? c : p).binCenter;
+
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={histData} barGap={0} barCategoryGap={0}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis
+                  dataKey="binCenter"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  tickCount={8}
+                  label={{ value: 'Residual (kW)', position: 'insideBottom', offset: -5, fill: '#9ca3af', fontSize: 11 }}
+                  stroke="#555"
+                  tick={{ fill: '#9ca3af', fontSize: 10 }}
+                />
+                <YAxis
+                  label={{ value: 'Frequency', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 11 }}
+                  stroke="#555"
+                  tick={{ fill: '#9ca3af', fontSize: 10 }}
+                />
+                <Tooltip
+                  contentStyle={{ background: '#1e1e1e', border: '1px solid #444', color: '#fff', fontSize: 12 }}
+                  formatter={(val, name) => [`${val} samples`, name]}
+                  labelFormatter={(l) => `Residual ≈ ${l} kW`}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                  formatter={(value) => <span style={{ color: '#ccc' }}>{value}</span>}
+                />
+                <Bar dataKey="rawCount" name="Raw (No Calibration)" fill="rgba(248,113,113,0.45)" stroke="#f87171" strokeWidth={1} isAnimationActive={false} />
+                <Bar dataKey="calCount" name="Calibrated (With ML)" fill="rgba(52,211,153,0.45)" stroke="#34d399" strokeWidth={1} isAnimationActive={false} />
+                {/* x = 0 */}
+                <ReferenceLine x={findClosest(0)} stroke="#ffffff" strokeWidth={2} strokeDasharray="4 2"
+                  label={{ value: 'x=0', position: 'insideTopRight', fill: '#ffffff', fontSize: 10 }} />
+                {/* x = raw mean */}
+                <ReferenceLine x={findClosest(rawMean)} stroke="#f87171" strokeWidth={2} strokeDasharray="5 3"
+                  label={{ value: `raw mean: ${rawMean}kW`, position: 'insideTopLeft', fill: '#f87171', fontSize: 10 }} />
+                {/* x = calibrated mean */}
+                <ReferenceLine x={findClosest(calMean)} stroke="#34d399" strokeWidth={2} strokeDasharray="5 3"
+                  label={{ value: `cal mean: ${calMean}kW`, position: 'insideBottomRight', fill: '#34d399', fontSize: 10 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          );
+        })()}
+
+        {!isLoadingResidual && histData.length === 0 && (
+          <div style={{ padding: 20, textAlign: 'center', color: '#666', fontSize: 13 }}>
+            No residual data. Run the simulation first.
+          </div>
+        )}
+      </div>
     </ModalWrapper>
   );
 }

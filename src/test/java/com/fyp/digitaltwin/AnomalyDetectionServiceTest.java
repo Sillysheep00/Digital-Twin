@@ -582,7 +582,7 @@ public class AnomalyDetectionServiceTest {
         for (RoomAnomaly room : roomAnomalies) {
             assertEquals("NORMAL", room.getSeverity(),
                 "Room " + room.getRoomName() + " should be NORMAL when building is NORMAL");
-            assertEquals("🟢 Normal", room.getStatus(),
+            assertEquals("Normal", room.getStatus(),
                 "Room " + room.getRoomName() + " status should be Normal");
             assertFalse(room.isAnomalyDetected(),
                 "Room " + room.getRoomName() + " should not have anomaly detected");

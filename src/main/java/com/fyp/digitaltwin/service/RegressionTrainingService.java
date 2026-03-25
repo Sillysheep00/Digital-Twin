@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RegressionTrainingService {
@@ -40,6 +43,9 @@ public class RegressionTrainingService {
     private double rSquaredDifference = 0.0;
     private double rmseDifference = 0.0;
     private double rmseImprovementPercent = 0.0;
+    
+    // Residual data storage (for residual plot API)
+    private List<Map<String, Object>> residualData = new ArrayList<>();
     
     /**
      * Trains a Linear Regression model using historical data.
@@ -144,14 +150,32 @@ public class RegressionTrainingService {
             // STEP 5.5: Calculate Baseline Metrics (NO CALIBRATION)
             // Baseline prediction: directly use simulatedPower (no slope/intercept adjustment)
             double ssResidualBaseline = 0.0;
+            double sumRawResidual = 0.0;
+            double sumCalibratedResidual = 0.0;
+            List<Map<String, Object>> newResidualData = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 double yTrue = Y.get(i);
                 double yPredBaseline = X.get(i);  // Baseline: simulatedPower directly
-                ssResidualBaseline += Math.pow(yTrue - yPredBaseline, 2);
+                double yPredCalibrated = slope * X.get(i) + intercept;
+                double rawRes = yTrue - yPredBaseline;
+                double calibratedRes = yTrue - yPredCalibrated;
+                ssResidualBaseline += Math.pow(rawRes, 2);
+                sumRawResidual += rawRes;
+                sumCalibratedResidual += calibratedRes;
+                Map<String, Object> point = new HashMap<>();
+                point.put("index", i + 1);
+                point.put("rawResidual", Math.round(rawRes * 100.0) / 100.0);
+                point.put("calibratedResidual", Math.round(calibratedRes * 100.0) / 100.0);
+                newResidualData.add(point);
             }
+            this.residualData = Collections.unmodifiableList(newResidualData);
             
             double rSquaredBaseline = 1.0 - (ssResidualBaseline / ssTotal);
             double rmseBaseline = Math.sqrt(ssResidualBaseline / n);
+            
+            // Bias: mean residual (positive = underprediction, negative = overprediction)
+            double rawBias = sumRawResidual / n;
+            double calibratedBias = sumCalibratedResidual / n;
             
             // Calculate differences
             double rSquaredDifference = rSquared - rSquaredBaseline;
@@ -168,16 +192,19 @@ public class RegressionTrainingService {
             this.rmseDifference = rmseDifference;
             this.rmseImprovementPercent = rmseImprovementPercent;
             
-            System.out.println("===== COMPARISON: BASELINE vs CALIBRATED =====");
-            log.info("Baseline (No Calibration) - R²: {}, RMSE: {} kW",
-                    String.format("%.4f", rSquaredBaseline), String.format("%.4f", rmseBaseline));
-            log.info("Calibrated (With ML Model) - R²: {}, RMSE: {} kW",
-                    String.format("%.4f", rSquared), String.format("%.4f", rmse));
-            log.info("Improvement - R² diff: {} {}, RMSE diff: {} kW {}",
+            log.info("===== COMPARISON: BASELINE vs CALIBRATED =====");
+            log.info("Baseline (No Calibration) - R²: {}, RMSE: {} kW, Bias: {} kW",
+                    String.format("%.4f", rSquaredBaseline), String.format("%.4f", rmseBaseline),
+                    String.format("%.4f", rawBias));
+            log.info("Calibrated (With ML Model) - R²: {}, RMSE: {} kW, Bias: {} kW",
+                    String.format("%.4f", rSquared), String.format("%.4f", rmse),
+                    String.format("%.4f", calibratedBias));
+            log.info("Improvement - R² diff: {} {}, RMSE diff: {} kW {}, Bias reduction: {} kW",
                     String.format("%.4f", rSquaredDifference),
                     (rSquaredDifference > 0 ? "(improvement)" : "(no improvement)"),
                     String.format("%.4f", rmseDifference),
-                    (rmseDifference > 0 ? "(reduction)" : "(increase)"));
+                    (rmseDifference > 0 ? "(reduction)" : "(increase)"),
+                    String.format("%.4f", Math.abs(rawBias) - Math.abs(calibratedBias)));
             if (rmseBaseline > 0) {
                 log.info("RMSE Improvement: {}%", String.format("%.2f", rmseImprovementPercent));
             }
@@ -260,6 +287,10 @@ public class RegressionTrainingService {
     
     public double getRmseImprovementPercent() {
         return rmseImprovementPercent;
+    }
+    
+    public List<Map<String, Object>> getResidualData() {
+        return residualData;
     }
 }
 
