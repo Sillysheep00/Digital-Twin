@@ -128,13 +128,3 @@ Check that the backend is running on port `8080` and the frontend is configured 
 ### Port already in use
 
 If ports `5173` or `8080` are already occupied, update the relevant configuration before starting the system.
-
-## Limitations
-
-- The system currently uses historical replay rather than full live sensor streaming.
-- Weather data is used as contextual reference and is not directly injected into the historical simulation loop.
-- The implementation represents an analytical Digital Twin prototype rather than a fully bidirectional operational Digital Twin.
-
-## Author
-
-Developed as part of a smart building Digital Twin engineering project focused on energy analysis, anomaly detection, and scenario evaluation.
