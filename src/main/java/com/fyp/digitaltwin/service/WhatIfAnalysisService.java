@@ -19,11 +19,6 @@ import java.time.LocalDateTime;
 
 /**
  * Service responsible for What-If Analysis scenarios.
- * Uses Model-Driven Engineering to test different building parameters
- * and predict their impact on energy consumption.
- * 
- * Now uses Machine Learning (Linear Regression) for predictions.
- * Part of the refactored Service Layer Architecture.
  */
 @Service
 public class WhatIfAnalysisService {
@@ -37,8 +32,8 @@ public class WhatIfAnalysisService {
     private PredictionService predictionService;
     
     /**
-     * Sets the trained ML regression model (called by DigitalTwinEngine).
-     * What-If Analysis delegates（委托） all predictions to PredictionService,
+     * Sets the trained ML regression model 
+     * What-If Analysis delegates all predictions to PredictionService,
      * which uses the calibration factor internally.
      * This method is kept for initialization logging purposes.
      */
@@ -50,7 +45,7 @@ public class WhatIfAnalysisService {
     /**
      * Runs What-If analysis comparing baseline vs modified scenario
      * 
-     * @param changes Map of parameters to change (e.g., {"targetTemp": 21.0, "insulation": 0.03})
+     * @param changes Map of parameters to change
      * @param hours Prediction horizon in hours
      * @return Comparison result with baseline, scenario, savings, and recommendations
      */
@@ -58,7 +53,7 @@ public class WhatIfAnalysisService {
         log.info("=== WHAT-IF ANALYSIS START === Changes: {}, Horizon: {} hours", changes, hours);
         
         try {
-            // STEP 1: Run baseline prediction with current live state (with step data for charting)
+            // 1: Run baseline prediction with current live state (with step data for charting)
             log.info("[1/5] Running baseline prediction...");
             Map<String, Object> baselineDetailed = predictionService.predictFutureEnergyWithSteps(hours);
 
@@ -69,7 +64,7 @@ public class WhatIfAnalysisService {
 
             log.info("Baseline energy: {} kWh", baselineDetailed.get("predictedEnergy"));
             
-            // STEP 1.5: Extract baseline base load BEFORE cloning
+            // 1.5: Extract baseline base load BEFORE cloning
             EmfModel liveModel = predictionService.getLiveModel();
             if (liveModel == null) {
                 throw new IllegalStateException("Live model not available. Please wait for simulation to initialize.");
@@ -94,7 +89,7 @@ public class WhatIfAnalysisService {
             }
 
 
-            // STEP 2: Clone live model for scenario testing
+            // 2: Clone live model for scenario testing
             log.info("[2/5] Cloning live model for scenario...");
             // Pure EMF deep clone - returns Resource, not EmfModel
             Resource clonedResource = modelService.deepCloneModel(liveModel);
@@ -102,12 +97,12 @@ public class WhatIfAnalysisService {
             // Wrap Resource in EmfModel for EOL execution
             EmfModel scenarioModel = modelService.createEmfModelFromResource(clonedResource);
 
-            // STEP 3: Apply changes using EOL model transformation
+            // 3: Apply changes using EOL model transformation
             log.info("[3/5] Applying what-if changes to model...");
             applyChangesToModel(scenarioModel, changes);
 
 
-             // STEP 3.5: Extract scenario values AFTER applying changes (only for changed parameters)
+             // 3.5: Extract scenario values AFTER applying changes (only for changed parameters)
             Map<String, Double> scenarioValues = new HashMap<>();
             if (changes.containsKey("targetTemp")) {
                 double scenarioTargetTemp = extractAverageTargetTemp(scenarioModel);
@@ -130,7 +125,7 @@ public class WhatIfAnalysisService {
             // Debug: Show what changes were applied
             log.info("Changes applied: {}", changes);
 
-            // STEP 4: Run prediction on modified model (with step data for charting)
+            // 4: Run prediction on modified model (with step data for charting)
             log.info("[4/5] Running scenario prediction with ML calibration - slope={}, intercept={}",
                     String.format("%.4f", predictionService.getMlSlope()),
                     String.format("%.4f", predictionService.getMlIntercept()));
@@ -144,7 +139,7 @@ public class WhatIfAnalysisService {
             
             log.info("Scenario energy: {} kWh", scenarioDetailed.get("predictedEnergy"));
 
-            // STEP 5: Calculate savings and prepare results with chart data
+            // 5: Calculate savings and prepare results with chart data
             log.info("[5/5] Calculating savings and building chart data...");
             Map<String, Object> result = calculateSavingsWithChartData(baselineDetailed, scenarioDetailed, changes, hours,investmentCost,baselineValues,scenarioValues);
             
@@ -228,7 +223,6 @@ public class WhatIfAnalysisService {
     
     /**
      * Applies parameter changes to the model using EOL transformation
-     * This is pure Model-Driven Engineering - we transform the model, not the code!
      * 
      * @param model The model to transform
      * @param changes Map of parameters to change
@@ -334,7 +328,7 @@ public class WhatIfAnalysisService {
         double energySaved = baselineEnergy - scenarioEnergy;
         double percentSaved = (energySaved / baselineEnergy) * 100;
         
-        // Cost calculations (assuming $0.15/kWh - configurable in future)
+        // Cost calculations 
         double costSaved = energySaved * 0.15;
         double annualCostSaved = costSaved * (365.0 / (hours / 24.0));
         
@@ -499,10 +493,10 @@ public class WhatIfAnalysisService {
             
             Map<String, Object> dataPoint = new HashMap<>();
 
-             // Always show HH:mm format on x-axis (no dates)
+             // Always show HH:mm format on x-axis
             if (startDateTime != null) {
                 java.time.LocalDateTime hourDateTime = startDateTime.plusHours(hour);
-                // Format: Always HH:mm (14:00, 15:00, etc.)
+                // Format: Always HH:mm 
                 dataPoint.put("timestamp", hourDateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
                 // Store full timestamp for subtitle/caption display
                 if (hour == 0) {

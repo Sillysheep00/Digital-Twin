@@ -14,7 +14,7 @@ public class CostAnalysisResult {
     private double dailyCostSaved;      
     private double monthlyCostSaved;    
     private double annualCostSaved;     
-    private double periodCostSaved;     // £ for analysis period
+    private double periodCostSaved;     
     
     // ROI metrics (if investment provided)
     private Double investmentCost;      
@@ -22,10 +22,8 @@ public class CostAnalysisResult {
     private Double paybackPeriodYears;  
     private Double roiPercentage;      
     
-    // Configuration
     private double electricityTariff;  
     
-    // Constructors
     public CostAnalysisResult() {}
     
     public CostAnalysisResult(double energySaved, int analysisPeriodHours, double electricityTariff) {
@@ -34,7 +32,6 @@ public class CostAnalysisResult {
         this.electricityTariff = electricityTariff;
     }
     
-    // Getters and Setters
     public double getEnergySaved() { return energySaved; }
     public void setEnergySaved(double energySaved) { this.energySaved = energySaved; }
     

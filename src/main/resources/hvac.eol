@@ -33,7 +33,7 @@
     var AC_POWER_COEFFICIENT = 0.3d; // How fast AC cools
 
     // DYNAMIC HEATER LOGIC
-    // We vary power based on time of day for realism and performance
+    // vary power based on time of day for realism and performance
     // 1. Morning Warm-Up (7 AM - 9 AM): Turbo Mode (0.6) to heat up fast
     // 2. Day Time (9 AM - 7 PM): Strong Mode (0.6) to fully reach 22°C in cold weather
     // 3. Night Time: Gentle Mode (0.3) to maintain 16°C setback
@@ -150,7 +150,7 @@
         var comfortZone = defaultComfortZone;
 
         // 1. Night Mode (Occupancy-Based Adaptive Control):
-        //    Smart control adjusts comfort level based on actual occupancy
+        // Smart control adjusts comfort level based on actual occupancy
         var nightModeType = "DAY";
         if (isNightTime) {
             if (estimatedRoomOccupancy >= 5.0) {
@@ -190,7 +190,7 @@
         var roomInsulation = room.insulation; // higher insulation values(u-value)  = worse insulation = more heat loss
         var delta_from_outside = (outdoorTemp - previousTemp) * roomInsulation;
 
-        //Internal Heat Transfer (neighbour rooms) ---
+        //Internal Heat Transfer (neighbour rooms)
         // Heat flows from Hot neighbours -> Cold Room. To prevent washrooms from freezing even without HVAC
         var neighbourHeatTransfer = 0.0d;
         
@@ -375,7 +375,7 @@
         // 1. HVAC Power
         var hvacPower = 0.0d;
         if (room.hvac.isDefined() and room.hvac.status == true) {
-        hvacPower = room.hvac.powerUsage; // room.hvac.powerUsage is the calculated HVAC power (e.g., 2.6 kW)
+        hvacPower = room.hvac.powerUsage; // room.hvac.powerUsage is the calculated HVAC power 
         }
 
         // 2. Base Load in kw (Plug Load)

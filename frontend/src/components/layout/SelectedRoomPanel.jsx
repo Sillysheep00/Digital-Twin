@@ -4,7 +4,7 @@ function SelectedRoomPanel({ selectedRoom, handleControl,activeMode }) {
   if (!selectedRoom) return null;
 
   // Check if room has HVAC system (from backend flag)
-  const hasHvac = selectedRoom.hasHvac !== false; // Default to true if not specified (backward compatibility)
+  const hasHvac = selectedRoom.hasHvac !== false; 
 
   // Default to AUTO if no mode is set
   const currentMode = activeMode || 'AUTO';

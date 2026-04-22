@@ -60,14 +60,14 @@ public class RegressionTrainingService {
         log.info("Training set: First {}% of dataset", (TRAINING_SAMPLE_RATIO * 100));
         
         try {
-            // STEP 1: Extract Building Parameters
+            // 1: Extract Building Parameters
             BuildingParameters params = extractBuildingParameters(model);
             
             log.info("Building Configuration: Capacity={} people, BaseLoad={} kW, HVAC Systems={}",
                     params.totalCapacity, String.format("%.2f", params.totalBaseLoad), params.hvacCount);
             
            
-            // STEP 2: Fetch Training Data
+            // 2: Fetch Training Data
             int trainingSampleSize = (int) (totalDataCount * TRAINING_SAMPLE_RATIO);
             List<SensorData> trainingData = repository.findAll(
                 PageRequest.of(0, trainingSampleSize, Sort.by(Sort.Direction.ASC, "date"))
@@ -75,7 +75,7 @@ public class RegressionTrainingService {
             
             log.info("Loaded {} training samples", trainingData.size());
             
-            // STEP 3: Collect Training Pairs (X, Y)
+            // 3 : Collect Training Pairs (X, Y)
             List<Double> X = new ArrayList<>(); // simulatedPower (independent variable)
             List<Double> Y = new ArrayList<>(); // realPower (dependent variable)
             
@@ -104,7 +104,7 @@ public class RegressionTrainingService {
                 return new LinearRegressionModel();
             }
             
-            // STEP 4: Compute Least Squares Solution (to get optimal parameters)
+            // 4: Compute Least Squares Solution (to get optimal parameters)
             double sumX = 0.0;
             double sumY = 0.0;
             double sumXY = 0.0;
@@ -126,7 +126,7 @@ public class RegressionTrainingService {
             log.info("Learned Parameters - Slope: {}, Intercept: {} kW",
                     String.format("%.4f", slope), String.format("%.4f", intercept));
             
-            // STEP 5: Calculate Model Quality Metrics
+            // 5: Calculate Model Quality Metrics
             // R² (Coefficient of Determination): measures how well model explains variance
             double meanY = sumY / n;
             double ssTotal = 0.0;  // Total sum of squares
@@ -147,7 +147,7 @@ public class RegressionTrainingService {
             log.info("Model Quality Metrics - R²: {} (1.0=perfect fit), RMSE: {} kW",
                     String.format("%.4f", rSquared), String.format("%.4f", rmse));
             
-            // STEP 5.5: Calculate Baseline Metrics (NO CALIBRATION)
+            // 5.5: Calculate Baseline Metrics (No calibration)
             // Baseline prediction: directly use simulatedPower (no slope/intercept adjustment)
             double ssResidualBaseline = 0.0;
             double sumRawResidual = 0.0;
@@ -210,7 +210,7 @@ public class RegressionTrainingService {
             }
             System.out.println("   ================================================\n");
             
-            // STEP 6: Create and Return Trained Model
+            // 6: Create and Return Trained Model
             LinearRegressionModel trainedModel = new LinearRegressionModel(
                 slope,
                 intercept,

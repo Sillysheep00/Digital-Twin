@@ -34,7 +34,7 @@ public class AnomalyDetectionService {
     private SimulationResultRepository resultRepository;
     
     
-    /* 
+    /**
      * @param realPower Actual power consumption from sensors (kW)
      * @param simulatedPower Raw simulated power from physics model (kW)
      * @param regressionModel Trained Linear Regression model (learned from data)
@@ -145,7 +145,7 @@ public class AnomalyDetectionService {
     }
 
     /**
-     * Convenience method: Detect anomaly using current dashboard data and ML model.
+     * Detect anomaly using current dashboard data and ML model.
      * Extracts power values from dashboard JSON and performs ML-based detection.
      * 
      * @param dashboardJson JSON string from dashboard API
@@ -212,7 +212,7 @@ public class AnomalyDetectionService {
         result.setRoomAnomalies(roomAnomalies);
         
         try{
-            //Query recent simulation results ( e.g., last 96 steps =  24 hours)
+            //Query recent simulation results
             List<SimulationResult> recentResults = resultRepository.findAll(Sort.by(Sort.Direction.DESC,"timestamp")
             ).stream().limit(numberOfSteps).sorted(Comparator.comparing(SimulationResult::getTimestamp)).collect(Collectors.toList());
 
@@ -223,7 +223,7 @@ public class AnomalyDetectionService {
             List<String> timestamps = new ArrayList<>();
             List<Double> realPowerList = new ArrayList<>(); 
             List<Double> simulatedPowerList = new ArrayList<>();
-            List<Double> simulatedPhysicsPowerList = new ArrayList<>();  // NEW: physics-based power
+            List<Double> simulatedPhysicsPowerList = new ArrayList<>();
             List<Double> predictedPowerList = new ArrayList<>();
             List<Double> residualsList = new ArrayList<>();
 
@@ -237,7 +237,7 @@ public class AnomalyDetectionService {
                 String timestamp = sr.getTimestamp();
                 if (timestamp != null && !timestamp.isEmpty()) {
                     try {
-                        // Parse timestamp (assuming format like "2025-03-21 14:00:00" or similar)
+                        // Parse timestamp 
                         String[] parts = timestamp.split(" ");
                         if (parts.length > 1) {
                             String timePart = parts[1].substring(0, 5); // Extract "HH:mm"
@@ -257,21 +257,21 @@ public class AnomalyDetectionService {
 
                 realPowerList.add(Math.round(sr.getRealPower() * 100.0) / 100.0);
  
-                // 1. GET RAW SIMULATED POWER (fast-estimation)
+                // 1. Get raw simulated power  (fast-estimation)
                 double rawSimulated = sr.getSimulatedPower();
                 simulatedPowerList.add(Math.round(rawSimulated * 100.0) / 100.0);
 
-                // 1b. GET PHYSICS-BASED SIMULATED POWER (NEW)
+                // Get physics-based simulated power
                 double physicsSimulated = sr.getSimulatedPhysicsPower();
                 simulatedPhysicsPowerList.add(Math.round(physicsSimulated * 100.0) / 100.0);
 
-                // 2. CALCULATE ML PREDICTION (Forward Calculation)
+                // 2. Calculate ML- Prediction (Forward Calculation)
                 // predicted = raw * slope + intercept
                 double predicted = regressionModel.predict(rawSimulated);
                 predictedPowerList.add(Math.round(predicted * 100.0) / 100.0);
     
-                // 3. CALCULATE RESIDUAL
-                // Residual = |Real - Predicted| (Using absolute value is standard for magnitude)
+                // 3. Calculate residual
+                // Residual = |Real - Predicted|
                 double residual = Math.abs(sr.getRealPower() - predicted);
                 residualsList.add(Math.round(residual * 100.0) / 100.0);
             }

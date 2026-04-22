@@ -49,15 +49,12 @@ public class DigitalTwinController {
     }
 
     // Endpoint: http://localhost:8080/api/validate
-    @GetMapping(value = "/validation",produces = MediaType.TEXT_PLAIN_VALUE) //MediaType.TEXT_PLAIN_VALUE mean this api return plain
+    @GetMapping(value = "/validation",produces = MediaType.TEXT_PLAIN_VALUE) //return plain 
     public String getValidation() {
         return engine.getValidationReport();
     }
     // Endpoint: http://localhost:8080/api/dashboard
     @GetMapping(value = "/dashboard", produces = MediaType.APPLICATION_JSON_VALUE) // Tells browser this is JSON
-    /*ResponseEntity is a springboot class that represents a full HTTP response
-      <String> : the type of data in the body in this case a JSON string
-     */
     public ResponseEntity<String> getDashboard(){
         //Get raw JSON string from the engine
         String json = engine.getDashboardData();
@@ -123,7 +120,7 @@ public class DigitalTwinController {
         return ResponseEntity.ok(result);
     }
     
-    // Endpoint for Live Weather Info (Display Only)
+    // Endpoint for Live Weather Info
     // URL: GET http://localhost:8080/api/weather/live
     // Returns current live weather data for dashboard display
     @GetMapping(value = "/weather/live", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -173,7 +170,6 @@ public class DigitalTwinController {
         return ResponseEntity.ok(response);
     }
 
-    // 在 DigitalTwinController.java 中添加
     @GetMapping("/weather/status")
     public ResponseEntity<Map<String, Object>> getWeatherStatus() {
         Map<String, Object> status = new HashMap<>();

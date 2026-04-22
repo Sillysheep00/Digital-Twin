@@ -31,11 +31,8 @@ public class AnomalyResult {
     private Integer windowSize;
     private Double zScore;
     
-    
-    // Default constructor
     public AnomalyResult() {}
     
-    // Full constructor
     public AnomalyResult(boolean anomalyDetected, double realPower, double simulatedPower, 
                         double calibratedSimulatedPower, double residual, double threshold,
                         String severity, String explanation) {
@@ -49,7 +46,6 @@ public class AnomalyResult {
         this.explanation = explanation;
     }
     
-    // Getters and Setters
     public boolean isAnomalyDetected() {
         return anomalyDetected;
     }

@@ -95,7 +95,7 @@ function ErrorMessage({
         {message}
       </p>
 
-      {/* Details (Collapsible) */}
+      {/* Details */}
       {details && (
         <div style={{ marginBottom: '10px' }}>
           <button

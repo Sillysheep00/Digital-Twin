@@ -27,7 +27,7 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
       });
   };
 
-  // Configuration with ORIGINAL BLENDER COORDINATES
+  // Configuration with Original Blender Coordinates
   const roomsConfig = [
     {
       id: "R1", // Meeting Room
@@ -75,7 +75,7 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
     <div style={{ height: '600px', width: '100%' }}>
       <a-scene embedded background="color: #1a1d24">
         
-        {/* LIGHTING - Enhanced Depth with Angled Shadows (Professional "Mid-Day" Look) */}
+        {/* LIGHTING - Enhanced Depth with Angled Shadows */}
         <a-light type="ambient" color="#4a5568" intensity="0.65"></a-light>
         
         {/* Key Light - Main illumination from 2 o'clock position */}
@@ -90,19 +90,19 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
         {/* Accent Point Light - Blue glow from above */}
         <a-light type="point" position="0 6 0" intensity="0.3" color="#3B82F6"></a-light>
         
-        {/* CAMERA WITH CURSOR */}
+        {/* Camera with cursor */}
         <a-entity camera look-controls wasd-controls position="0 5 10">
              <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
         </a-entity>
 
-        {/* 1. STATIC BLUEPRINT (Walls/Floor) */}
+        {/* Static Blueprints (Walls/Floor) */}
         <a-gltf-model
             id="blueprint-scan"
             src="/models/smartoffice.glb" 
             position="0 0 0"
         ></a-gltf-model>
 
-        {/* 2. CLICKABLE ROOM MODELS (Aligned with Blueprint - NO ROTATION WRAPPER) */}
+        {/* Clickable room models (Aligned with blueprints) */}
         {roomsConfig.map((room) => (
              <a-gltf-model
                 key={`room-${room.id}`}
@@ -126,7 +126,6 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
             ></a-gltf-model>
         ))}
 
-        {/* 3. GENERATE INDICATORS (Rotated Wrapper to fix Blender Coordinates) */}
         <a-entity rotation="-90 0 0">
             {roomsConfig.map((room) => {
                 const liveData = getRoomData(room.id);
@@ -134,9 +133,9 @@ const DigitalTwinScene = ({ data, onRoomSelect }) => {
                 // Color Logic for Sensor (Temperature) - Command & Control Style
                 let tempColor = "#0088cc"; // Default Dim Blue
                 if (liveData) {
-                    if (liveData.temp > 24) tempColor = "#ff3838";       // Hot Red
-                    else if (liveData.temp < 18) tempColor = "#4fc3f7"; // Cold Blue
-                    else tempColor = "#51cf66";                          // Good Green
+                    if (liveData.temp > 24) tempColor = "#ff3838";       // Hot :Red
+                    else if (liveData.temp < 18) tempColor = "#4fc3f7"; // Cold :Blue
+                    else tempColor = "#51cf66";                          // Good :Green
                 }
 
                 return (

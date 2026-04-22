@@ -140,8 +140,8 @@ public class CalibrationTest {
      * Purpose: Validate effectiveness of the calibration process (ML model)
      * 
      * Verifies:
-     * - R² (coefficient of determination) is reasonable (> 0.5)
-     * - RMSE (root mean squared error) is positive
+     * - R² is reasonable (> 0.5)
+     * - RMSE is positive
      * - Model coefficients (slope, intercept) are valid
      */
     @Test
@@ -158,11 +158,10 @@ public class CalibrationTest {
         assertTrue(model.getIntercept() >= 0, "Intercept should be non-negative (can be 0)");
         
         // Verify model quality metrics
-        double rSquared = model.getrSquared(); // Note: lowercase 'r' in method name
+        double rSquared = model.getrSquared(); 
         assertTrue(rSquared >= 0 && rSquared <= 1, 
                 "R² should be between 0 and 1, got: " + rSquared);
         // Lower threshold: Training uses fast estimation, so R² may be lower than full simulation
-        // With Option B (consistent fast estimation), R² should improve significantly
         assertTrue(rSquared > 0.0, 
                 "R² should be > 0.0 (training uses fast estimation, not full simulation), got: " + rSquared);
         

@@ -62,8 +62,8 @@ public class DigitalTwinEngine {
     
     // Machine Learning Model fields
     private LinearRegressionModel regressionModel;
-    private double mlSlope = 1.0;      // ML slope (a) - learned regression parameter
-    private double mlIntercept = 0.0;  // ML intercept (b) - learned regression parameter
+    private double mlSlope = 1.0;      
+    private double mlIntercept = 0.0;  
     private boolean isCalibrated = false;
 
     private String simulationStartTime = null;
@@ -129,7 +129,7 @@ public class DigitalTwinEngine {
             predictionService.setMlIntercept(mlIntercept); 
             whatIfAnalysisService.setRegressionModel(regressionModel);  // Full ML model for What-If
             
-            //9.Fast-forward initialization for demo readiness
+            //9.Fast-forward initialization
             fastForwardInitialization(20); // Run 20 steps = 5 hours of simulation
             
             //10.Capture the start time
@@ -233,7 +233,7 @@ public class DigitalTwinEngine {
      // Saves current simulation state to MongoDB for dashboard and analysis
     private void saveSimulationSnapshot(DataRecord currentData) {
         try {
-            // 1. Run json.eol to aggregate the data (Power, Avg Temp, etc.)
+            // 1. Run json.eol to aggregate the data 
             String jsonOutput = modelService.runEolScript(
                 smartOfficeModel, 
                 "json.eol", 
@@ -280,7 +280,7 @@ public class DigitalTwinEngine {
     }
     
     // API Methods called by Controller
-    //Gets live status for dashboard (calls query.eol)
+    // Gets live status for dashboard (calls query.eol)
     public String getLiveStatus() {
         try {
             int reportIndex = Math.max(0, currentStepIndex - 1);

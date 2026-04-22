@@ -17,7 +17,6 @@ public class SensorData {
     private double outdoorTemperature;
     private int occupancy;
 
-    // Constructors
     public SensorData() {}
 
     public SensorData(String date, double powerConsumption, double outdoorTemperature, int occupancy) {
@@ -27,7 +26,6 @@ public class SensorData {
         this.occupancy = occupancy;
     }
 
-    // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 

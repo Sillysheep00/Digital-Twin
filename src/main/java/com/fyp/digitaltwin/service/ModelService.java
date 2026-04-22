@@ -75,7 +75,7 @@ public class ModelService {
 
      /**
      * Deep clones an EMF model by creating a completely isolated Resource and EObject graph.
-     * This ensures no contamination between live simulation and What-If scenarios.
+     * ensures no contamination between live simulation and What-If scenarios.
      * 
      * @param sourceModel The model to clone from
      * @return A deep-cloned model with isolated Resource and EObject graph
@@ -381,7 +381,7 @@ public class ModelService {
     }
     
     // Private Helper Methods
-    //Registers the SmartOffice resource factory for EMF
+    // Registers the SmartOffice resource factory for EMF
     private void registerSmartOfficeResourceFactory() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .putIfAbsent(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());

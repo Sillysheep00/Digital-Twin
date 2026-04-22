@@ -1,4 +1,4 @@
-// Calculation Logic (Fast Estimation - Consistent with Training) ---
+// Calculation Logic (Fast Estimation - Consistent with Training)
 var realPower = 0.0d;
 if (simulateData.isDefined()) { realPower = simulateData.powerConsumption; }
 
@@ -34,7 +34,7 @@ if (totalBuildingOccupancy > 0) {
 // Total simulated power (fast estimation)
 var simulatedTotalPower = estimatedHvacPower + estimatedPlugPower;
 
-// ===== NEW: Physics-based power from hvac.eol state =====
+
 // Sum actual HVAC powerUsage + plugLoad (computed by hvac.eol)
 var physicsHvacPower = 0.0d;
 var physicsPlugPower = 0.0d;

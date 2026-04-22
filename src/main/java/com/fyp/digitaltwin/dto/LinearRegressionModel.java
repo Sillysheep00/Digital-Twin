@@ -10,15 +10,15 @@ package com.fyp.digitaltwin.dto;
 public class LinearRegressionModel {
     
     // Model coefficients learned from training data
-    private double slope;        // 'a' in: y = a*x + b
-    private double intercept;    // 'b' in: y = a*x + b
+    private double slope;       
+    private double intercept;  
     
     // Model quality metrics
     private double rSquared;     // Coefficient of determination (0-1, higher is better)
     private double rmse;         // Root Mean Squared Error (lower is better)
-    private int trainingSize;    // Number of samples used for training
+    private int trainingSize;   
     
-    // Metadata
+  
     private String trainedDate;
     private boolean isValid;
     
@@ -47,7 +47,6 @@ public class LinearRegressionModel {
         return slope * simulatedPower + intercept;
     }
     
-    // Getters and Setters
     
     public double getSlope() {
         return slope;

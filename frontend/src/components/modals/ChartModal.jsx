@@ -45,7 +45,6 @@ function ChartModal({show, whatIfResult, whatIfParams, onClose }) {
             }}
             formatter={(value) => `${value} kWh`}
             labelFormatter={(label) => {
-              // Show full timestamp in tooltip if available
               const dataPoint = whatIfResult.chartData.find(d => d.timestamp === label);
               return dataPoint?.startTime || label;
             }}

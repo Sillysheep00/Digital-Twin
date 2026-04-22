@@ -61,7 +61,7 @@ public class DeepCloneTest {
             "}\n";
         modelService.runSimpleEolScript(originalModel, setupScript);
         
-        // STEP 2: Get objects directly from EMF Resource (Java side) for identity comparison
+        // STEP 2: Get objects directly from EMF Resource for identity comparison
         org.eclipse.emf.ecore.resource.Resource originalResource = originalModel.getResource();
         org.eclipse.emf.ecore.EObject originalRoot = originalResource.getContents().get(0);
         
@@ -133,7 +133,7 @@ public class DeepCloneTest {
         org.eclipse.emf.ecore.resource.Resource clonedResource = modelService.deepCloneModel(originalModel);
         EmfModel clonedModel = modelService.createEmfModelFromResource(clonedResource);
         
-        // STEP 4: Get cloned objects directly from EMF Resource (Java side)
+        // STEP 4: Get cloned objects directly from EMF Resource 
         org.eclipse.emf.ecore.EObject clonedRoot = clonedResource.getContents().get(0);
         org.eclipse.emf.ecore.EObject clonedEnergyMeter = null;
         org.eclipse.emf.ecore.EObject clonedRoom = null;
@@ -202,7 +202,7 @@ public class DeepCloneTest {
                     "HVAC targetTemperature should be copied correctly");
         System.out.println("TEST B PASSED: Data is copied correctly");
         
-        // TEST C: Mutation Does NOT Leak (Most Important - Proves No Contamination)
+        // TEST C: Mutation Does NOT Leak (Proves No Contamination)
         System.out.println("\n[TEST C] Verifying mutation does NOT leak (no contamination)...");
         
         // Mutate cloned model

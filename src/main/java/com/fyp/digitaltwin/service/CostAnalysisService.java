@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CostAnalysisService {
     
-    // UK Electricity Tariff (default: £0.30/kWh - UK average 2024)
+    // Electricity Tariff 
     private static final double DEFAULT_UK_ELECTRICITY_TARIFF = 0.30; // £/kWh
     
     /**

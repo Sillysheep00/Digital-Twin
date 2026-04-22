@@ -8,10 +8,10 @@ import java.util.List;
 
 @Repository
 public interface SensorDataRepository extends MongoRepository<SensorData, String> {
-    // This method allows us to find a record by its timestamp string
+    // find a record by its timestamp string
     SensorData findByDate(String date);
     
-    // We use GreaterThan because we want records *after* the current moment
+    // Get records after the current moment
     List<SensorData> findByDateGreaterThan(String date, Pageable pageable);
 
     // To check if we have data

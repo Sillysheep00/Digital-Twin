@@ -12,10 +12,8 @@ public class RoomAnomaly{
     private String severity; // "NORMAL", "WARNING", "CRITICAL"
     private String status;   // " Normal", " Slight", "Anomaly"
     
-    // Default constructor
     public RoomAnomaly() {}
 
-    // Getters and Setters
     public String getRoomName() { return roomName; }
     public void setRoomName(String roomName) { this.roomName = roomName; }
     

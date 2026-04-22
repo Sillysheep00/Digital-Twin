@@ -1,8 +1,3 @@
-// query.eol - Status Report Generator
-// Purpose: Generates a human-readable status report comparing real vs simulated power
-// Used by: DigitalTwinEngine.getLiveStatus() API endpoint
-// Note: This script reads current model state (does not modify the model)
-
 var TIME_STEP_HOURS = 0.25d; // Time step used in energy calculation
 var targetTemp = 22.0d;
 var comfortZone = 1.0d;
@@ -31,11 +26,11 @@ var simulatedPlugPower = 0.0d;
 
 // 2. Calculate Simulated Power
 for (r in allRooms) {
-    // A. Simulated HVAC Power (Read directly from model attribute)
+    // Simulated HVAC Power (Read directly from model attribute)
     if (r.hvac.isDefined() and r.hvac.status == true) {
         simulatedHvacPower = simulatedHvacPower + r.hvac.powerUsage;
     }
-     // B. Simulated Plug Load (Read directly from model attribute)
+     // Simulated Plug Load (Read directly from model attribute)
     // This ensures consistency with hvac.eol (single source of truth)
     if (r.plugLoad.isDefined()) {
         simulatedPlugPower = simulatedPlugPower + r.plugLoad;
@@ -69,7 +64,7 @@ var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 (" TIMESTEP REPORT: " + simulateData.date).println();
 "----------------------------------------------------------------".println();
 
-// SECTION A: POWER (Instantaneous - The Comparison)
+// POWER (Instantaneous)
 " POWER (Instantaneous)".println();
 ("   Real Load (CSV):             " + realPower.format("%.2f") + " kW").println();
 ("   Simulated Total Load:        " + simulatedTotalPower.format("%.2f") + " kW").println();
@@ -78,10 +73,10 @@ var avgTemp = allRooms.collect(r | r.currentTemp).sum() / allRooms.size();
 var gap = realPower - simulatedTotalPower;
 ("   Gap (Real - Simulated):      " + gap.format("%.2f") + " kW").println();
 
-// SECTION B: ENERGY & COMFORT
+// ENERGY & COMFORT
 " ENERGY & COMFORT".println();
 ("   Avg Indoor Temp:             " + avgTemp.format("%.1f") + " °C").println();
 ("   Active HVACs:                " + allHvacs.select(h | h.status == true).size() + " / " + allHvacs.size()).println();
 ("   Total Simulated Energy:      " + simulatedEnergyTotal.format("%.2f") + " kWh").println();
 
-"".println(); // Empty line for spacing
+"".println(); 

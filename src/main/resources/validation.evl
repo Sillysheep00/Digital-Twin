@@ -91,7 +91,6 @@ context Sensor{
 
 context TemperatureSensor {
     
-    // NEW, MORE SPECIFIC CONSTRAINT
     constraint TypeIsTemperature {
         check: self.sensorType == SensorType#TEMPERATURE
         message: "TemperatureSensor (ID: " + self.sensorID + ") has the wrong type. It should be TEMPERATURE."
@@ -116,8 +115,7 @@ context TemperatureSensor {
 }
 
 context EnergyMeter {
-    
-    // NEW, MORE SPECIFIC CONSTRAINT
+
     constraint TypeIsEnergy {
         check: self.sensorType == SensorType#ENERGY
         message: "EnergyMeter (ID: " + self.sensorID + ") has the wrong type. It should be ENERGY."

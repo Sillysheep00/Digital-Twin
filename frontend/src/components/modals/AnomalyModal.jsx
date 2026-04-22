@@ -128,7 +128,6 @@ function AnomalyModal({
         label: option.label
       };
     }
-    // Fallback: calculate from windowSize if not in predefined options
     const hours = windowSize / 4; // 4 steps per hour (15-min resolution)
     return {
       steps: windowSize,
@@ -151,8 +150,6 @@ function AnomalyModal({
     const startTime = anomalyResult.timestamps[startIndex];
     const endTime = anomalyResult.timestamps[dataLength - 1];
     
-    // Parse dates if available (check if we have full timestamps)
-    // For now, assume timestamps are in HH:mm format
     return `Window: ${windowInfo.hours} hours (${startTime} → ${endTime}) | Resolution: 15 minutes`;
   };
 
@@ -170,7 +167,7 @@ function AnomalyModal({
     if (!timestamp) return '';
     // If timestamp is already in HH:mm format, return as is
     if (timestamp.length >= 5 && timestamp.includes(':')) {
-      return timestamp.substring(0, 5); // "HH:mm"
+      return timestamp.substring(0, 5); 
     }
     return timestamp;
   };
@@ -187,8 +184,6 @@ function AnomalyModal({
     const startIndex = Math.max(0, dataLength - currentWindowSize);
     const timestamps = anomalyResult.timestamps || [];
 
-    // Use threshold from backend (Z-score based) instead of calculating 25%
-    // The backend now provides the correct statistical threshold
     const thresholdValue = anomalyResult.threshold || 0;
   
     return anomalyResult.timeSteps.slice(startIndex).map((step, index) => {
@@ -209,7 +204,7 @@ function AnomalyModal({
   return (
     <ModalWrapper onClose={() => setShowAnomaly(false)} title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={18} />ML-Based Anomaly Detection</span>}>
 
-      {/* Initial Check Button - Show when no data yet */}
+      {/* Initial Check Button*/}
       {(!anomalyResult || anomalyResult.error || !anomalyResult.timeSteps) && (
         <button
           onClick={handleAnomalyCheck}
@@ -239,7 +234,7 @@ function AnomalyModal({
         </button>
       )}
 
-      {/* Window Size Selector and Residual Chart - Show when data is available */}
+      {/* Window Size Selector and Residual Chart*/}
       {anomalyResult && !anomalyResult.error && anomalyResult.timeSteps && (
         <>
           {/* Window Size Selector */}
@@ -370,7 +365,7 @@ function AnomalyModal({
         </>
       )}
 
-      {/* Room Anomaly Breakdown - Only show if room data exists */}
+      {/* Room Anomaly Breakdown */}
       {anomalyResult?.roomAnomalies && anomalyResult.roomAnomalies.length > 0 && (
         <div style={{ 
           background: 'rgba(30, 30, 30, 0.5)', 

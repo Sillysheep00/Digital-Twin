@@ -81,9 +81,9 @@ public class HvacOccupancyControlTest {
         // Create test data
         DataRecord testData = new DataRecord(
             date,
-            50.0,                    // Power consumption (not critical for HVAC logic)
-            15.0,                    // Outdoor temperature
-            buildingOccupancy        // Building occupancy
+            50.0,               
+            15.0,                   
+            buildingOccupancy       
         );
 
         // Run HVAC script
@@ -130,7 +130,7 @@ public class HvacOccupancyControlTest {
         if (isNightTime) {
             // Night Mode (7 PM - 7 AM)
             if (roomOccupancy >= 5.0) {
-                // HIGH OCCUPANCY: Late shift / cleaning crew / event
+                // HIGH OCCUPANCY
                 expectedTarget = 22.0;
                 expectedComfortZone = 2.0;
             } else if (roomOccupancy >= 1.0) {

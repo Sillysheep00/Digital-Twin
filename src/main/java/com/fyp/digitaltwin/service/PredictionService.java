@@ -22,8 +22,6 @@ import java.util.Map;
 /**
  * Service responsible for energy prediction logic.
  * Handles future energy consumption forecasting using the digital twin model.
- * 
- * Part of the refactored Service Layer Architecture.
  */
 @Service
 public class PredictionService {
@@ -44,26 +42,26 @@ public class PredictionService {
     private int currentStepIndex = 0;
     private Map<String, String> manualOverrides = new HashMap<>();
     private EmfModel liveModel = null;
-    private double mlSlope = 1.0;       // ML slope (a) - learned regression parameter
-    private double mlIntercept = 0.0;   // ML intercept (b) - learned regression parameter
+    private double mlSlope = 1.0;     
+    private double mlIntercept = 0.0;  
 
     
-     //Sets the current simulation step index (called by DigitalTwinEngine)
+     //Sets the current simulation step index
     public void setCurrentStepIndex(int stepIndex) {
         this.currentStepIndex = stepIndex;
     }
 
-     //Sets manual overrides (called by DigitalTwinEngine)
+     //Sets manual overrides 
     public void setManualOverrides(Map<String, String> overrides) {
         this.manualOverrides = overrides;
     }
 
-    //Sets the live model for predictions (called by DigitalTwinEngine)
+    //Sets the live model for predictions 
     public void setLiveModel(EmfModel model) {
         this.liveModel = model;
     }
     
-    //Sets the ML slope for predictions (called by DigitalTwinEngine)
+    //Sets the ML slope for predictions 
     public void setMlSlope(double slope) {
         this.mlSlope = slope;
         log.info("PredictionService: ML slope set to {}", String.format("%.4f", slope));
@@ -73,18 +71,18 @@ public class PredictionService {
         return liveModel;
     }
     
-    //Sets the ML intercept for predictions (called by DigitalTwinEngine)
+    //Sets the ML intercept for predictions
     public void setMlIntercept(double intercept) {
         this.mlIntercept = intercept;
         log.info("PredictionService: ML intercept set to {}", String.format("%.4f", intercept));
     }
     
-    //Gets the current ML slope (for debugging and logging)
+    //Gets the current ML slope 
     public double getMlSlope() {
         return mlSlope;
     }
     
-    //Gets the current ML intercept (for debugging and logging)
+    //Gets the current ML intercept 
     public double getMlIntercept() {
         return mlIntercept;
     }

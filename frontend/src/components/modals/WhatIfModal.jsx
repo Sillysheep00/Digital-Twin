@@ -166,7 +166,7 @@ function WhatIfModal({
           {/* Per-Room Mode - Expandable */}
           {baseLoadMode === 'perRoom' && (
             <div>
-              {/* Global Slider (for quick set all) */}
+              {/* Global Slider*/}
               <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(30, 30, 30, 0.5)', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '500', color: '#FFFFFF' }}>Quick Set All Rooms:</span>
@@ -266,7 +266,7 @@ function WhatIfModal({
           </select>
         </div>
       
-        {/* Investment Cost (Optional) */}
+        {/* Investment Cost*/}
         <div style={{ marginBottom: '15px' }}>
           <Tooltip text="Initial cost for implementing the scenario changes (e.g., insulation upgrade, equipment replacement). Used to calculate ROI and payback period." position="right">
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#FFFFFF' }}>

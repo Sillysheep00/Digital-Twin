@@ -47,7 +47,7 @@ function App() {
   const [whatIfResult, setWhatIfResult] = useState(null);
   const [isRunningWhatIf, setIsRunningWhatIf] = useState(false);
 
-  const [baseLoadMode, setBaseLoadMode] = useState('all'); // 'all' or 'perRoom'
+  const [baseLoadMode, setBaseLoadMode] = useState('all'); 
   const [roomBaseLoads, setRoomBaseLoads] = useState({}); // { roomName: value }
 
   //Power Trend
@@ -214,7 +214,7 @@ function App() {
       const response = await axios.post('http://localhost:8080/api/what-if', {
         changes,
         hours: parseInt(whatIfParams.hours),
-        investmentCost: whatIfParams.investmentCost || null  // Add investment cost
+        investmentCost: whatIfParams.investmentCost || null 
       });
       setWhatIfResult(response.data);
     } catch (err) {
@@ -260,7 +260,7 @@ function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', fontFamily: 'Arial', background: '#0B0E14' }}>
       
-      {/* LOADING SCREEN */}
+      {/* Loading Screen */}
       {isLoading && (
         <div style={{
           position: 'absolute',
@@ -305,12 +305,12 @@ function App() {
         </div>
       )}
       
-      {/* FULL SCREEN 3D SCENE */}
+      {/* Full screen 3D Scene */}
       <div style={{ width: '100%', height: 'calc(100% - 60px)', paddingBottom: '60px' }}>
         <DigitalTwinScene data={data} onRoomSelect={setSelectedRoomId} />
       </div>
 
-      {/* TOP LEFT - DASHBOARD & BUTTONS */}
+      {/* TOP LEFT - Dashboard & Buttons */}
       <div style={{ position: 'absolute', top: 15, left: 15, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{
           background: 'rgba(30, 30, 30, 0.95)',
@@ -410,7 +410,7 @@ function App() {
         />
       )}
 
-      {/* TOP RIGHT - SELECTED ROOM PANEL */}
+      {/* TOP RIGHT - Selected room panel */}
       <SelectedRoomPanel selectedRoom={selectedRoom} 
       handleControl={handleControl} 
       activeMode={selectedRoomId ? roomControlModes[selectedRoomId] : null}
@@ -524,7 +524,7 @@ function App() {
   );
 }
 
-// Unified Glass Button Style - Command Center Aesthetic
+//Glass Button Style
 const buttonStyleGlass = (isActive = false) => ({
   padding: '10px 16px',
   borderRadius: 5,

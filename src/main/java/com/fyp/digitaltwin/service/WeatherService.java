@@ -55,7 +55,7 @@ public class WeatherService {
     private Double cachedTemperature = null;
     private LocalDateTime cacheExpiry = null;
     
-    // Constructor
+
     public WeatherService() {
         this.webClient = WebClient.builder().build();
         this.objectMapper = new ObjectMapper();
@@ -135,7 +135,6 @@ public class WeatherService {
         JsonNode root = objectMapper.readTree(response);
         
         // Extract temperature from response
-        // Response structure: { "main": { "temp": 15.5, ... }, ... }
         JsonNode mainNode = root.path("main");
         if (mainNode.isMissingNode()) {
             throw new Exception("Invalid response structure: 'main' node not found");

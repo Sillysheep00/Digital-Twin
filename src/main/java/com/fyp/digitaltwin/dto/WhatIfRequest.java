@@ -19,7 +19,6 @@ public class WhatIfRequest {
     @Min(value = 0 , message = "Investment cost cannot be negative")
     private Double investmentCost;         
 
-    // Constructors
     public WhatIfRequest() {}
 
     public WhatIfRequest(Map<String, Object> changes, int hours) {
@@ -33,7 +32,6 @@ public class WhatIfRequest {
         this.investmentCost = investmentCost;
     }
 
-    // Getters and Setters
     public Map<String, Object> getChanges() {
         return changes;
     }
